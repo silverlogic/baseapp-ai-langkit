@@ -1,0 +1,13 @@
+name: Sonar Actions
+run-name: ${{ github.actor }} is checking ${{ github.ref }} branch 🚀
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  baseapp-ai-langkit:
+    uses: ./.github/workflows/sonar-workflow.yml
+    with:
+      project: baseapp-ai-langkit
+    secrets: inherit
+

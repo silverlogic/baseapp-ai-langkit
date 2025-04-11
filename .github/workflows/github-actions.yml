@@ -1,0 +1,9 @@
+name: GitHub Actions
+run-name: ${{ github.actor }} is checking ${{ github.ref }} branch 🚀
+on: [push, workflow_dispatch]
+jobs:
+  baseapp-ai-langkit:
+    uses: ./.github/workflows/project-workflow.yml
+    with:
+      project: baseapp-ai-langkit
+      app_name: "baseapp_ai_langkit"

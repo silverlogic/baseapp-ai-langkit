@@ -1,0 +1,12 @@
+name: Publish Actions
+run-name: ${{ github.actor }} is checking ${{ github.ref }} branch 🚀
+on:
+  release:
+    types: [published]
+
+jobs:
+  baseapp-ai-langkit:
+    uses: ./.github/workflows/publish-workflow.yml
+    with:
+      project: baseapp-ai-langkit
+    secrets: inherit

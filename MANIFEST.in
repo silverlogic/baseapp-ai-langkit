@@ -3,8 +3,8 @@ include LICENSE
 include requirements.txt
 include *.py
 
-recursive-include apps/baseapp_ai_langkit *.py
-recursive-include apps/baseapp_ai_langkit/templates *
-recursive-include apps/baseapp_ai_langkit/static *
-recursive-include apps/baseapp_ai_langkit/migrations *
-recursive-include apps/baseapp_ai_langkit/locale * 
+recursive-include baseapp_ai_langkit *.py
+recursive-include baseapp_ai_langkit/templates *
+recursive-include baseapp_ai_langkit/static *
+recursive-include baseapp_ai_langkit/migrations *
+recursive-include baseapp_ai_langkit/locale * 
