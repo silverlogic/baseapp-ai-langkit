@@ -4,7 +4,6 @@ __pycache__/
 **/venv
 .DS_Store
 .scannerwork/
-.env
 *.egg-info
 
 # workspace files are user-specific
@@ -15,7 +14,6 @@ __pycache__/
 
 # generated UMLs
 uml-*.*
-.env
 .bash_history
 
 src
