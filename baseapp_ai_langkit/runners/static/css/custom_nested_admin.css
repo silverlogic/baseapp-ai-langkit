@@ -1,0 +1,16 @@
+h2[id*="-state_modifiers-"][id$="-heading"],
+h2[id*="-usage_prompt-"][id$="-heading"] {
+    background-color: var(--darkened-bg);
+    color: var(--body-quiet-color);
+    font-weight: bold;
+    text-transform: unset;
+    font-size: 0.8125rem;
+}
+
+div[id*="-usage_prompt-"] fieldset.module h3 {
+    display: none;
+}
+div[id*="-state_modifiers-"] fieldset.module h3 {
+    background: var(--darkened-bg);
+    color: var(--body-quiet-color);
+}

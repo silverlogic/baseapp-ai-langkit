@@ -1,0 +1,49 @@
+version: "3"
+services:
+  db:
+    image: 'registry.tsl.io/base/postgres:15.3-pgvector_0.8.0'
+    environment:
+      - POSTGRES_DB
+      - POSTGRES_USER
+      - POSTGRES_PASSWORD
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    stdin_open: true
+    tty: true
+    env_file: .env
+    environment:
+      DB_USER: ${POSTGRES_USER}
+      DB_PASS: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+      DB_PORT: '5432'
+      DB_SERVICE: 'db'
+    expose:
+      - '8000'
+    command: >
+      bash -c "python manage.py collectstatic --noinput
+      && python manage.py migrate
+      && python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - '8000:8000'
+    build:
+      context: ./
+      dockerfile: ./Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./:/usr/src/app
+      - public:/usr/src/app/testproject/public
+      - static:/usr/src/app/testproject/static
+
+volumes:
+    db:
+    public:
+    static:
