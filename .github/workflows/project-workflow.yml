@@ -20,9 +20,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: harbor login
-        run: |
-          echo "${{ secrets.HARBOR_TOKEN }}" | docker login registry.tsl.io -u "${{ vars.HARBOR_USERNAME }}" --password-stdin
+      - name: Login to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: registry.tsl.io
+          username: ${{ vars.HARBOR_USERNAME }}
+          password: ${{ secrets.HARBOR_TOKEN }}
 
       - name: docker compose build
         run: docker compose build --build-arg "PYTHON_VERSION=${{ matrix.python-version }}"
