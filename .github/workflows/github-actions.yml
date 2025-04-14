@@ -9,4 +9,3 @@ jobs:
       app_name: "baseapp_ai_langkit"
     secrets:
       HARBOR_TOKEN: ${{ secrets.HARBOR_TOKEN }}
-      PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
