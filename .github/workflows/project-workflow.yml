@@ -23,6 +23,7 @@ jobs:
       - name: test variables
         run: |
           echo "HARBOR_USERNAME: ${{ env.HARBOR_USERNAME }}"
+          echo "HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}"
 
       - name: harbor login
         run: |
