@@ -20,10 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Debug variables
+      - name: Test if token is set
         run: |
-          echo "USERNAME=${{ vars.HARBOR_USERNAME }}"
-          echo "TOKEN SET=${{ secrets.HARBOR_TOKEN != '' }}"
+          if [ -z "${{ secrets.HARBOR_TOKEN }}" ]; then
+            echo "HARBOR_TOKEN not set"
+            exit 1
+          else
+            echo "HARBOR_TOKEN is available ✅"
+          fi
 
       - name: Login to Harbor
         uses: docker/login-action@v3
