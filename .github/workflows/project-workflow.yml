@@ -20,14 +20,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check if HARBOR_TOKEN is available
-        shell: bash
+      - name: Debug variables
         env:
           HARBOR_TOKEN: ${{ secrets.HARBOR_TOKEN }}
+          HARBOR_USERNAME: ${{ vars.HARBOR_USERNAME }}
         run: |
+          echo "USERNAME=$HARBOR_USERNAME"
           if [ -z "$HARBOR_TOKEN" ]; then
             echo "❌ HARBOR_TOKEN is NOT set"
-            exit 1
           else
             echo "✅ HARBOR_TOKEN is available"
           fi
