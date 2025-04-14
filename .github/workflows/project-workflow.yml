@@ -20,13 +20,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Test if token is set
+      - name: Check if HARBOR_TOKEN is available
+        shell: bash
+        env:
+          HARBOR_TOKEN: ${{ secrets.HARBOR_TOKEN }}
         run: |
-          if [ -z "${{ secrets.HARBOR_TOKEN }}" ]; then
-            echo "HARBOR_TOKEN not set"
+          if [ -z "$HARBOR_TOKEN" ]; then
+            echo "❌ HARBOR_TOKEN is NOT set"
             exit 1
           else
-            echo "HARBOR_TOKEN is available ✅"
+            echo "✅ HARBOR_TOKEN is available"
           fi
 
       - name: Login to Harbor
