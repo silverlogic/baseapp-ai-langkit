@@ -22,14 +22,14 @@ jobs:
 
       - name: Debug variables
         env:
-          HARBOR_TOKEN: ${{ secrets.HARBOR_TOKEN }}
+          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
           HARBOR_USERNAME: ${{ vars.HARBOR_USERNAME }}
         run: |
           echo "USERNAME=$HARBOR_USERNAME"
-          if [ -z "$HARBOR_TOKEN" ]; then
-            echo "❌ HARBOR_TOKEN is NOT set"
+          if [ -z "$PYPI_API_TOKEN" ]; then
+            echo "❌ PYPI_API_TOKEN is NOT set"
           else
-            echo "✅ HARBOR_TOKEN is available"
+            echo "✅ PYPI_API_TOKEN is available"
           fi
 
       - name: Login to Harbor
