@@ -9,8 +9,8 @@ class UserFactory(factory.django.DjangoModelFactory):
     last_name = factory.Faker("last_name")
 
     # Dynamically add username if it exists in the model
-    if "username" in get_user_model()._meta.get_fields():
-        username = factory.Faker("user_name")
+    if any(field.name == "username" for field in get_user_model()._meta.get_fields()):
+        username = factory.Sequence(lambda n: f"test_user_{n}")
 
     class Meta:
         model = get_user_model()

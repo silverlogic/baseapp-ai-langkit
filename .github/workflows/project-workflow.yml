@@ -52,8 +52,7 @@ jobs:
 
       - name: pytest
         run: |
-          tests_path="${{ inputs.app_name }}/tests"
-          docker compose exec web pytest ${tests_path}
+          docker compose exec web pytest
 
       - name: docker compose down
         run: docker compose down --volumes --remove-orphans
