@@ -20,6 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: test variables
+        run: |
+          echo "HARBOR_USERNAME: ${{ env.HARBOR_USERNAME }}"
+
       - name: harbor login
         run: |
           echo "${{ secrets.HARBOR_TOKEN }}" | docker login registry.tsl.io -u "${{ env.HARBOR_USERNAME }}" --password-stdin
