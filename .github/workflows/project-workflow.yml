@@ -9,6 +9,9 @@ on:
       app_name:
         required: false
         type: string
+    secrets:
+      HARBOR_TOKEN:
+        required: true
 
 jobs:
   project-workflow:
@@ -22,14 +25,14 @@ jobs:
 
       - name: Debug variables
         env:
-          PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+          HARBOR_TOKEN: ${{ secrets.HARBOR_TOKEN }}
           HARBOR_USERNAME: ${{ vars.HARBOR_USERNAME }}
         run: |
           echo "USERNAME=$HARBOR_USERNAME"
-          if [ -z "$PYPI_API_TOKEN" ]; then
-            echo "❌ PYPI_API_TOKEN is NOT set"
+          if [ -z "$HARBOR_TOKEN" ]; then
+            echo "❌ HARBOR_TOKEN is NOT set"
           else
-            echo "✅ PYPI_API_TOKEN is available"
+            echo "✅ HARBOR_TOKEN is available"
           fi
 
       - name: Login to Harbor
