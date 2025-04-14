@@ -20,15 +20,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: test variables
-        run: |
-          echo "HARBOR_USERNAME: ${{ env.HARBOR_USERNAME }}"
-          echo "HARBOR_USERNAME: ${{ vars.HARBOR_USERNAME }}"
-          echo "HARBOR_USERNAME: ${{ secrets.HARBOR_USERNAME }}"
-
       - name: harbor login
         run: |
-          echo "${{ secrets.HARBOR_TOKEN }}" | docker login registry.tsl.io -u "${{ env.HARBOR_USERNAME }}" --password-stdin
+          echo "${{ secrets.HARBOR_TOKEN }}" | docker login registry.tsl.io -u "${{ vars.HARBOR_USERNAME }}" --password-stdin
 
       - name: docker compose build
         run: docker compose build --build-arg "PYTHON_VERSION=${{ matrix.python-version }}"
