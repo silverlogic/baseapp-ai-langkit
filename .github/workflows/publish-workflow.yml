@@ -26,11 +26,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Build distribution
-        working-directory: ${{ inputs.project }}
         run: python3 setup.py sdist
 
       - name: Publish distribution 📦 to PyPI
         uses: pypa/gh-action-pypi-publish@v1.12.2
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}
-          packages-dir: ${{ inputs.project }}/dist/
+          packages-dir: ./dist/
