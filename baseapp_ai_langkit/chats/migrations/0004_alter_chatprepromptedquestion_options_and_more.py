@@ -37,5 +37,5 @@ class Migration(migrations.Migration):
             ),
             preserve_default=False,
         ),
-        migrations.RunPython(fix_existing_orders),
+        migrations.RunPython(fix_existing_orders, reverse_code=migrations.RunPython.noop),
     ]
