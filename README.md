@@ -1,16 +1,57 @@
-# LLM Chat Backend
+# Baseapp AI Langkit
 
 ## Overview
 
-This document provides a comprehensive overview of the architecture and main functionalities of the LLM Chat Backend system. It is designed to serve as a quick onboarding guide for new developers.
+This document provides a comprehensive overview of the architecture and main functionalities of the baseapp-ai-langkit package. It is designed to serve as a quick onboarding guide for new developers.
 
+## Installing in your project
 
-// TODO: Add the setup guide into the projects.
+1. **Install the Package**:
+    Run the following command to install the `baseapp-ai-langkit` package:
+    ```sh
+    pip install baseapp-ai-langkit
+    ```
 
-// TODO: create a get started.
+2. **Set Up PostgreSQL**:
+    Ensure you are using a PostgreSQL image with the pgvector extension activated. For TSL, you can use the following Docker image:
+    ```sh
+    registry.tsl.io/base/postgres:15.3-pgvector_0.8.0
+    ```
 
-// TODO: required ENV VARS
+3. **Environment Variables**:
+    The package requires an OpenAI API key to function properly. This key is essential for the default dummy bot and will also be used by any custom bots you create that leverage OpenAI's language models:
+    ```sh
+    export OPENAI_API_KEY=your_openai_key
+    ```
 
+## Get Started
+
+// TODO: create a get started guide.
+
+## Package Maintenance
+
+This section provides guidance on maintaining the `baseapp-ai-langkit` package.
+
+### Development Environment Setup
+
+1. **Clone the Repository**:
+    ```sh
+    git clone <repository-url>
+    cd baseapp-ai-langkit
+    ```
+
+2. **Run docker**:
+    You will need to sign in to the TSL harbor account or change the postgres Docker image to another image with the pgvector extension activated.
+    ```sh
+    docker compose up
+    ```
+
+3. **Environment Configuration**:
+    Create a `.env` file with the necessary environment variables, including `OPENAI_API_KEY` (if you want to run the dummy bot).
+
+### Testing
+
+Run tests using pytest: `docker compose exec web pytest`
 
 ## Architecture
 
@@ -76,7 +117,7 @@ Here is an example of how to extend and customize a `ViewSet`:
 
 ## Creating Custom Components for Client Projects
 
-In this section, we will guide you through the process of creating custom agents, workers, tools, workflows, and runners for client-specific projects. Each client project should start by creating a separate app, such as `baseapp_ai_langkit_camp`, to customize and utilize these functionalities. It is essential to adhere to the architecture provided in the `baseapp_ai_langkit` app. For instance, if you want to create a new agent, it must be placed inside the `base/agents` directory. Following the original structure ensures consistency and compatibility across different components.
+In this section, we will guide you through the process of creating custom agents, workers, tools, workflows, and runners for client-specific projects. Each client project should start by creating a separate app, such as `baseapp_ai_langkit_PROJ`, to customize and utilize these functionalities. It is essential to adhere to the architecture provided in the `baseapp_ai_langkit` app. For instance, if you want to create a new agent, it must be placed inside the `base/agents` directory. Following the original structure ensures consistency and compatibility across different components.
 
 ### Step-by-Step Guide
 

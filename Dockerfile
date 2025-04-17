@@ -1,15 +1,9 @@
-ARG PYTHON_VERSION=3.11.6
-FROM python:${PYTHON_VERSION}-bookworm
+FROM registry.tsl.io/base/base-django:3.11.0 AS base
 
+FROM base AS baseos
+# set environment variables
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
-ENV DEBIAN_FRONTEND noninteractive
-
-RUN apt-get update -qq 
-RUN apt-get install -y libjpeg62-turbo libjpeg62-turbo-dev libfreetype6 libfreetype6-dev zlib1g-dev
-RUN apt-get install -y libgeos-dev libgeos3.11.1 libgeos-c1v5 gdal-bin gettext
-RUN apt-get install -y proj-bin libproj-dev libproj25
-RUN apt-get install -y locales -qq
 
 RUN mkdir -p /usr/src/app
 
