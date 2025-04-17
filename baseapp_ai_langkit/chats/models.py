@@ -60,8 +60,7 @@ class ChatIdentity(TimeStampedModel):
                 func="""
                 BEGIN
                     IF NEW.is_active THEN
-                        UPDATE baseapp_ai_langkit_chats_chatidentity SET is_active = FALSE
-                            WHERE id <> NEW.id AND is_active = TRUE;
+                        UPDATE baseapp_ai_langkit_chats_chatidentity SET is_active = FALSE WHERE id <> NEW.id AND is_active = TRUE;
                     END IF;
                     RETURN NEW;
                 END;
