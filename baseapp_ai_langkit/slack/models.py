@@ -21,7 +21,7 @@ class SlackEvent(TimeStampedModel):
     status = models.CharField(max_length=21, choices=STATUS, default=STATUS.pending)
 
     def __str__(self):
-        return f"{self.id} - {self.status} - Updated at: {self.updated}"
+        return f"{self.id} - {self.status} - Modified at: {self.modified}"
 
 
 class SlackAIChat(TimeStampedModel):
@@ -42,7 +42,7 @@ class SlackAIChat(TimeStampedModel):
     )
 
     def __str__(self):
-        return f"{self.id} - Celery Task ID: {self.celery_task_id} - Chat session: {self.chat.id} - Slack event: {self.slack_event.id} - Updated at: {self.updated}"
+        return f"{self.id} - Celery Task ID: {self.celery_task_id} - Chat session: {self.chat_session.id} - Slack event: {self.slack_event.id} - Modified at: {self.modified}"
 
     @property
     def is_celery_task_processing(self) -> bool:
@@ -56,3 +56,7 @@ class SlackAIChat(TimeStampedModel):
         if isinstance(result.backend, DisabledBackend):
             return False
         return not result.ready()
+
+    class Meta:
+        verbose_name = "Slack AI Chat"
+        verbose_name_plural = "Slack AI Chats"

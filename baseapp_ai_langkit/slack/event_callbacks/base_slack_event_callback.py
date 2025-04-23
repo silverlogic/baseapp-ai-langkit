@@ -16,6 +16,7 @@ class BaseSlackEventCallback(ABC):
     event_data: dict
     event_type: str
 
+    # TODO: Add SkipException. It will delete the slack event.
     class WarningException(Exception):
         """
         Non important exception that should just be logged as a warning

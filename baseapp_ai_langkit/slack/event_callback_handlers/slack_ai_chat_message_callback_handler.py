@@ -16,11 +16,6 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
         self._verify_if_is_channel_type_and_is_in_thread()
 
         channel_type: str = self.event_data["channel_type"]  # channel or im
-        event_user: str = self.event_data["user"]
-        user, _ = self.slack_instance_controller.get_or_create_user_from_slack_user(
-            slack_user_id=event_user
-        )
-
         event_channel: str = self.event_data["channel"]
         event_thread_ts: str = (
             self.event_data["thread_ts"] if "thread_ts" in self.event_data else None
@@ -36,6 +31,9 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
                     event_channel=event_channel, event_thread_ts=event_thread_ts
                 )
             else:
+                user, _ = self.slack_instance_controller.get_or_create_user_from_slack_user(
+                    slack_user_id=self.event_data["user"]
+                )
                 self.create_new_slack_chat(user=user)
 
         if self.slack_chat is None:

@@ -8,13 +8,16 @@ from baseapp_ai_langkit.chats.models import ChatMessage
 from baseapp_ai_langkit.chats.rest_framework.serializers import ChatMessageSerializer
 from baseapp_ai_langkit.slack.interfaces.slack_chat_runner import BaseSlackChatInterface
 from baseapp_ai_langkit.slack.models import SlackAIChat
-from baseapp_ai_langkit.slack.runners.slack_dummy_runner import SlackDummyRunner
 from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
 
 logger = logging.getLogger(__name__)
 
 
 class SlackAIChatController:
+    """
+    This class is responsible for connecting the Slack event with the desired LLM model.
+    """
+
     slack_chat: SlackAIChat
     slack_message_text: str
     slack_instance_controller: SlackInstanceController
@@ -47,7 +50,14 @@ class SlackAIChatController:
         """
         Override this method to change the runner.
         It must retrieve an implementation of BaseSlackChatInterface.
+
+        Note:
+        To avoid the dummy runner to be loaded, it's imported inside of the method.
+        When using the actual runner, it's important to import it outside of the method so it can
+        get registered in the Django admin.
         """
+        from baseapp_ai_langkit.slack.runners.slack_dummy_runner import SlackDummyRunner
+
         return SlackDummyRunner
 
     def collect_slack_context(self) -> dict:
