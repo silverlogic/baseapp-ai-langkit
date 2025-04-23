@@ -18,7 +18,7 @@ class SlackEvent(TimeStampedModel):
         ("failed", "Failed"),
     )
     data = models.JSONField(null=False, blank=False, default=None)
-    status = models.CharField(max_length=10, choices=STATUS, default=STATUS.pending)
+    status = models.CharField(max_length=21, choices=STATUS, default=STATUS.pending)
 
     def __str__(self):
         return f"{self.id} - {self.status} - Updated at: {self.updated}"

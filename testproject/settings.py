@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "baseapp_ai_langkit.runners",
     "baseapp_ai_langkit.tools",
     "baseapp_ai_langkit.vector_stores",
+    "baseapp_ai_langkit.slack",
 ]
 
 MIDDLEWARE = [
@@ -133,8 +134,6 @@ USE_L10N = True
 USE_TZ = True
 
 # Celery
-CELERY_BROKER_URL = "memory:///"
-CELERY_RESULT_BACKEND = "cache+memory:///"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
