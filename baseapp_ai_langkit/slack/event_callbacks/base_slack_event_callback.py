@@ -1,5 +1,4 @@
 import logging
-from abc import ABC
 
 from baseapp_ai_langkit.slack.models import SlackEvent
 from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
@@ -7,7 +6,7 @@ from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceCont
 logger = logging.getLogger(__name__)
 
 
-class BaseSlackEventCallback(ABC):
+class BaseSlackEventCallback:
     slack_event: SlackEvent
     slack_instance_controller: SlackInstanceController
 

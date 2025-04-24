@@ -2,7 +2,6 @@ import logging
 
 from celery.result import AsyncResult
 
-from baseapp_ai_langkit.slack import tasks
 from baseapp_ai_langkit.slack.event_callback_handlers.base_slack_ai_chat_event_callback_handler import (
     BaseSlackAIChatEventCallbackHandler,
 )
@@ -39,6 +38,9 @@ class SlackAIChatEventCallback(BaseSlackEventCallback):
     def apply_process_incoming_user_slack_message_task(
         self, handler: BaseSlackAIChatEventCallbackHandler
     ):
+        # The import bellow avoid circular import, since this class is used by other tasks.
+        from baseapp_ai_langkit.slack import tasks
+
         slack_chat = handler.get_slack_chat()
         event_text = handler.get_event_text()
         result: AsyncResult = tasks.slack_process_incoming_user_slack_message.apply_async(

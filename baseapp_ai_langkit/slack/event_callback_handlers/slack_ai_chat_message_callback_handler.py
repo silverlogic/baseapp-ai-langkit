@@ -1,3 +1,5 @@
+from django.utils.translation import gettext_lazy as _
+
 from baseapp_ai_langkit.slack.event_callback_handlers.base_slack_ai_chat_event_callback_handler import (
     BaseSlackAIChatEventCallbackHandler,
 )
@@ -31,7 +33,7 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
                     event_channel=event_channel, event_thread_ts=event_thread_ts
                 )
             else:
-                user, _ = self.slack_instance_controller.get_or_create_user_from_slack_user(
+                user, created = self.slack_instance_controller.get_or_create_user_from_slack_user(
                     slack_user_id=self.event_data["user"]
                 )
                 self.create_new_slack_chat(user=user)
