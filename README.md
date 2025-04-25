@@ -18,11 +18,29 @@ This document provides a comprehensive overview of the architecture and main fun
     registry.tsl.io/base/postgres:15.3-pgvector_0.8.0
     ```
 
-3. **Environment Variables**:
+3. **Import the package settings**:
+    Inside your project's `settings.py` (or `settings/base.py`), import the package's required settings by adding the following line at the top of the file:
+    ```python
+    from baseapp_ai_langkit.settings import *  # noqa
+    ```
+
+4. **Required Environment Variables**:
     The package requires an OpenAI API key to function properly. This key is essential for the default dummy bot and will also be used by any custom bots you create that leverage OpenAI's language models:
     ```sh
     export OPENAI_API_KEY=your_openai_key
     ```
+
+5. **Optional Environment Variables**:
+    - **Slack**:
+        If you are using the Slack AI Chat integration, you will need the following environment variables:
+        ```sh
+        export BASEAPP_AI_LANGKIT_SLACK_BOT_USER_OAUTH_TOKEN="xoxb-KEY"
+        export SLACK_CLIENT_ID="slack-client-id"
+        export SLACK_CLIENT_SECRET="slack-client-secret"
+        export SLACK_VERIFICATION_TOKEN="slack-verification-token"
+        export SLACK_SIGNING_SECRET="slack-singing-secret"
+        ```
+        *Note*: For collecting the credentials above, please follow this guide: // TODO: add Slack keys guide.
 
 ## Get Started
 
