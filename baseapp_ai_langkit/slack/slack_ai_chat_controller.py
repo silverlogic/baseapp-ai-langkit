@@ -34,7 +34,7 @@ class SlackAIChatController:
 
         self.slack_chat = slack_chat
         self.user_message_slack_event = user_message_slack_event
-        self.user_message_text = self.slack_event_data["event"]["text"]
+        self.user_message_text = self.user_message_slack_event.data["event"]["text"]
 
     def process_message(self):
         slack_context = self.collect_slack_context()
