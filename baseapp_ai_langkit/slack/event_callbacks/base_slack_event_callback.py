@@ -36,9 +36,9 @@ class BaseSlackEventCallback:
     def __call__(self):
         event_status = self.slack_event.event_statuses.last()
         event_status.status = SlackEventStatus.STATUS.running
+        event_status.status_message = ""
         event_status.save()
 
-        # TODO: consider using pydantic.
         self.data = self.slack_event.data
         self.team_id: str = self.slack_event.team_id
         self.event_type: str = self.slack_event.event_type
@@ -55,11 +55,13 @@ class BaseSlackEventCallback:
         except self.WarningException as e:
             logger.warning(e)
             event_status.status = SlackEventStatus.STATUS.success_with_warnings
+            event_status.status_message = str(e)
             event_status.save()
         except Exception as e:
             # TODO: Consider adding response to slack on error.
             logger.exception(e)
             event_status.status = SlackEventStatus.STATUS.failed
+            event_status.status_message = str(e)
             event_status.save()
 
     def handle_tokens_revoked(self):

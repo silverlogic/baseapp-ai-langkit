@@ -11,6 +11,12 @@ from baseapp_ai_langkit.slack.event_callback_handlers.slack_ai_chat_app_mention_
 from baseapp_ai_langkit.slack.event_callback_handlers.slack_ai_chat_message_callback_handler import (
     SlackAIChatMessageCallbackHandler,
 )
+from baseapp_ai_langkit.slack.event_callback_handlers.slack_ai_chat_reaction_added_callback_handler import (
+    SlackAIChatReactionAddedCallbackHandler,
+)
+from baseapp_ai_langkit.slack.event_callback_handlers.slack_ai_chat_reaction_removed_callback_handler import (
+    SlackAIChatReactionRemovedCallbackHandler,
+)
 from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
     BaseSlackEventCallback,
 )
@@ -35,10 +41,24 @@ class SlackAIChatEventCallback(BaseSlackEventCallback):
         handler.handle()
         self.apply_process_incoming_user_slack_message_task(handler=handler)
 
+    def handle_reaction_added(self):
+        """
+        Handle `SlackEventCallbackData` with event_type `reaction_added`
+        """
+        handler = SlackAIChatReactionAddedCallbackHandler(slack_event_callback=self)
+        handler.handle()
+
+    def handle_reaction_removed(self):
+        """
+        Handle `SlackEventCallbackData` with event_type `reaction_removed`
+        """
+        handler = SlackAIChatReactionRemovedCallbackHandler(slack_event_callback=self)
+        handler.handle()
+
     def apply_process_incoming_user_slack_message_task(
         self, handler: BaseSlackAIChatEventCallbackHandler
     ):
-        # The import bellow avoid circular import, since this class is used by other tasks.
+        # The import bellow avoids circular import, since this class is used by other tasks.
         from baseapp_ai_langkit.slack import tasks
 
         slack_chat = handler.get_slack_chat()

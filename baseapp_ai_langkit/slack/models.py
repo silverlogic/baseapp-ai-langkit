@@ -37,6 +37,7 @@ class SlackEventStatus(TimeStampedModel):
         on_delete=models.CASCADE,
     )
     status = models.CharField(max_length=21, choices=STATUS, default=STATUS.pending)
+    status_message = models.TextField(null=True, blank=True, default=None)
 
     def __str__(self):
         return f"{self.id} - Slack event: {self.slack_event.id} - Status: {self.status} - Modified at: {self.modified}"
@@ -147,3 +148,4 @@ class SlackAIChatMessageReaction(TimeStampedModel):
     class Meta:
         verbose_name = "Slack AI Chat Message Reaction"
         verbose_name_plural = "Slack AI Chat Message Reactions"
+        unique_together = ("user", "slack_chat_message", "reaction")

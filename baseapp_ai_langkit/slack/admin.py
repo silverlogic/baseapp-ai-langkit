@@ -7,7 +7,14 @@ from .models import (
     SlackAIChatMessage,
     SlackAIChatMessageReaction,
     SlackEvent,
+    SlackEventStatus,
 )
+
+
+class SlackEventStatusInline(admin.TabularInline):
+    model = SlackEventStatus
+    extra = 0
+    readonly_fields = ("id", "created", "modified", "status", "status_message")
 
 
 @admin.register(SlackEvent)
@@ -17,6 +24,7 @@ class SlackEventAdmin(admin.ModelAdmin):
     list_filter = ("team_id", "event_ts")
     ordering = ("-created",)
     readonly_fields = ("id", "team_id", "event_ts", "created", "modified")
+    inlines = [SlackEventStatusInline]
 
 
 @admin.register(SlackAIChat)
