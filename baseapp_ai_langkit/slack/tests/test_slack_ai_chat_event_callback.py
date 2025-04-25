@@ -34,7 +34,6 @@ class TestSlackAIChatEventCallback(SlackTestCase):
 
         mock_handler = MagicMock(spec=BaseSlackAIChatEventCallbackHandler)
         mock_handler.get_slack_chat.return_value = slack_chat
-        mock_handler.get_event_text.return_value = "Hello AI assistant"
 
         mock_async_result = MagicMock()
         mock_async_result.id = uuid.uuid4()
@@ -43,12 +42,11 @@ class TestSlackAIChatEventCallback(SlackTestCase):
         callback.apply_process_incoming_user_slack_message_task(handler=mock_handler)
 
         mock_handler.get_slack_chat.assert_called_once()
-        mock_handler.get_event_text.assert_called_once()
 
         mock_apply_async.assert_called_once_with(
             kwargs=dict(
                 slack_chat_id=slack_chat.id,
-                slack_message_text="Hello AI assistant",
+                user_message_slack_event_id=self.slack_event.id,
             )
         )
 

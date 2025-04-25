@@ -25,12 +25,12 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
 
         if channel_type == "channel":
             self.slack_chat = self.get_most_recent_slack_chat(
-                event_channel=event_channel, event_thread_ts=event_thread_ts
+                team_id=self.team_id, event_ts=event_thread_ts, event_type=self.event_type
             )
         elif channel_type == "im":
             if event_thread_ts:
                 self.slack_chat = self.get_most_recent_slack_chat(
-                    event_channel=event_channel, event_thread_ts=event_thread_ts
+                    team_id=self.team_id, event_ts=event_thread_ts, event_type=self.event_type
                 )
             else:
                 user, created = self.slack_instance_controller.get_or_create_user_from_slack_user(
@@ -57,12 +57,12 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
         is_bot = "bot_id" in self.event_data
         if is_bot:
             raise BaseSlackEventCallback.WarningException(
-                f"Skipping event_type:{self.event_type}. Reason: is_bot:{is_bot}"
+                f"Skipping event_type: {self.event_type}. Reason: is_bot"
             )
 
     def _verify_if_is_channel_type_and_is_in_thread(self):
         is_in_thread = "thread_ts" in self.event_data
         if self.event_data["channel_type"] == "channel" and is_in_thread is False:
             raise BaseSlackEventCallback.WarningException(
-                f"Skipping event_type:{self.event_type}. Reason: is_in_thread:{is_in_thread}"
+                f"Skipping event_type: {self.event_type}. Reason: is_in_thread:{is_in_thread}"
             )

@@ -3,10 +3,10 @@ from unittest.mock import patch
 from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
     BaseSlackEventCallback,
 )
-from baseapp_ai_langkit.slack.models import SlackEvent
+from baseapp_ai_langkit.slack.models import SlackEventStatus
 from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
 
-from .factories import SlackEventFactory
+from .factories import SlackEventFactory, SlackEventStatusFactory
 from .test import SlackTestCase
 
 
@@ -14,6 +14,8 @@ class TestBaseSlackEventCallback(SlackTestCase):
     def setUp(self):
         super().setUp()
         self.slack_event = SlackEventFactory(
+            team_id="T12345",
+            event_type="message",
             data={
                 "team_id": "T12345",
                 "event": {
@@ -22,7 +24,10 @@ class TestBaseSlackEventCallback(SlackTestCase):
                     "user": self.dummy_real_user_id(),
                     "channel": self.dummy_channel_id(),
                 },
-            }
+            },
+        )
+        self.slack_event_status = SlackEventStatusFactory(
+            slack_event=self.slack_event, status=SlackEventStatus.STATUS.pending
         )
 
     def test_init(self):
@@ -37,7 +42,9 @@ class TestBaseSlackEventCallback(SlackTestCase):
 
         mock_handle_message.assert_called_once()
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.success)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status, SlackEventStatus.STATUS.success
+        )
 
     @patch.object(BaseSlackEventCallback, "handle_message")
     def test_call_warning(self, mock_handle_message):
@@ -47,7 +54,10 @@ class TestBaseSlackEventCallback(SlackTestCase):
         callback()
 
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.success_with_warnings)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status,
+            SlackEventStatus.STATUS.success_with_warnings,
+        )
 
     @patch.object(BaseSlackEventCallback, "handle_message")
     def test_call_exception(self, mock_handle_message):
@@ -57,17 +67,25 @@ class TestBaseSlackEventCallback(SlackTestCase):
         callback()
 
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.failed)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status, SlackEventStatus.STATUS.failed
+        )
 
     def test_unsupported_event_type(self):
-        self.slack_event.data["event"]["type"] = "unsupported_type"
-        self.slack_event.save()
-
-        callback = BaseSlackEventCallback(self.slack_event.id)
+        slack_event = SlackEventFactory(
+            team_id="T12345",
+            event_type="unsupported_type",
+            data={
+                "team_id": "T12345",
+                "event": {"type": "unsupported_type"},
+            },
+        )
+        SlackEventStatusFactory(slack_event=slack_event, status=SlackEventStatus.STATUS.pending)
+        callback = BaseSlackEventCallback(slack_event.id)
         callback()
 
-        self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.failed)
+        slack_event.refresh_from_db()
+        self.assertEqual(slack_event.event_statuses.last().status, SlackEventStatus.STATUS.failed)
 
     def test_handle_tokens_revoked(self):
         self.slack_event.data = {
@@ -80,7 +98,10 @@ class TestBaseSlackEventCallback(SlackTestCase):
         callback()
 
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.success_with_warnings)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status,
+            SlackEventStatus.STATUS.success_with_warnings,
+        )
 
     def test_handle_app_uninstalled(self):
         self.slack_event.data = {"team_id": "T12345", "event": {"type": "app_uninstalled"}}
@@ -90,7 +111,10 @@ class TestBaseSlackEventCallback(SlackTestCase):
         callback()
 
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.success_with_warnings)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status,
+            SlackEventStatus.STATUS.success_with_warnings,
+        )
 
     def test_handle_app_mention(self):
         self.slack_event.data = {
@@ -108,7 +132,10 @@ class TestBaseSlackEventCallback(SlackTestCase):
         callback()
 
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.success_with_warnings)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status,
+            SlackEventStatus.STATUS.success_with_warnings,
+        )
 
     def test_handle_reaction_added(self):
         self.slack_event.data = {
@@ -125,7 +152,10 @@ class TestBaseSlackEventCallback(SlackTestCase):
         callback()
 
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.success_with_warnings)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status,
+            SlackEventStatus.STATUS.success_with_warnings,
+        )
 
     def test_handle_reaction_removed(self):
         self.slack_event.data = {
@@ -142,7 +172,10 @@ class TestBaseSlackEventCallback(SlackTestCase):
         callback()
 
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.success_with_warnings)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status,
+            SlackEventStatus.STATUS.success_with_warnings,
+        )
 
     def test_handle_link_shared(self):
         self.slack_event.data = {
@@ -160,4 +193,7 @@ class TestBaseSlackEventCallback(SlackTestCase):
         callback()
 
         self.slack_event.refresh_from_db()
-        self.assertEqual(self.slack_event.status, SlackEvent.STATUS.success_with_warnings)
+        self.assertEqual(
+            self.slack_event.event_statuses.last().status,
+            SlackEventStatus.STATUS.success_with_warnings,
+        )

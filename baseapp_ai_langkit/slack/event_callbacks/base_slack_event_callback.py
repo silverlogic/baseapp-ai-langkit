@@ -1,6 +1,6 @@
 import logging
 
-from baseapp_ai_langkit.slack.models import SlackEvent
+from baseapp_ai_langkit.slack.models import SlackEvent, SlackEventStatus
 from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
 
 logger = logging.getLogger(__name__)
@@ -34,14 +34,15 @@ class BaseSlackEventCallback:
         return SlackInstanceController()
 
     def __call__(self):
-        self.slack_event.status = SlackEvent.STATUS.running
-        self.slack_event.save()
+        event_status = self.slack_event.event_statuses.last()
+        event_status.status = SlackEventStatus.STATUS.running
+        event_status.save()
 
         # TODO: consider using pydantic.
         self.data = self.slack_event.data
-        self.team_id: str = self.data["team_id"]
+        self.team_id: str = self.slack_event.team_id
+        self.event_type: str = self.slack_event.event_type
         self.event_data: dict = self.data["event"]
-        self.event_type: str = self.event_data["type"]
 
         try:
             handle_function = getattr(self, f"handle_{self.event_type}", None)
@@ -49,17 +50,17 @@ class BaseSlackEventCallback:
                 handle_function()
             else:
                 raise Exception(f"Unable to handle event_type: {self.event_type}")
-            self.slack_event.status = SlackEvent.STATUS.success
-            self.slack_event.save()
+            event_status.status = SlackEventStatus.STATUS.success
+            event_status.save()
         except self.WarningException as e:
             logger.warning(e)
-            self.slack_event.status = SlackEvent.STATUS.success_with_warnings
-            self.slack_event.save()
+            event_status.status = SlackEventStatus.STATUS.success_with_warnings
+            event_status.save()
         except Exception as e:
             # TODO: Consider adding response to slack on error.
             logger.exception(e)
-            self.slack_event.status = SlackEvent.STATUS.failed
-            self.slack_event.save()
+            event_status.status = SlackEventStatus.STATUS.failed
+            event_status.save()
 
     def handle_tokens_revoked(self):
         """

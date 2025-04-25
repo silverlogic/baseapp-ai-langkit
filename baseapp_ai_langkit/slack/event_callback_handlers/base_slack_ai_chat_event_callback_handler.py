@@ -14,16 +14,16 @@ class BaseSlackAIChatEventCallbackHandler(BaseSlackAIChatEvent):
         return self.slack_chat
 
     def get_most_recent_slack_chat(
-        self, event_channel: str, event_thread_ts: str
+        self, team_id: str, event_ts: str, event_type: str
     ) -> SlackAIChat | None:
-        return (
-            SlackAIChat.objects.filter(
-                slack_event__data__event__channel=event_channel,
-                slack_event__data__event__event_ts=event_thread_ts,
+        try:
+            return SlackAIChat.objects.get(
+                slack_event__team_id=team_id,
+                slack_event__event_ts=event_ts,
+                slack_event__event_type=event_type,
             )
-            .order_by("-created")
-            .first()
-        )
+        except SlackAIChat.DoesNotExist:
+            return None
 
     def create_new_slack_chat(self, user: AbstractBaseUser) -> SlackAIChat:
         chat_session = ChatSession.objects.create(user=user)

@@ -76,13 +76,16 @@ class TestSlackAIChatMessageCallbackHandler(SlackTestCase):
 
     def test_handle_channel_message_with_thread(self):
         matching_slack_event = SlackEventFactory(
+            team_id="T12345",
+            event_ts="1234567890.123456",
+            event_type="message",
             data={
                 "team_id": "T12345",
                 "event": {
                     "channel": self.dummy_channel_id(),
                     "event_ts": "1234567890.123456",
                 },
-            }
+            },
         )
         slack_chat = SlackAIChatFactory(slack_event=matching_slack_event, celery_task_id=None)
 
@@ -100,13 +103,17 @@ class TestSlackAIChatMessageCallbackHandler(SlackTestCase):
 
     def test_handle_im_message_with_thread(self):
         matching_slack_event = SlackEventFactory(
+            team_id="T12345",
+            event_ts="1234567890.123456",
+            event_type="message",
             data={
                 "team_id": "T12345",
                 "event": {
+                    "type": "message",
                     "channel": self.dummy_channel_id(),
                     "event_ts": "1234567890.123456",
                 },
-            }
+            },
         )
         slack_chat = SlackAIChatFactory(slack_event=matching_slack_event, celery_task_id=None)
 

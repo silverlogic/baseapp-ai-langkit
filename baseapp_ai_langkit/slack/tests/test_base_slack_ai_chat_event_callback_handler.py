@@ -41,7 +41,6 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
         self.mock_slack_event_callback.event_data = self.slack_event.data["event"]
         self.mock_slack_event_callback.event_type = self.slack_event.data["event"]["type"]
 
-        # Create a mock for SlackInstanceController
         self.mock_slack_instance_controller = MagicMock()
         self.mock_slack_event_callback.slack_instance_controller = (
             self.mock_slack_instance_controller
@@ -74,44 +73,49 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
             slack_event_callback=self.mock_slack_event_callback
         )
 
+        team_id = "T12345"
         event_channel = "C12345"
         event_thread_ts = "1234567890.123456"
 
-        matching_slack_event_1 = SlackEventFactory(
+        matching_slack_event = SlackEventFactory(
+            team_id=team_id,
+            event_ts=event_thread_ts,
+            event_type="message",
             data={
-                "team_id": "T12345",
+                "team_id": team_id,
                 "event": {
                     "channel": event_channel,
                     "event_ts": event_thread_ts,
                 },
-            }
-        )
-        matching_slack_event_2 = SlackEventFactory(
-            data={
-                "team_id": "T12345",
-                "event": {
-                    "channel": event_channel,
-                    "event_ts": event_thread_ts,
-                },
-            }
+            },
         )
         non_matching_slack_event = SlackEventFactory(
+            team_id=team_id,
+            event_ts="different_ts",
+            event_type="message",
             data={
-                "team_id": "T12345",
+                "team_id": team_id,
                 "event": {
                     "channel": "different_channel",
                     "event_ts": "different_ts",
                 },
-            }
+            },
         )
 
-        SlackAIChatFactory(slack_event=matching_slack_event_1)
+        matching_slack_chat = SlackAIChatFactory(slack_event=matching_slack_event)
         SlackAIChatFactory(slack_event=non_matching_slack_event)
-        matching_slack_chat_newer = SlackAIChatFactory(slack_event=matching_slack_event_2)
 
-        result = handler.get_most_recent_slack_chat(event_channel, event_thread_ts)
+        result = handler.get_most_recent_slack_chat(team_id, event_thread_ts, "message")
 
-        self.assertEqual(result, matching_slack_chat_newer)
+        self.assertEqual(result, matching_slack_chat)
+
+    def test_get_most_recent_slack_chat_none(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+
+        result = handler.get_most_recent_slack_chat("T12345", "1234567890.123456", "message")
+        self.assertIsNone(result)
 
     def test_create_new_slack_chat(self):
         handler = SlackAIChatEventCallbackHandlerTestClass(
@@ -135,9 +139,3 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
         self.assertEqual(created_slack_chat.chat_session, created_chat_session)
         self.assertEqual(created_slack_chat.slack_event, self.slack_event)
         self.assertEqual(handler.slack_chat, created_slack_chat)
-
-    def test_get_event_text(self):
-        handler = SlackAIChatEventCallbackHandlerTestClass(
-            slack_event_callback=self.mock_slack_event_callback
-        )
-        self.assertEqual(handler.get_event_text(), "Hello AI assistant")

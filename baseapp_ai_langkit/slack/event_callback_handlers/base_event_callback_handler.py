@@ -30,6 +30,3 @@ class BaseSlackAIChatEvent(ABC):
     @abstractmethod
     def handle(self):
         pass
-
-    def get_event_text(self) -> str:
-        return self.event_data["text"]

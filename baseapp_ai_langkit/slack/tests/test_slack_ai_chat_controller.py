@@ -1,7 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-from baseapp_ai_langkit.chats.models import ChatMessage
 from baseapp_ai_langkit.slack.interfaces.slack_chat_runner import BaseSlackChatInterface
+from baseapp_ai_langkit.slack.models import SlackAIChatMessage, SlackEvent
 from baseapp_ai_langkit.slack.slack_ai_chat_controller import SlackAIChatController
 
 from .factories import SlackAIChatFactory, SlackEventFactory
@@ -11,12 +11,13 @@ from .test import SlackTestCase
 class TestSlackAIChatController(SlackTestCase):
     def setUp(self):
         super().setUp()
+        self.slack_message_text = "Hello AI assistant"
         self.slack_event = SlackEventFactory(
             data={
                 "team_id": "T12345",
                 "event": {
                     "type": "message",
-                    "text": "Hello AI assistant",
+                    "text": self.slack_message_text,
                     "user": self.dummy_real_user_id(),
                     "channel": self.dummy_channel_id(),
                     "channel_type": "channel",
@@ -26,9 +27,8 @@ class TestSlackAIChatController(SlackTestCase):
             }
         )
         self.slack_chat = SlackAIChatFactory(slack_event=self.slack_event)
-        self.slack_message_text = "Hello AI assistant"
         self.controller = SlackAIChatController(
-            slack_chat=self.slack_chat, slack_message_text=self.slack_message_text
+            slack_chat=self.slack_chat, user_message_slack_event=self.slack_event
         )
 
     def test_get_runner(self):
@@ -51,38 +51,52 @@ class TestSlackAIChatController(SlackTestCase):
             self.assertEqual(context, {})
             mock_logging.exception.assert_called_once()
 
-    def test_save_chat_messages(self):
+    def test_get_formatted_message_short_text(self):
         llm_output = "I am an AI assistant"
 
-        initial_count = ChatMessage.objects.count()
+        formatted_chunks = self.controller.get_formatted_message(llm_output)
 
-        self.controller.save_chat_messages(llm_output)
+        self.assertEqual(len(formatted_chunks), 1)
+        text, blocks = formatted_chunks[0]
+        self.assertEqual(text, llm_output)
+        self.assertEqual(
+            blocks, [{"type": "section", "text": {"type": "mrkdwn", "text": llm_output}}]
+        )
 
-        self.assertEqual(ChatMessage.objects.count(), initial_count + 2)
+    def test_get_formatted_message_long_text(self):
+        long_text = "A" * 4000
 
-        user_message = ChatMessage.objects.filter(
-            session=self.slack_chat.chat_session,
-            role=ChatMessage.ROLE_CHOICES.user,
-            content=self.slack_message_text,
-        ).first()
+        formatted_chunks = self.controller.get_formatted_message(long_text)
 
-        assistant_message = ChatMessage.objects.filter(
-            session=self.slack_chat.chat_session,
-            role=ChatMessage.ROLE_CHOICES.assistant,
-            content=llm_output,
-        ).first()
+        self.assertEqual(len(formatted_chunks), 2)
 
-        self.assertIsNotNone(user_message)
-        self.assertIsNotNone(assistant_message)
-        self.assertEqual(user_message.content, self.slack_message_text)
-        self.assertEqual(assistant_message.content, llm_output)
+        # First chunk should be 3000 chars with ellipsis
+        text1, blocks1 = formatted_chunks[0]
+        self.assertEqual(len(text1), 3000)
+        self.assertTrue(text1.endswith("..."))
+        self.assertEqual(blocks1, [{"type": "section", "text": {"type": "mrkdwn", "text": text1}}])
+
+        # Second chunk should be the remainder
+        text2, blocks2 = formatted_chunks[1]
+        self.assertEqual(text2, long_text[2997:])  # 2997 = 3000 - len("...")
+        self.assertEqual(blocks2, [{"type": "section", "text": {"type": "mrkdwn", "text": text2}}])
+
+    def test_get_formatted_message_non_string_input(self):
+        with self.assertRaises(ValueError):
+            self.controller.get_formatted_message(123)
 
     def test_process_message_response(self):
         llm_output = "I am an AI assistant"
+        formatted_chunks = [
+            (llm_output, [{"type": "section", "text": {"type": "mrkdwn", "text": llm_output}}])
+        ]
 
-        self.mock_slack_api_call("chat.postMessage")
+        self.mock_slack_api_call(
+            "chat.postMessage",
+            response_data={"ok": True, "message": {"ts": "1234567890.654321", "type": "message"}},
+        )
 
-        self.controller.process_message_response(llm_output)
+        self.controller.process_message_response(formatted_chunks)
 
         self.assert_slack_api_call(
             "chat.postMessage",
@@ -94,27 +108,33 @@ class TestSlackAIChatController(SlackTestCase):
             },
         )
 
-    def test_process_message_response_truncates_long_text(self):
-        long_text = "A" * 4000
+    def test_process_message_response_creates_models(self):
+        llm_output = "I am an AI assistant"
+        formatted_chunks = [
+            (llm_output, [{"type": "section", "text": {"type": "mrkdwn", "text": llm_output}}])
+        ]
 
-        with patch("baseapp_ai_langkit.slack.slack_ai_chat_controller.logger") as mock_logging:
-            self.mock_slack_api_call("chat.postMessage")
+        self.mock_slack_api_call(
+            "chat.postMessage",
+            response_data={"ok": True, "message": {"ts": "1234567890.654321", "type": "message"}},
+        )
 
-            self.controller.process_message_response(long_text)
+        initial_slack_event_count = SlackEvent.objects.count()
+        initial_slack_chat_message_count = SlackAIChatMessage.objects.count()
 
-            truncated_text = long_text[:3000]
-            expected_blocks = [dict(type="section", text=dict(type="mrkdwn", text=truncated_text))]
+        self.controller.process_message_response(formatted_chunks)
 
-            self.assert_slack_api_call(
-                "chat.postMessage",
-                expected_body={
-                    "channel": self.slack_event.data["event"]["channel"],
-                    "blocks": expected_blocks,
-                    "text": truncated_text,
-                    "thread_ts": self.slack_event.data["event"]["event_ts"],
-                },
-            )
-            mock_logging.warning.assert_called_once()
+        self.assertEqual(SlackEvent.objects.count(), initial_slack_event_count + 1)
+        new_slack_event = SlackEvent.objects.last()
+        self.assertEqual(new_slack_event.event_ts, "1234567890.654321")
+        self.assertEqual(new_slack_event.event_type, "message")
+
+        self.assertEqual(SlackAIChatMessage.objects.count(), initial_slack_chat_message_count + 1)
+        new_message = SlackAIChatMessage.objects.last()
+        self.assertEqual(new_message.slack_chat, self.slack_chat)
+        self.assertEqual(new_message.user_message_slack_event, self.slack_event)
+        self.assertEqual(new_message.output_slack_event, new_slack_event)
+        self.assertIsNotNone(new_message.output_response_output_data)
 
     def test_process_message(self):
         mock_runner = MagicMock()
@@ -122,8 +142,18 @@ class TestSlackAIChatController(SlackTestCase):
         mock_runner.return_value = mock_runner_instance
         mock_runner_instance.safe_run.return_value = "AI response"
 
-        with patch.object(self.controller, "get_runner", return_value=mock_runner):
-            self.mock_slack_api_call("chat.postMessage")
+        with patch.object(self.controller, "get_runner", return_value=mock_runner), patch.object(
+            self.controller, "get_formatted_message"
+        ) as mock_format, patch.object(self.controller, "process_message_response") as mock_process:
+
+            formatted_response = [
+                (
+                    "AI response",
+                    [{"type": "section", "text": {"type": "mrkdwn", "text": "AI response"}}],
+                )
+            ]
+            mock_format.return_value = formatted_response
+
             self.mock_slack_api_call(
                 "conversations.info", response_data=self.conversations_info_data()
             )
@@ -136,33 +166,8 @@ class TestSlackAIChatController(SlackTestCase):
                 slack_context=self.controller.collect_slack_context(),
             )
             mock_runner_instance.safe_run.assert_called_once()
-
-            user_message = ChatMessage.objects.filter(
-                session=self.slack_chat.chat_session,
-                role=ChatMessage.ROLE_CHOICES.user,
-                content=self.slack_message_text,
-            ).first()
-
-            assistant_message = ChatMessage.objects.filter(
-                session=self.slack_chat.chat_session,
-                role=ChatMessage.ROLE_CHOICES.assistant,
-                content="AI response",
-            ).first()
-
-            self.assertIsNotNone(user_message)
-            self.assertIsNotNone(assistant_message)
-
-            expected_blocks = [dict(type="section", text=dict(type="mrkdwn", text="AI response"))]
-
-            self.assert_slack_api_call(
-                "chat.postMessage",
-                expected_body={
-                    "channel": self.slack_event.data["event"]["channel"],
-                    "text": "AI response",
-                    "blocks": expected_blocks,
-                    "thread_ts": self.slack_event.data["event"]["event_ts"],
-                },
-            )
+            mock_format.assert_called_once_with("AI response")
+            mock_process.assert_called_once_with(formatted_response)
 
     def test_process_message_exception(self):
         mock_runner = MagicMock()

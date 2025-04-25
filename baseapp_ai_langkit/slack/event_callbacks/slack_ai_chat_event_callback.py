@@ -42,11 +42,10 @@ class SlackAIChatEventCallback(BaseSlackEventCallback):
         from baseapp_ai_langkit.slack import tasks
 
         slack_chat = handler.get_slack_chat()
-        event_text = handler.get_event_text()
         result: AsyncResult = tasks.slack_process_incoming_user_slack_message.apply_async(
             kwargs=dict(
                 slack_chat_id=slack_chat.id,
-                slack_message_text=event_text,
+                user_message_slack_event_id=self.slack_event.id,
             )
         )
         slack_chat.celery_task_id = result.id
