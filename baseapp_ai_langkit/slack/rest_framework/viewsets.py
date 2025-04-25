@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class SlackWebhookViewSet(viewsets.ViewSet):
-    # TODO: allow only POST request.
+    http_method_names = ["post"]
     permission_classes = [isSlackRequestSigned]
 
     def create(self, request):

@@ -64,7 +64,6 @@ class BaseSlackEventCallback:
             event_status.status_message = str(e)
             event_status.save()
         except Exception as e:
-            # TODO: Consider adding response to slack on error.
             self.handle_exception(e)
             logger.exception(f"Logging exception for team_id: {self.team_id} - {e}")
             event_status.status = SlackEventStatus.STATUS.failed

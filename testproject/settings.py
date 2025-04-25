@@ -1,8 +1,9 @@
 import os
-from collections import OrderedDict
 from pathlib import Path
 
 from django.utils.translation import gettext_lazy as _
+
+from baseapp_ai_langkit.settings import *  # noqa
 
 from .env import env
 
@@ -147,24 +148,7 @@ ADMIN_TIME_ZONE = "UTC"
 URL_SHORTENING_PREFIX = "c"
 
 # Constance
-# TODO: Add it to README.md
 CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
-CONSTANCE_CONFIG = OrderedDict(
-    [
-        (
-            "SLACK_BOT_USER_OAUTH_TOKEN",
-            ("", "The bot use OAuth Token for the Slack app."),
-        ),
-    ]
-)
-CONSTANCE_CONFIG_FIELDSETS = OrderedDict(
-    [
-        (
-            "Slack Options",
-            ("SLACK_BOT_USER_OAUTH_TOKEN",),
-        ),
-    ]
-)
 
 # Rest Framework
 REST_FRAMEWORK = {
@@ -179,7 +163,6 @@ REST_FRAMEWORK = {
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
 
-# Slack
 # TODO: Add it to README.md
 # TODO: make them optional.
 # env is interpreting SLACK_CLIENT_ID as a float and rounding it
