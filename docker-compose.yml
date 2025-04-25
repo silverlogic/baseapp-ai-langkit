@@ -1,4 +1,3 @@
-version: "3"
 services:
   db:
     image: 'registry.tsl.io/base/postgres:15.3-pgvector_0.8.0'
