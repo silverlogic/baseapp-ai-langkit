@@ -8,6 +8,9 @@ from rest_framework.permissions import BasePermission
 
 class isSlackRequestSigned(BasePermission):
     def has_permission(self, request, view):
+        if not settings.SLACK_SIGNING_SECRET:
+            return False
+
         # Each request comes with request timestamp and request signature
         # return false if the timestamp is out of range
         req_timestamp = request.headers.get("X-Slack-Request-Timestamp")
@@ -30,7 +33,6 @@ class isSlackRequestSigned(BasePermission):
         # req = str.encode('v0:' + str(req_timestamp) + ':') + request.get_data()
         req = str.encode("v0:" + str(req_timestamp) + ":") + request.body
         request_hash = (
-            # TODO: Add the slack signing secret from the environment variable
             "v0="
             + hmac.new(str.encode(settings.SLACK_SIGNING_SECRET), req, hashlib.sha256).hexdigest()
         )

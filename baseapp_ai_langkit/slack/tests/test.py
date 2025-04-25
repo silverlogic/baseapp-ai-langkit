@@ -1,6 +1,5 @@
 import json
 import re
-from unittest.mock import patch
 
 import httpretty
 from django.test import TestCase
@@ -10,15 +9,11 @@ class SlackTestCase(TestCase):
     def setUp(self):
         super().setUp()
         httpretty.enable(allow_net_connect=False)
-        self.constance_patch = patch("constance.config")
-        self.constance_config_mock = self.constance_patch.start()
-        self.constance_config_mock.SLACK_BOT_USER_OAUTH_TOKEN = "xoxb-TEST"
 
     def tearDown(self):
         super().tearDown()
         httpretty.disable()
         httpretty.reset()
-        self.constance_patch.stop()
 
     def mock_slack_api_call(self, endpoint, method=httpretty.POST, response_data=None, status=200):
         if response_data is None:

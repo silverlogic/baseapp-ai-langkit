@@ -1,33 +1,14 @@
-from collections import OrderedDict
+import os
 
-if "CONSTANCE_CONFIG" not in globals():
-    CONSTANCE_CONFIG = OrderedDict()
-
-if "CONSTANCE_CONFIG_FIELDSETS" not in globals():
-    CONSTANCE_CONFIG_FIELDSETS = OrderedDict()
-
-CONSTANCE_CONFIG = {
-    **CONSTANCE_CONFIG,
-    **OrderedDict(
-        [
-            (
-                "SLACK_BOT_USER_OAUTH_TOKEN",
-                ("", "The bot use OAuth Token for the Slack app."),
-            ),
-        ]
-    ),
-}
-CONSTANCE_CONFIG_FIELDSETS = {
-    **CONSTANCE_CONFIG_FIELDSETS,
-    **OrderedDict(
-        [
-            (
-                "Slack Options",
-                ("SLACK_BOT_USER_OAUTH_TOKEN",),
-            ),
-        ]
-    ),
-}
+__all__ = [
+    "BASEAPP_AI_LANGKIT_SLACK_AI_CHAT_EVENT_CALLBACK",
+    "BASEAPP_AI_LANGKIT_SLACK_AI_CHAT_CONTROLLER",
+    "BASEAPP_AI_LANGKIT_SLACK_BOT_USER_OAUTH_TOKEN",
+    "SLACK_CLIENT_ID",
+    "SLACK_CLIENT_SECRET",
+    "SLACK_VERIFICATION_TOKEN",
+    "SLACK_SIGNING_SECRET",
+]
 
 # Baseapp AI Langkit Slack Settings
 BASEAPP_AI_LANGKIT_SLACK_AI_CHAT_EVENT_CALLBACK = (
@@ -36,3 +17,11 @@ BASEAPP_AI_LANGKIT_SLACK_AI_CHAT_EVENT_CALLBACK = (
 BASEAPP_AI_LANGKIT_SLACK_AI_CHAT_CONTROLLER = (
     "baseapp_ai_langkit.slack.slack_ai_chat_controller.SlackAIChatController"
 )
+
+BASEAPP_AI_LANGKIT_SLACK_BOT_USER_OAUTH_TOKEN = os.environ.get(
+    "BASEAPP_AI_LANGKIT_SLACK_BOT_USER_OAUTH_TOKEN", None
+)
+SLACK_CLIENT_ID = os.environ.get("SLACK_CLIENT_ID", None)
+SLACK_CLIENT_SECRET = os.environ.get("SLACK_CLIENT_SECRET", None)
+SLACK_VERIFICATION_TOKEN = os.environ.get("SLACK_VERIFICATION_TOKEN", None)
+SLACK_SIGNING_SECRET = os.environ.get("SLACK_SIGNING_SECRET", None)

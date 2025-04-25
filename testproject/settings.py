@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 from django.utils.translation import gettext_lazy as _
@@ -162,11 +161,3 @@ REST_FRAMEWORK = {
     "SEARCH_PARAM": "q",
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
-
-# TODO: Add it to README.md
-# TODO: make them optional.
-# env is interpreting SLACK_CLIENT_ID as a float and rounding it
-SLACK_CLIENT_ID = os.environ["SLACK_CLIENT_ID"]
-SLACK_CLIENT_SECRET = env("SLACK_CLIENT_SECRET")
-SLACK_VERIFICATION_TOKEN = env("SLACK_VERIFICATION_TOKEN")
-SLACK_SIGNING_SECRET = env("SLACK_SIGNING_SECRET")
