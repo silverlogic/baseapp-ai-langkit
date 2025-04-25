@@ -15,7 +15,13 @@ class BaseSlackEventCallback:
     event_data: dict
     event_type: str
 
-    # TODO: Add SkipException. It will delete the slack event.
+    class SkipException(Exception):
+        """
+        Exception that will skip the event callback and delete the slack event.
+        """
+
+        pass
+
     class WarningException(Exception):
         """
         Non important exception that should just be logged as a warning
@@ -53,13 +59,14 @@ class BaseSlackEventCallback:
             event_status.status = SlackEventStatus.STATUS.success
             event_status.save()
         except self.WarningException as e:
-            logger.warning(e)
+            logger.warning(f"Logging warning for team_id: {self.team_id} - {e}")
             event_status.status = SlackEventStatus.STATUS.success_with_warnings
             event_status.status_message = str(e)
             event_status.save()
         except Exception as e:
             # TODO: Consider adding response to slack on error.
-            logger.exception(e)
+            self.handle_exception(e)
+            logger.exception(f"Logging exception for team_id: {self.team_id} - {e}")
             event_status.status = SlackEventStatus.STATUS.failed
             event_status.status_message = str(e)
             event_status.save()
@@ -109,3 +116,9 @@ class BaseSlackEventCallback:
         Handle `SlackEventCallbackData` with event_type `link_shared`
         """
         raise self.WarningException(f"Event link_shared for team_id: {self.team_id}")
+
+    def handle_exception(self, error: Exception):
+        """
+        Handle an exception. This can be used to send an error response to slack.
+        """
+        pass

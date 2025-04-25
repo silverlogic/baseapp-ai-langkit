@@ -4,11 +4,21 @@ from baseapp_ai_langkit.chats.models import ChatSession
 from baseapp_ai_langkit.slack.event_callback_handlers.base_event_callback_handler import (
     BaseSlackAIChatEvent,
 )
+from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
+    BaseSlackEventCallback,
+)
 from baseapp_ai_langkit.slack.models import SlackAIChat
 
 
 class BaseSlackAIChatEventCallbackHandler(BaseSlackAIChatEvent):
     slack_chat: SlackAIChat | None = None
+
+    def verify_if_is_bot(self):
+        is_bot = "bot_id" in self.event_data
+        if is_bot:
+            raise BaseSlackEventCallback.WarningException(
+                f"Skipping event_type: {self.event_type}. Reason: is_bot"
+            )
 
     def get_slack_chat(self) -> SlackAIChat:
         return self.slack_chat

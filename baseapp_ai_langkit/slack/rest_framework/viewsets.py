@@ -1,4 +1,3 @@
-import json
 import logging
 
 from rest_framework import status, viewsets
@@ -13,7 +12,6 @@ logger = logging.getLogger(__name__)
 
 class SlackWebhookViewSet(viewsets.ViewSet):
     # TODO: allow only POST request.
-    # TODO: Add unit tests.
     permission_classes = [isSlackRequestSigned]
 
     def create(self, request):
@@ -22,10 +20,9 @@ class SlackWebhookViewSet(viewsets.ViewSet):
             if type == "url_verification":
                 return Response({"challenge": request.data["challenge"]})
             if type == "event_callback":
-                data = json.loads(request.body.decode("utf-8"))
-                team_id = data["team_id"]
-                event_ts = data["event"]["event_ts"]
-                event_type = data["event"]["type"]
+                team_id = request.data["team_id"]
+                event_ts = request.data["event"]["event_ts"]
+                event_type = request.data["event"]["type"]
 
                 self._raise_if_event_exists_and_is_running(team_id, event_ts, event_type)
 
@@ -33,7 +30,7 @@ class SlackWebhookViewSet(viewsets.ViewSet):
                     team_id=team_id,
                     event_ts=event_ts,
                     event_type=event_type,
-                    defaults={"data": data},
+                    defaults={"data": request.data},
                 )
                 SlackEventStatus.objects.create(slack_event=slack_event)
                 tasks.slack_handle_event_hook_event_callback_data.delay(

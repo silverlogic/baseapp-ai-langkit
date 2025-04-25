@@ -14,7 +14,7 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
     """
 
     def handle(self):
-        self._verify_if_is_bot()
+        self.verify_if_is_bot()
         self._verify_if_is_channel_type_and_is_in_thread()
 
         channel_type: str = self.event_data["channel_type"]  # channel or im
@@ -51,13 +51,6 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
             )
             raise BaseSlackEventCallback.WarningException(
                 f"Skipping event_type:{self.event_type}. Reason: slack_chat.is_celery_task_processing"
-            )
-
-    def _verify_if_is_bot(self):
-        is_bot = "bot_id" in self.event_data
-        if is_bot:
-            raise BaseSlackEventCallback.WarningException(
-                f"Skipping event_type: {self.event_type}. Reason: is_bot"
             )
 
     def _verify_if_is_channel_type_and_is_in_thread(self):
