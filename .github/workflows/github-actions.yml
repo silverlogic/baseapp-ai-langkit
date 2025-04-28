@@ -43,12 +43,6 @@ jobs:
         if: steps.isort.outcome == 'success'
         run: docker compose exec web black --check ./
 
-      - name: Install tests requirements with Django ${{ matrix.django-version }}
-        if: steps.black.outcome == 'success'
-        id: requirements_installation
-        run: |
-          docker compose exec web pip install "Django~=${{ matrix.django-version }}"
-
       - name: pytest
         if: steps.requirements_installation.outcome == 'success'
         run: |
