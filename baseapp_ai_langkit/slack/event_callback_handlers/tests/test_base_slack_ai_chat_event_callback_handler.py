@@ -8,10 +8,12 @@ from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
     BaseSlackEventCallback,
 )
 from baseapp_ai_langkit.slack.models import SlackAIChat
+from baseapp_ai_langkit.slack.tests.factories import (
+    SlackAIChatFactory,
+    SlackEventFactory,
+)
+from baseapp_ai_langkit.slack.tests.test import SlackTestCase
 from baseapp_ai_langkit.tests.factories import UserFactory
-
-from .factories import SlackAIChatFactory, SlackEventFactory
-from .test import SlackTestCase
 
 
 class SlackAIChatEventCallbackHandlerTestClass(BaseSlackAIChatEventCallbackHandler):

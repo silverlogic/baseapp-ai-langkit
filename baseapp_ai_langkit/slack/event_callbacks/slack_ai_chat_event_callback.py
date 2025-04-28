@@ -68,7 +68,6 @@ class SlackAIChatEventCallback(BaseSlackEventCallback):
     def apply_process_incoming_user_slack_message_task(
         self, handler: BaseSlackAIChatEventCallbackHandler
     ):
-        # The import bellow avoids circular import, since this class is used by other tasks.
         from baseapp_ai_langkit.slack import tasks
 
         slack_chat = handler.get_slack_chat()

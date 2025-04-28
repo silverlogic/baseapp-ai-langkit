@@ -4,7 +4,9 @@ from typing import Any, List, Optional, Tuple, Type
 from pydantic import BaseModel
 from slack_sdk.errors import SlackApiError
 
-from baseapp_ai_langkit.slack.interfaces.slack_chat_runner import BaseSlackChatInterface
+from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import (
+    BaseSlackChatInterface,
+)
 from baseapp_ai_langkit.slack.models import SlackAIChat, SlackAIChatMessage, SlackEvent
 from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
 
@@ -38,13 +40,13 @@ class SlackAIChatController:
 
     def process_message(self):
         slack_context = self.collect_slack_context()
-        runner = self.get_runner()
+        runner = self.get_runner_class()
 
         try:
             llm_output = runner(
+                slack_context=slack_context,
                 session=self.slack_chat.chat_session,
                 user_input=self.user_message_text,
-                slack_context=slack_context,
             ).safe_run()
 
             formatted_output = self.get_formatted_message(llm_output)
@@ -53,7 +55,7 @@ class SlackAIChatController:
             logger.exception(f"Error processing message: {e}")
             return
 
-    def get_runner(self) -> Type[BaseSlackChatInterface]:
+    def get_runner_class(self) -> Type[BaseSlackChatInterface]:
         """
         Override this method to change the runner.
         It must retrieve an implementation of BaseSlackChatInterface.
@@ -63,9 +65,11 @@ class SlackAIChatController:
         When using the actual runner, it's important to import it outside of the method so it can
         get registered in the Django admin.
         """
-        from baseapp_ai_langkit.slack.runners.slack_dummy_runner import SlackDummyRunner
+        from baseapp_ai_langkit.slack.runners.default_slack_chat_runner import (
+            DefaultSlackChatRunner,
+        )
 
-        return SlackDummyRunner
+        return DefaultSlackChatRunner
 
     def collect_slack_context(self) -> dict:
         context = {}
@@ -77,6 +81,7 @@ class SlackAIChatController:
             channel_data = response.data["channel"]
             channel_name = channel_data.get("name", "N/A")
             context["channel_name"] = f"Slack Channel: {channel_name}"
+            context["current_user"] = self.slack_chat.chat_session.user.email
         except SlackApiError as e:
             logging.exception(f"Request to Slack API Failed. {e.response['error']}")
         return context
@@ -95,7 +100,7 @@ class SlackAIChatController:
 
         chunks = []
         remaining_text = llm_output
-        while remaining_text:
+        while len(remaining_text) > 0:
             # Last chunk doesn't need ellipsis
             if len(remaining_text) <= max_text_length:
                 chunk_text = remaining_text

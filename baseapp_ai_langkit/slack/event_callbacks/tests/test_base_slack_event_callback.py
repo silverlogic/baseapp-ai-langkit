@@ -5,9 +5,11 @@ from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
 )
 from baseapp_ai_langkit.slack.models import SlackEventStatus
 from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
-
-from .factories import SlackEventFactory, SlackEventStatusFactory
-from .test import SlackTestCase
+from baseapp_ai_langkit.slack.tests.factories import (
+    SlackEventFactory,
+    SlackEventStatusFactory,
+)
+from baseapp_ai_langkit.slack.tests.test import SlackTestCase
 
 
 class TestBaseSlackEventCallback(SlackTestCase):

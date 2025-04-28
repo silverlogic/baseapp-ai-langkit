@@ -12,7 +12,7 @@ class SlackAIChatAppMentionCallbackHandler(BaseSlackAIChatEventCallbackHandler):
     """
 
     def handle(self):
-        self._verify_if_is_in_thread()
+        self._verify_not_in_thread()
 
         event_user: str = self.event_data["user"]
         self.event_text: str = self.event_data["text"]
@@ -23,7 +23,7 @@ class SlackAIChatAppMentionCallbackHandler(BaseSlackAIChatEventCallbackHandler):
 
         self.create_new_slack_chat(user=user)
 
-    def _verify_if_is_in_thread(self):
+    def _verify_not_in_thread(self):
         if "thread_ts" in self.event_data:
             raise BaseSlackEventCallback.WarningException(
                 f"Skipping event_type:{self.event_type}. Reason: is_in_thread"

@@ -11,8 +11,7 @@ from baseapp_ai_langkit.slack.tests.factories import (
     SlackEventFactory,
     SlackEventStatusFactory,
 )
-
-from .test import SlackTestCase
+from baseapp_ai_langkit.slack.tests.test import SlackTestCase
 
 
 class TestSlackWebhookViewSet(APITestCase, SlackTestCase):

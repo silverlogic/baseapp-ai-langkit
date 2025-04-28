@@ -7,14 +7,13 @@ from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
     BaseSlackEventCallback,
 )
 from baseapp_ai_langkit.slack.models import SlackAIChatMessageReaction
-from baseapp_ai_langkit.tests.factories import UserFactory
-
-from .factories import (
+from baseapp_ai_langkit.slack.tests.factories import (
     SlackAIChatMessageFactory,
     SlackAIChatMessageReactionFactory,
     SlackEventFactory,
 )
-from .test import SlackTestCase
+from baseapp_ai_langkit.slack.tests.test import SlackTestCase
+from baseapp_ai_langkit.tests.factories import UserFactory
 
 
 class TestSlackAIChatReactionRemovedCallbackHandler(SlackTestCase):
@@ -30,7 +29,7 @@ class TestSlackAIChatReactionRemovedCallbackHandler(SlackTestCase):
                     "item": {
                         "type": "message",
                         "channel": self.dummy_channel_id(),
-                        "ts": "1234567890.123456",
+                        "ts": "12134567890.123457",
                     },
                     "event_ts": "1234567890.123456",
                 },

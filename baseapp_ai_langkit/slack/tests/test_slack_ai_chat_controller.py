@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, patch
 
-from baseapp_ai_langkit.slack.interfaces.slack_chat_runner import BaseSlackChatInterface
+from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import (
+    BaseSlackChatInterface,
+)
 from baseapp_ai_langkit.slack.models import SlackAIChatMessage, SlackEvent
 from baseapp_ai_langkit.slack.slack_ai_chat_controller import SlackAIChatController
 
@@ -31,8 +33,8 @@ class TestSlackAIChatController(SlackTestCase):
             slack_chat=self.slack_chat, user_message_slack_event=self.slack_event
         )
 
-    def test_get_runner(self):
-        runner = self.controller.get_runner()
+    def test_get_runner_class(self):
+        runner = self.controller.get_runner_class()
         self.assertTrue(issubclass(runner, BaseSlackChatInterface))
 
     def test_collect_slack_context(self):
@@ -41,6 +43,7 @@ class TestSlackAIChatController(SlackTestCase):
         context = self.controller.collect_slack_context()
 
         self.assertEqual(context["channel_name"], "Slack Channel: pytest")
+        self.assertEqual(context["current_user"], self.slack_chat.chat_session.user.email)
 
     def test_collect_slack_context_api_error(self):
         self.mock_slack_api_call("conversations.info", response_data={}, status=400)
@@ -142,9 +145,11 @@ class TestSlackAIChatController(SlackTestCase):
         mock_runner.return_value = mock_runner_instance
         mock_runner_instance.safe_run.return_value = "AI response"
 
-        with patch.object(self.controller, "get_runner", return_value=mock_runner), patch.object(
-            self.controller, "get_formatted_message"
-        ) as mock_format, patch.object(self.controller, "process_message_response") as mock_process:
+        with patch.object(
+            self.controller, "get_runner_class", return_value=mock_runner
+        ), patch.object(self.controller, "get_formatted_message") as mock_format, patch.object(
+            self.controller, "process_message_response"
+        ) as mock_process:
 
             formatted_response = [
                 (
@@ -175,7 +180,7 @@ class TestSlackAIChatController(SlackTestCase):
         mock_runner.return_value = mock_runner_instance
         mock_runner_instance.safe_run.side_effect = Exception("Test error")
 
-        with patch.object(self.controller, "get_runner", return_value=mock_runner), patch(
+        with patch.object(self.controller, "get_runner_class", return_value=mock_runner), patch(
             "baseapp_ai_langkit.slack.slack_ai_chat_controller.logger"
         ) as mock_logger:
 

@@ -2,6 +2,9 @@ from unittest.mock import MagicMock
 
 from django.test import override_settings
 
+from baseapp_ai_langkit.slack.event_callbacks.tests.test_slack_ai_chat_event_callback import (
+    TestSlackAIChatEventCallback,
+)
 from baseapp_ai_langkit.slack.slack_ai_chat_controller import SlackAIChatController
 from baseapp_ai_langkit.slack.tasks import (
     slack_handle_event_hook_event_callback_data,
@@ -10,9 +13,6 @@ from baseapp_ai_langkit.slack.tasks import (
 from baseapp_ai_langkit.slack.tests.factories import (
     SlackAIChatFactory,
     SlackEventFactory,
-)
-from baseapp_ai_langkit.slack.tests.test_slack_ai_chat_event_callback import (
-    TestSlackAIChatEventCallback,
 )
 
 from .test import SlackTestCase
