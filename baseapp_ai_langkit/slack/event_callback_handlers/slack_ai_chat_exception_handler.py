@@ -15,6 +15,7 @@ class SlackAIChatExceptionHandler(BaseSlackAIChatEventCallbackHandler):
     """
 
     def handle(self):
+        self.verify_incoming_app()
         self.verify_if_is_bot()
         try:
             message = _(

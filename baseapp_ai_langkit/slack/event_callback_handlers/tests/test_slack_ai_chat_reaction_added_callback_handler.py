@@ -50,6 +50,7 @@ class TestSlackAIChatReactionAddedCallbackHandler(SlackTestCase):
             slack_event_callback=self.mock_slack_event_callback
         )
         self.handler.slack_instance_controller = self.mock_slack_instance_controller
+        self.handler.verify_incoming_app = MagicMock()
 
     def test_handle_reaction_added_message_not_found(self):
         with self.assertRaises(BaseSlackEventCallback.WarningException) as context:

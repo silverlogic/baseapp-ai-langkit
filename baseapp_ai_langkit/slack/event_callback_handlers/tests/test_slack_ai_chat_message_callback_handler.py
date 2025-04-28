@@ -49,6 +49,7 @@ class TestSlackAIChatMessageCallbackHandler(SlackTestCase):
             slack_event_callback=self.mock_slack_event_callback
         )
         self.handler.slack_instance_controller = self.mock_slack_instance_controller
+        self.handler.verify_incoming_app = MagicMock()
 
     def test_handle_bot_message(self):
         self.handler.event_data = {
@@ -205,3 +206,44 @@ class TestSlackAIChatMessageCallbackHandler(SlackTestCase):
                 )
 
                 self.assertIn("is_celery_task_processing", str(context.exception))
+
+    def test_get_most_recent_slack_chat(self):
+        team_id = "T12345"
+        event_channel = "C12345"
+        event_thread_ts = "1234567890.123456"
+
+        matching_slack_event = SlackEventFactory(
+            team_id=team_id,
+            event_ts=event_thread_ts,
+            event_type="message",
+            data={
+                "team_id": team_id,
+                "event": {
+                    "channel": event_channel,
+                    "event_ts": event_thread_ts,
+                },
+            },
+        )
+        non_matching_slack_event = SlackEventFactory(
+            team_id=team_id,
+            event_ts="different_ts",
+            event_type="message",
+            data={
+                "team_id": team_id,
+                "event": {
+                    "channel": "different_channel",
+                    "event_ts": "different_ts",
+                },
+            },
+        )
+
+        matching_slack_chat = SlackAIChatFactory(slack_event=matching_slack_event)
+        SlackAIChatFactory(slack_event=non_matching_slack_event)
+
+        result = self.handler.get_most_recent_slack_chat(team_id, event_thread_ts)
+
+        self.assertEqual(result, matching_slack_chat)
+
+    def test_get_most_recent_slack_chat_none(self):
+        result = self.handler.get_most_recent_slack_chat("T12345", "1234567890.123456")
+        self.assertIsNone(result)

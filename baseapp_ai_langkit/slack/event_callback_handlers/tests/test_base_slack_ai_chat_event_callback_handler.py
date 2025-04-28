@@ -1,5 +1,7 @@
 from unittest.mock import MagicMock
 
+from django.test import override_settings
+
 from baseapp_ai_langkit.chats.models import ChatSession
 from baseapp_ai_langkit.slack.event_callback_handlers.base_slack_ai_chat_event_callback_handler import (
     BaseSlackAIChatEventCallbackHandler,
@@ -70,55 +72,6 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
 
         self.assertEqual(handler.get_slack_chat(), slack_chat)
 
-    def test_get_most_recent_slack_chat(self):
-        handler = SlackAIChatEventCallbackHandlerTestClass(
-            slack_event_callback=self.mock_slack_event_callback
-        )
-
-        team_id = "T12345"
-        event_channel = "C12345"
-        event_thread_ts = "1234567890.123456"
-
-        matching_slack_event = SlackEventFactory(
-            team_id=team_id,
-            event_ts=event_thread_ts,
-            event_type="message",
-            data={
-                "team_id": team_id,
-                "event": {
-                    "channel": event_channel,
-                    "event_ts": event_thread_ts,
-                },
-            },
-        )
-        non_matching_slack_event = SlackEventFactory(
-            team_id=team_id,
-            event_ts="different_ts",
-            event_type="message",
-            data={
-                "team_id": team_id,
-                "event": {
-                    "channel": "different_channel",
-                    "event_ts": "different_ts",
-                },
-            },
-        )
-
-        matching_slack_chat = SlackAIChatFactory(slack_event=matching_slack_event)
-        SlackAIChatFactory(slack_event=non_matching_slack_event)
-
-        result = handler.get_most_recent_slack_chat(team_id, event_thread_ts, "message")
-
-        self.assertEqual(result, matching_slack_chat)
-
-    def test_get_most_recent_slack_chat_none(self):
-        handler = SlackAIChatEventCallbackHandlerTestClass(
-            slack_event_callback=self.mock_slack_event_callback
-        )
-
-        result = handler.get_most_recent_slack_chat("T12345", "1234567890.123456", "message")
-        self.assertIsNone(result)
-
     def test_create_new_slack_chat(self):
         handler = SlackAIChatEventCallbackHandlerTestClass(
             slack_event_callback=self.mock_slack_event_callback
@@ -141,3 +94,32 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
         self.assertEqual(created_slack_chat.chat_session, created_chat_session)
         self.assertEqual(created_slack_chat.slack_event, self.slack_event)
         self.assertEqual(handler.slack_chat, created_slack_chat)
+
+    @override_settings(BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID="B12346")
+    def test_verify_incoming_app_failed(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+
+        handler.event_data = {
+            "app_id": "B12345",
+        }
+
+        with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
+            handler.verify_incoming_app()
+
+        self.assertIn("incoming_app_id", str(context.exception))
+
+    @override_settings(BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID="B12346")
+    def test_verify_incoming_app_success(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+
+        handler.event_data = {
+            "app_id": "B12346",
+        }
+
+        handler.verify_incoming_app()
+
+        self.assertIsNone(handler.slack_chat)

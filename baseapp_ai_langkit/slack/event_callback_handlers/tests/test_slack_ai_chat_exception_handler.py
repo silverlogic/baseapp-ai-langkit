@@ -29,6 +29,7 @@ class TestSlackAIChatExceptionHandler(SlackTestCase):
         self.handler = SlackAIChatExceptionHandler(
             slack_event_callback=self.create_mock_slack_event_callback(self.slack_event)
         )
+        self.handler.verify_incoming_app = MagicMock()
 
     def test_handle_exception_success(self):
         self.mock_slack_api_call("chat.postMessage")
@@ -61,6 +62,7 @@ class TestSlackAIChatExceptionHandler(SlackTestCase):
         handler = SlackAIChatExceptionHandler(
             slack_event_callback=self.create_mock_slack_event_callback(bot_event)
         )
+        handler.verify_incoming_app = MagicMock()
 
         with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
             handler.handle()

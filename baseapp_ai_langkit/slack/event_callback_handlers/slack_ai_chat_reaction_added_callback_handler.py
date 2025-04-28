@@ -16,6 +16,8 @@ class SlackAIChatReactionAddedCallbackHandler(BaseSlackAIChatEventCallbackHandle
     """
 
     def handle(self):
+        self.verify_incoming_app()
+
         event_user: str = self.event_data["user"]
         event_item_ts: str = self.event_data["item"]["ts"]
         reaction = self.event_data["reaction"]

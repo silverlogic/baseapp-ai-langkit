@@ -6,6 +6,7 @@ from baseapp_ai_langkit.slack.event_callback_handlers.base_slack_ai_chat_event_c
 from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
     BaseSlackEventCallback,
 )
+from baseapp_ai_langkit.slack.models import SlackAIChat
 
 
 class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
@@ -14,6 +15,7 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
     """
 
     def handle(self):
+        self.verify_incoming_app()
         self.verify_if_is_bot()
         self._verify_if_is_channel_type_and_is_in_thread()
 
@@ -25,12 +27,12 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
 
         if channel_type == "channel":
             self.slack_chat = self.get_most_recent_slack_chat(
-                team_id=self.team_id, event_ts=event_thread_ts, event_type=self.event_type
+                team_id=self.team_id, event_ts=event_thread_ts
             )
         elif channel_type == "im":
             if event_thread_ts:
                 self.slack_chat = self.get_most_recent_slack_chat(
-                    team_id=self.team_id, event_ts=event_thread_ts, event_type=self.event_type
+                    team_id=self.team_id, event_ts=event_thread_ts
                 )
             else:
                 user, created = self.slack_instance_controller.get_or_create_user_from_slack_user(
@@ -59,3 +61,13 @@ class SlackAIChatMessageCallbackHandler(BaseSlackAIChatEventCallbackHandler):
             raise BaseSlackEventCallback.WarningException(
                 f"Skipping event_type: {self.event_type}. Reason: is_in_thread:{is_in_thread}"
             )
+
+    def get_most_recent_slack_chat(self, team_id: str, event_ts: str) -> SlackAIChat | None:
+        try:
+            return SlackAIChat.objects.get(
+                slack_event__team_id=team_id,
+                slack_event__event_ts=event_ts,
+                slack_event__event_type__in=["message", "app_mention"],
+            )
+        except SlackAIChat.DoesNotExist:
+            return None

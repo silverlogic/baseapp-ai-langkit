@@ -42,6 +42,7 @@ class TestSlackAIChatAppMentionCallbackHandler(SlackTestCase):
             slack_event_callback=self.mock_slack_event_callback
         )
         self.handler.slack_instance_controller = self.mock_slack_instance_controller
+        self.handler.verify_incoming_app = MagicMock()
 
     def test_handle_app_mention_in_thread(self):
         self.handler.event_data = {

@@ -51,6 +51,7 @@ class TestSlackAIChatReactionRemovedCallbackHandler(SlackTestCase):
             slack_event_callback=self.mock_slack_event_callback
         )
         self.handler.slack_instance_controller = self.mock_slack_instance_controller
+        self.handler.verify_incoming_app = MagicMock()
 
     def test_handle_reaction_removed_reaction_not_found(self):
         user = UserFactory()

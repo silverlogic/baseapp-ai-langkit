@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 
 from baseapp_ai_langkit.chats.models import ChatSession
@@ -20,20 +21,16 @@ class BaseSlackAIChatEventCallbackHandler(BaseSlackAIChatEvent):
                 f"Skipping event_type: {self.event_type}. Reason: is_bot"
             )
 
+    def verify_incoming_app(self):
+        incoming_app_id = self.event_data.get("app_id", "")
+        bot_app_id = settings.BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID
+        if incoming_app_id != bot_app_id:
+            raise BaseSlackEventCallback.WarningException(
+                f"Skipping event_type: {self.event_type}. Reason: incoming_app_id != {bot_app_id}"
+            )
+
     def get_slack_chat(self) -> SlackAIChat:
         return self.slack_chat
-
-    def get_most_recent_slack_chat(
-        self, team_id: str, event_ts: str, event_type: str
-    ) -> SlackAIChat | None:
-        try:
-            return SlackAIChat.objects.get(
-                slack_event__team_id=team_id,
-                slack_event__event_ts=event_ts,
-                slack_event__event_type=event_type,
-            )
-        except SlackAIChat.DoesNotExist:
-            return None
 
     def create_new_slack_chat(self, user: AbstractBaseUser) -> SlackAIChat:
         chat_session = ChatSession.objects.create(user=user)
