@@ -101,8 +101,8 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
             slack_event_callback=self.mock_slack_event_callback
         )
 
-        handler.event_data = {
-            "app_id": "B12345",
+        handler.data = {
+            "api_app_id": "B12345",
         }
 
         with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
@@ -116,8 +116,8 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
             slack_event_callback=self.mock_slack_event_callback
         )
 
-        handler.event_data = {
-            "app_id": "B12346",
+        handler.data = {
+            "api_app_id": "B12346",
         }
 
         handler.verify_incoming_app()

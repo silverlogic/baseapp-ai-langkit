@@ -19,11 +19,11 @@ class SlackEventStatusInline(admin.TabularInline):
 
 @admin.register(SlackEvent)
 class SlackEventAdmin(admin.ModelAdmin):
-    list_display = ("id", "team_id", "event_ts", "created", "modified")
-    search_fields = ("id", "team_id", "event_ts")
-    list_filter = ("team_id", "event_ts")
+    list_display = ("id", "team_id", "event_ts", "event_type", "created", "modified")
+    search_fields = ("id", "team_id", "event_ts", "event_type")
+    list_filter = ("team_id", "event_ts", "event_type")
     ordering = ("-created",)
-    readonly_fields = ("id", "team_id", "event_ts", "created", "modified")
+    readonly_fields = ("id", "team_id", "event_ts", "event_type", "data", "created", "modified")
     inlines = [SlackEventStatusInline]
 
 

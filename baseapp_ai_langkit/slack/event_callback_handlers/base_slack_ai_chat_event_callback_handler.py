@@ -22,7 +22,7 @@ class BaseSlackAIChatEventCallbackHandler(BaseSlackAIChatEvent):
             )
 
     def verify_incoming_app(self):
-        incoming_app_id = self.event_data.get("app_id", "")
+        incoming_app_id = self.data.get("api_app_id", "")
         bot_app_id = settings.BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID
         if incoming_app_id != bot_app_id:
             raise BaseSlackEventCallback.WarningException(
