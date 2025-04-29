@@ -1,6 +1,11 @@
+import json
+
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import JsonLexer
 
 from .models import (
     SlackAIChat,
@@ -9,6 +14,16 @@ from .models import (
     SlackEvent,
     SlackEventStatus,
 )
+
+
+def pretty_json(data):
+    if data is None:
+        return None
+    formatter = HtmlFormatter(style="colorful", cssclass="pretty-json")
+    return format_html(
+        highlight("{}", JsonLexer(), formatter),
+        json.dumps(data, sort_keys=True, indent=2),
+    )
 
 
 class SlackEventStatusInline(admin.TabularInline):
@@ -23,8 +38,29 @@ class SlackEventAdmin(admin.ModelAdmin):
     search_fields = ("id", "team_id", "event_ts", "event_type")
     list_filter = ("team_id", "event_ts", "event_type")
     ordering = ("-created",)
-    readonly_fields = ("id", "team_id", "event_ts", "event_type", "data", "created", "modified")
+    fields = ("id", "team_id", "event_ts", "event_type", "data_json_pretty", "created", "modified")
+    readonly_fields = (
+        "id",
+        "team_id",
+        "event_ts",
+        "event_type",
+        "data_json_pretty",
+        "created",
+        "modified",
+    )
     inlines = [SlackEventStatusInline]
+
+    def data_json_pretty(self, instance):
+        return pretty_json(instance.data)
+
+    data_json_pretty.short_description = "data"
+
+    class Media:
+        css = {
+            "all": [
+                "css/pretty-json.css",
+            ]
+        }
 
 
 @admin.register(SlackAIChat)
@@ -39,7 +75,7 @@ class SlackAIChatAdmin(admin.ModelAdmin):
     )
     search_fields = ("id", "celery_task_id")
     ordering = ("-created",)
-    readonly_fields = ("id", "created", "modified")
+    readonly_fields = ("id", "created", "modified", "chat_session_link", "slack_event_link")
 
     def chat_session_link(self, obj):
         url = reverse(
@@ -79,7 +115,24 @@ class SlackAIChatMessageAdmin(admin.ModelAdmin):
         "output_slack_event__id",
     )
     ordering = ("-created",)
-    readonly_fields = ("id", "created", "modified")
+    fields = (
+        "id",
+        "created",
+        "modified",
+        "slack_chat",
+        "user_message_slack_event",
+        "output_slack_event",
+        "output_response_output_data_json_pretty",
+    )
+    readonly_fields = (
+        "id",
+        "created",
+        "modified",
+        "slack_chat",
+        "user_message_slack_event",
+        "output_slack_event",
+        "output_response_output_data_json_pretty",
+    )
     inlines = [SlackAIChatMessageReactionInline]
 
     def slack_chat_link(self, obj):
@@ -104,3 +157,15 @@ class SlackAIChatMessageAdmin(admin.ModelAdmin):
         return format_html('<a href="{}">{}</a>', url, obj.output_slack_event.id)
 
     output_slack_event_link.short_description = "Output Slack Event"
+
+    def output_response_output_data_json_pretty(self, instance):
+        return pretty_json(instance.output_response_output_data)
+
+    output_response_output_data_json_pretty.short_description = "output_response_output_data"
+
+    class Media:
+        css = {
+            "all": [
+                "css/pretty-json.css",
+            ]
+        }

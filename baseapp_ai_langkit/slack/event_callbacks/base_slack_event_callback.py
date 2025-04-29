@@ -57,18 +57,17 @@ class BaseSlackEventCallback:
             else:
                 raise Exception(f"Unable to handle event_type: {self.event_type}")
             event_status.status = SlackEventStatus.STATUS.success
-            event_status.save()
         except self.WarningException as e:
             logger.warning(f"Logging warning for team_id: {self.team_id} - {e}")
             event_status.status = SlackEventStatus.STATUS.success_with_warnings
             event_status.status_message = str(e)
-            event_status.save()
         except Exception as e:
             self.handle_exception(e)
             logger.exception(f"Logging exception for team_id: {self.team_id} - {e}")
             event_status.status = SlackEventStatus.STATUS.failed
             event_status.status_message = str(e)
-            event_status.save()
+        finally:
+            event_status.save(update_fields=["status", "status_message"])
 
     def handle_tokens_revoked(self):
         """
