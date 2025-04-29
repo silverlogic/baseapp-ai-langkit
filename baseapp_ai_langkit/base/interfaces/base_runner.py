@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class BaseRunnerInterface(ABC):
+    # TODO: change to OrderedDict.
     edge_nodes: dict[str, Type[LLMNodeInterface]] = {}
     nodes: dict[str, Type[LLMNodeInterface]] = {}
 

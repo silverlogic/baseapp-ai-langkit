@@ -5,7 +5,9 @@ from baseapp_ai_langkit.chats.rest_framework.views import (
     ChatIdentityViewSet,
     ChatPrePromptedQuestionViewSet,
 )
+from baseapp_ai_langkit.slack.rest_framework.viewsets import SlackWebhookViewSet
 
+# Chats
 baseapp_ai_langkit_router = routers.DefaultRouter()
 baseapp_ai_langkit_router.register(r"chat", BaseChatViewSet, basename="llm-chat")
 baseapp_ai_langkit_router.register(
@@ -16,3 +18,6 @@ baseapp_ai_langkit_router.register(
     ChatPrePromptedQuestionViewSet,
     basename="llm-chat-pre-prompted-question",
 )
+
+# Slack
+baseapp_ai_langkit_router.register(r"slack/webhook", SlackWebhookViewSet, basename="slack-webhook")

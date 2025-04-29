@@ -1,0 +1,11 @@
+div.form-row div.flex-container:has(div.pretty-json) {
+    flex-wrap: wrap;
+}
+
+div.readonly:has(> div.pretty-json) {
+    max-width: 100%;
+}
+
+div.pretty-json {
+    overflow-x: auto;
+}

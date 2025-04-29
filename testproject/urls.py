@@ -12,7 +12,7 @@ __all__ = [
 ]
 
 v1_urlpatterns = [
-    path(r"llm-chat/", include(baseapp_ai_langkit_router.urls)),
+    path(r"langkit/", include(baseapp_ai_langkit_router.urls)),
 ]
 
 urlpatterns = [

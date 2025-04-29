@@ -2,6 +2,8 @@ from pathlib import Path
 
 from django.utils.translation import gettext_lazy as _
 
+from baseapp_ai_langkit.settings import *  # noqa
+
 from .env import env
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,6 +48,7 @@ INSTALLED_APPS = [
     "baseapp_ai_langkit.runners",
     "baseapp_ai_langkit.tools",
     "baseapp_ai_langkit.vector_stores",
+    "baseapp_ai_langkit.slack",
 ]
 
 MIDDLEWARE = [
@@ -131,8 +134,6 @@ USE_L10N = True
 USE_TZ = True
 
 # Celery
-CELERY_BROKER_URL = "memory:///"
-CELERY_RESULT_BACKEND = "cache+memory:///"
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_EAGER_PROPAGATES = True
 
@@ -146,7 +147,7 @@ ADMIN_TIME_ZONE = "UTC"
 URL_SHORTENING_PREFIX = "c"
 
 # Constance
-CONSTANCE_BACKEND = "constance.backends.memory.MemoryBackend"
+CONSTANCE_BACKEND = "constance.backends.database.DatabaseBackend"
 
 # Rest Framework
 REST_FRAMEWORK = {

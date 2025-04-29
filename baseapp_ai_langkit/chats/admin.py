@@ -29,11 +29,11 @@ class ChatSessionFilter(admin.SimpleListFilter):
 
 @admin.register(ChatMessage)
 class ChatMessageAdmin(admin.ModelAdmin):
-    list_display = ("id", "role", "content", "created")
+    list_display = ("id", "session", "role", "content", "created")
     list_filter = (ChatSessionFilter,)
     search_fields = ("id", "content")
     ordering = ("created",)
-    readonly_fields = ("id", "role", "content", "created")
+    readonly_fields = ("id", "session", "role", "content", "created")
 
 
 @admin.register(ChatSession)
