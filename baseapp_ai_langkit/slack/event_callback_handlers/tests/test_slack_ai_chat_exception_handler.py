@@ -30,6 +30,7 @@ class TestSlackAIChatExceptionHandler(SlackTestCase):
             slack_event_callback=self.create_mock_slack_event_callback(self.slack_event)
         )
         self.handler.verify_incoming_app = MagicMock()
+        self.handler.verify_if_is_slack_chat_bot = MagicMock()
 
     def test_handle_exception_success(self):
         self.mock_slack_api_call("chat.postMessage")
@@ -45,29 +46,6 @@ class TestSlackAIChatExceptionHandler(SlackTestCase):
                 "thread_ts": self.slack_event.data["event"]["event_ts"],
             },
         )
-
-    def test_handle_exception_with_bot_message(self):
-        bot_event = SlackEventFactory(
-            data={
-                "team_id": "T12345",
-                "event": {
-                    "type": "message",
-                    "user": self.dummy_real_user_id(),
-                    "bot_id": "B12345",
-                    "channel": self.dummy_channel_id(),
-                    "event_ts": "1234567890.123456",
-                },
-            }
-        )
-        handler = SlackAIChatExceptionHandler(
-            slack_event_callback=self.create_mock_slack_event_callback(bot_event)
-        )
-        handler.verify_incoming_app = MagicMock()
-
-        with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
-            handler.handle()
-
-        self.assertIn("is_bot", str(context.exception))
 
     def test_handle_exception_with_slack_api_error(self):
         self.mock_slack_api_call(

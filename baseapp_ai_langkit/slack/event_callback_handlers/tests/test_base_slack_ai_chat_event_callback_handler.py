@@ -50,6 +50,41 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
             self.mock_slack_instance_controller
         )
 
+    @override_settings(BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID="B12345")
+    def test_verify_if_is_slack_chat_bot_not_bot(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+        handler.verify_if_is_slack_chat_bot()
+
+    @override_settings(BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID="B12345")
+    def test_verify_if_is_slack_chat_bot_is_bot_different_app(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+        handler.event_data = {
+            "bot_id": "BOT123",
+            "app_id": "A54321",
+            "type": "message",
+        }
+        handler.verify_if_is_slack_chat_bot()
+
+    @override_settings(BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID="B12345")
+    def test_verify_if_is_slack_chat_bot_is_bot_same_app(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+        handler.event_data = {
+            "bot_id": "BOT123",
+            "app_id": "B12345",
+            "type": "message",
+        }
+
+        with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
+            handler.verify_if_is_slack_chat_bot()
+
+        self.assertIn("is slack chat bot", str(context.exception))
+
     def test_init(self):
         handler = SlackAIChatEventCallbackHandlerTestClass(
             slack_event_callback=self.mock_slack_event_callback
@@ -123,3 +158,74 @@ class TestBaseSlackAIChatEventCallbackHandler(SlackTestCase):
         handler.verify_incoming_app()
 
         self.assertIsNone(handler.slack_chat)
+
+    def test_get_or_create_user_from_slack_event_with_user(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+
+        user = UserFactory()
+        handler.event_data = {"user": "U12345"}
+
+        handler.slack_instance_controller.get_or_create_user_from_slack_user = MagicMock(
+            return_value=(user, False)
+        )
+        result = handler.get_or_create_user_from_slack_event()
+
+        handler.slack_instance_controller.get_or_create_user_from_slack_user.assert_called_once_with(
+            slack_user_id="U12345"
+        )
+        self.assertEqual(result, user)
+
+    def test_get_or_create_user_from_slack_event_with_bot_message(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+
+        user = UserFactory()
+        handler.event_data = {"bot_id": "B12345", "subtype": "bot_message"}
+
+        handler.slack_instance_controller.get_or_create_user_from_slack_bot = MagicMock(
+            return_value=(user, False)
+        )
+        result = handler.get_or_create_user_from_slack_event()
+        handler.slack_instance_controller.get_or_create_user_from_slack_bot.assert_called_once_with(
+            bot_id="B12345"
+        )
+        self.assertEqual(result, user)
+
+    def test_get_or_create_user_from_slack_event_with_bot_not_bot_message(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+
+        handler.event_data = {"bot_id": "B12345", "subtype": "not_bot_message"}
+
+        with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
+            handler.get_or_create_user_from_slack_event()
+
+        self.assertIn("event_subtype != bot_message", str(context.exception))
+
+    def test_get_or_create_user_from_slack_event_with_bot_no_subtype(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+
+        handler.event_data = {"bot_id": "B12345"}
+
+        with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
+            handler.get_or_create_user_from_slack_event()
+
+        self.assertIn("event_subtype != bot_message", str(context.exception))
+
+    def test_get_or_create_user_from_slack_event_no_user(self):
+        handler = SlackAIChatEventCallbackHandlerTestClass(
+            slack_event_callback=self.mock_slack_event_callback
+        )
+
+        handler.event_data = {}
+
+        with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
+            handler.get_or_create_user_from_slack_event()
+
+        self.assertIn("user not found", str(context.exception))

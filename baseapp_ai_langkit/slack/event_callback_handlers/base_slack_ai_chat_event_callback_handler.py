@@ -14,12 +14,14 @@ from baseapp_ai_langkit.slack.models import SlackAIChat
 class BaseSlackAIChatEventCallbackHandler(BaseSlackAIChatEvent):
     slack_chat: SlackAIChat | None = None
 
-    def verify_if_is_bot(self):
+    def verify_if_is_slack_chat_bot(self):
         is_bot = "bot_id" in self.event_data
-        if is_bot:
-            raise BaseSlackEventCallback.WarningException(
-                f"Skipping event_type: {self.event_type}. Reason: is_bot"
-            )
+        bot_app_id = self.event_data.get("app_id", None)
+        if is_bot and bot_app_id:
+            if bot_app_id == settings.BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID:
+                raise BaseSlackEventCallback.WarningException(
+                    f"Skipping event_type: {self.event_type}. Reason: is slack chat bot"
+                )
 
     def verify_incoming_app(self):
         incoming_app_id = self.data.get("api_app_id", "")
@@ -37,3 +39,26 @@ class BaseSlackAIChatEventCallbackHandler(BaseSlackAIChatEvent):
         self.slack_chat = SlackAIChat.objects.create(
             chat_session=chat_session, slack_event=self.slack_event_callback.slack_event
         )
+
+    def get_or_create_user_from_slack_event(self) -> AbstractBaseUser:
+        if bot_id := self.event_data.get("bot_id", None):
+            if event_subtype := self.event_data.get("subtype", None):
+                if event_subtype == "bot_message":
+                    user, created = (
+                        self.slack_instance_controller.get_or_create_user_from_slack_bot(
+                            bot_id=bot_id
+                        )
+                    )
+                    return user
+            raise BaseSlackEventCallback.WarningException(
+                f"Skipping event_type: {self.event_type}. Reason: event_subtype != bot_message"
+            )
+        else:
+            if user := self.event_data.get("user", None):
+                user, created = self.slack_instance_controller.get_or_create_user_from_slack_user(
+                    slack_user_id=self.event_data["user"]
+                )
+                return user
+            raise BaseSlackEventCallback.WarningException(
+                f"Skipping event_type: {self.event_type}. Reason: user not found"
+            )

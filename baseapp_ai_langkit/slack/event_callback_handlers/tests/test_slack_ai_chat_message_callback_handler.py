@@ -50,19 +50,7 @@ class TestSlackAIChatMessageCallbackHandler(SlackTestCase):
         )
         self.handler.slack_instance_controller = self.mock_slack_instance_controller
         self.handler.verify_incoming_app = MagicMock()
-
-    def test_handle_bot_message(self):
-        self.handler.event_data = {
-            "type": "message",
-            "bot_id": "B12345",
-            "channel_type": "channel",
-            "thread_ts": "1234567890.123456",
-        }
-
-        with self.assertRaises(BaseSlackEventCallback.WarningException) as context:
-            self.handler.handle()
-
-        self.assertIn("is_bot", str(context.exception))
+        self.handler.verify_if_is_slack_chat_bot = MagicMock()
 
     def test_handle_channel_message_without_thread(self):
         self.handler.event_data = {
@@ -142,6 +130,26 @@ class TestSlackAIChatMessageCallbackHandler(SlackTestCase):
 
         user = UserFactory()
         self.mock_slack_instance_controller.get_or_create_user_from_slack_user.return_value = (
+            user,
+            True,
+        )
+
+        self.handler.handle()
+
+        self.assertIsNotNone(self.handler.slack_chat)
+        self.assertEqual(self.handler.slack_chat.chat_session.user, user)
+
+    def test_handle_im_message_from_bot_message(self):
+        self.handler.event_data = {
+            "type": "message",
+            "channel_type": "im",
+            "channel": self.dummy_channel_id(),
+            "bot_id": self.dummy_bot_user_id(),
+            "subtype": "bot_message",
+        }
+
+        user = UserFactory()
+        self.mock_slack_instance_controller.get_or_create_user_from_slack_bot.return_value = (
             user,
             True,
         )

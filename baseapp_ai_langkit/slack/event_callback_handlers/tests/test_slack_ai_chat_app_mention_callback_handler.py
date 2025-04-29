@@ -43,6 +43,7 @@ class TestSlackAIChatAppMentionCallbackHandler(SlackTestCase):
         )
         self.handler.slack_instance_controller = self.mock_slack_instance_controller
         self.handler.verify_incoming_app = MagicMock()
+        self.handler.verify_if_is_slack_chat_bot = MagicMock()
 
     def test_handle_app_mention_in_thread(self):
         self.handler.event_data = {
@@ -78,4 +79,28 @@ class TestSlackAIChatAppMentionCallbackHandler(SlackTestCase):
         self.assertEqual(self.handler.slack_chat.chat_session.user, user)
         self.mock_slack_instance_controller.get_or_create_user_from_slack_user.assert_called_once_with(
             slack_user_id=self.dummy_real_user_id()
+        )
+
+    def test_handle_app_mention_from_bot_message(self):
+        self.handler.event_data = {
+            "type": "app_mention",
+            "text": "<@U12345> Hello AI assistant",
+            "user": self.dummy_real_user_id(),
+            "channel": self.dummy_channel_id(),
+            "bot_id": self.dummy_bot_user_id(),
+            "subtype": "bot_message",
+        }
+
+        user = UserFactory()
+        self.mock_slack_instance_controller.get_or_create_user_from_slack_bot.return_value = (
+            user,
+            True,
+        )
+
+        self.handler.handle()
+
+        self.assertIsNotNone(self.handler.slack_chat)
+        self.assertEqual(self.handler.slack_chat.chat_session.user, user)
+        self.mock_slack_instance_controller.get_or_create_user_from_slack_bot.assert_called_once_with(
+            bot_id=self.dummy_bot_user_id()
         )

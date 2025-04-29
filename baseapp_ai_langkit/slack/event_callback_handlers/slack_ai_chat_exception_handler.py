@@ -16,7 +16,7 @@ class SlackAIChatExceptionHandler(BaseSlackAIChatEventCallbackHandler):
 
     def handle(self):
         self.verify_incoming_app()
-        self.verify_if_is_bot()
+        self.verify_if_is_slack_chat_bot()
         try:
             message = _(
                 "Error while processing your request. Please try again later or contact support."

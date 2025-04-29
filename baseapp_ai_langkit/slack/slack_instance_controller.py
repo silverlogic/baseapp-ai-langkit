@@ -29,10 +29,33 @@ class SlackInstanceController:
         if is_from_bot:
             return (None, False)
 
+        defaults = {
+            "first_name": user_profile.get("first_name"),
+            "last_name": user_profile.get("last_name"),
+        }
+
+        if hasattr(User, "USERNAME_FIELD") and User.USERNAME_FIELD != "email":
+            defaults[User.USERNAME_FIELD] = user_profile.get(
+                User.USERNAME_FIELD, user_profile.get("email")
+            )
+
         return User.objects.update_or_create(
             email=user_profile["email"],
-            defaults=dict(
-                first_name=user_profile.get("first_name"),
-                last_name=user_profile.get("last_name"),
-            ),
+            defaults=defaults,
         )
+
+    def get_or_create_user_from_slack_bot(self, bot_id: str) -> Tuple[AbstractBaseUser, bool]:
+        email = f"slack_bot_{bot_id}@tsl.io"
+        defaults = {
+            "first_name": "Slackbot",
+            "last_name": bot_id,
+        }
+
+        if hasattr(User, "USERNAME_FIELD") and User.USERNAME_FIELD != "email":
+            defaults[User.USERNAME_FIELD] = email
+
+        user, created = User.objects.update_or_create(
+            email=email,
+            defaults=defaults,
+        )
+        return (user, created)

@@ -13,15 +13,12 @@ class SlackAIChatAppMentionCallbackHandler(BaseSlackAIChatEventCallbackHandler):
 
     def handle(self):
         self.verify_incoming_app()
+        self.verify_if_is_slack_chat_bot()
         self._verify_not_in_thread()
 
-        event_user: str = self.event_data["user"]
         self.event_text: str = self.event_data["text"]
 
-        user, _ = self.slack_instance_controller.get_or_create_user_from_slack_user(
-            slack_user_id=event_user
-        )
-
+        user = self.get_or_create_user_from_slack_event()
         self.create_new_slack_chat(user=user)
 
     def _verify_not_in_thread(self):
