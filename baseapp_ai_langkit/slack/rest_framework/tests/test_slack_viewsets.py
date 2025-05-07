@@ -18,7 +18,6 @@ class TestSlackWebhookViewSet(APITestCase, SlackTestCase):
     def setUp(self):
         super().setUp()
         self.url = reverse("v1:slack-webhook-list")
-        self.viewset = SlackWebhookViewSet.as_view({"post": "create"})
 
     @patch.object(SlackWebhookViewSet, "permission_classes", new=[])
     def test_url_verification(self):
