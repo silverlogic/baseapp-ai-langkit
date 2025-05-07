@@ -2,7 +2,7 @@ from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 
 
-class LLMChatRunnersConfig(AppConfig):
+class BaseappAILangkitRunnersConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
     name = "baseapp_ai_langkit.runners"
     label = "baseapp_ai_langkit_runners"

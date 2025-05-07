@@ -1,3 +1,4 @@
+from django.apps import apps
 from rest_framework import routers
 
 from baseapp_ai_langkit.chats.rest_framework.views import (
@@ -5,7 +6,6 @@ from baseapp_ai_langkit.chats.rest_framework.views import (
     ChatIdentityViewSet,
     ChatPrePromptedQuestionViewSet,
 )
-from baseapp_ai_langkit.slack.rest_framework.viewsets import SlackWebhookViewSet
 
 # Chats
 baseapp_ai_langkit_router = routers.DefaultRouter()
@@ -20,4 +20,9 @@ baseapp_ai_langkit_router.register(
 )
 
 # Slack
-baseapp_ai_langkit_router.register(r"slack/webhook", SlackWebhookViewSet, basename="slack-webhook")
+if apps.is_installed("baseapp_ai_langkit.slack"):
+    from baseapp_ai_langkit.slack.rest_framework.viewsets import SlackWebhookViewSet
+
+    baseapp_ai_langkit_router.register(
+        r"slack/webhook", SlackWebhookViewSet, basename="slack-webhook"
+    )
