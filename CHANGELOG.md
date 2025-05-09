@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Now workflow nodes (workers and agents) can define a specific LLM model for themselves.
+- Compatibility with version 0.3 of `langchain-openai`, which introduced native support for formatted_output with `Pydantic`. This eliminates the need for auxiliary properties like `min_length` and `default`.
 
 
 ## [0.2.2] - 2024-05-07

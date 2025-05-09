@@ -20,8 +20,6 @@ class AvailableNode(BaseModel):
 
 class OrchestratorResponse(BaseModel):
     nodes: List[AvailableNode] = Field(
-        min_length=0,
-        default=[],
         description=(
             "A list of workers/agents that will be used to process and respond to the user's prompt."
             " Each worker/agent is capable of contributing to the response."
