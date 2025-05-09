@@ -55,3 +55,16 @@ class TestSynthesizerWorker(TestCase):
 
         self.assertIsInstance(response, AIMessage)
         self.assertEqual(response.content, "Test synthesized response")
+
+    def test_synthesizer_worker_invoke_with_empty_nodes(self):
+        messages = [MagicMock(spec=AnyMessage)]
+        state = {
+            "user_prompt": "test prompt",
+            "synthesizer_context": "test context",
+            "selected_nodes_list": [],
+        }
+
+        response = self.worker.invoke(messages, state)
+
+        self.assertIsInstance(response, AIMessage)
+        self.assertEqual(response.content, "Test synthesized response")
