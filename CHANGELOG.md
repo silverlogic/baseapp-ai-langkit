@@ -5,9 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [0.2.3] - 2024-05-09
+
+### Added
+
+- Now workflow nodes (workers and agents) can define a specific LLM model for themselves.
+- Compatibility with version 0.3 of `langchain-openai`, which introduced native support for formatted_output with `Pydantic`. This eliminates the need for auxiliary properties like `min_length` and `default`.
+
+### Fixed
+
+- Synthesizer prompt conditional rule adjustment to also check empty lists of selected nodes.
+
+
 ## [0.2.2] - 2024-05-07
 
-### Bugfix
+### Fixed
 
 - Slack App now it optional
 
