@@ -37,8 +37,7 @@ class SynthesizerWorker(MessagesWorker):
                 "\nYour answer must not mention the used agents/workers."
             ),
             required_placeholders=["selected_nodes_list"],
-            conditional_rule=lambda state: state.get("selected_nodes_list", None) is not None
-            and len(state.get("selected_nodes_list", [])) > 0,
+            conditional_rule=lambda state: len(state.get("selected_nodes_list") or []) > 0,
         ),
     ]
 

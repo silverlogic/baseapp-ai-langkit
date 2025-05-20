@@ -17,6 +17,7 @@ class AbstractBaseTool(ABC):
 
     name: str
     description: str
+    # TODO: Add the args schema here.
     vector_store: AbstractBaseVectorStore
 
     def __init__(self, name: str, description: str, vector_store: AbstractBaseVectorStore):
@@ -65,6 +66,8 @@ class InlineTool(InMemoryTool):
     """
     Inline tools must have their name and description set inline in the class.
     """
+
+    # TODO: The VectorStore is not always needed. It should be optional.
 
     def __init__(self, vector_store: AbstractBaseVectorStore):
         self.vector_store = vector_store

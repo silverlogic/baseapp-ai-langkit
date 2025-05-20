@@ -72,6 +72,7 @@ class OrchestratorWorker(MessagesWorker):
     ):
         self.available_nodes_list = available_nodes_list
         super().__init__(*args, **kwargs)
+        # TODO: Move this to a function, so it can get overridden if needed.
         self.llm = self.llm.with_structured_output(OrchestratorResponse)
 
     def get_custom_placeholders_data(self) -> dict:
