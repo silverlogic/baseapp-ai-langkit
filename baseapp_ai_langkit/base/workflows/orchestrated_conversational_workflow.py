@@ -48,6 +48,8 @@ class OrchestratedConversationalWorkflow(ConversationalWorkflow):
         synthesizer (SynthesizerWorker): The synthesizer to use for the workflow.
     """
 
+    # TODO: It should be able to go straight to END if the orchestrator Guardrails say so.
+
     nodes: dict[str, Union[NodeInfo]]
     orchestrator: OrchestratorWorker
     synthesizer: SynthesizerWorker

@@ -18,7 +18,7 @@ class LLMNodeInterface(ABC):
     them to define and manage their prompt schemas and state modifiers effectively.
 
     Args:
-        llm (BaseLanguageModel): The language model to use.
+        llm (BaseLanguageModel): The default language model to use.
         config (RunnableConfig): The configuration for the runnable.
         usage_prompt_schema (Optional[BasePromptSchema]): Optional usage prompt schema.
         state_modifier_schema (Optional[Union[BasePromptSchema, List[BasePromptSchema]]]):
@@ -38,7 +38,7 @@ class LLMNodeInterface(ABC):
         state_modifier_schema: Optional[Union[BasePromptSchema, List[BasePromptSchema]]] = None,
         **kwargs,
     ):
-        self.llm = llm
+        self.llm = self.get_llm_model(llm)
         self.config = config
 
         if usage_prompt_schema:
@@ -52,6 +52,12 @@ class LLMNodeInterface(ABC):
             if self.state_modifier_schema:
                 for state_modifier in self.get_state_modifier_list():
                     state_modifier.placeholders_data.update(custom_placeholders_data)
+
+    def get_llm_model(self, llm: BaseLanguageModel) -> BaseLanguageModel:
+        """
+        Override this method in LLMNodeInterface subclass to specify a LLM model for the node.
+        """
+        return llm
 
     def get_custom_placeholders_data(self) -> Optional[dict]:
         """Use this method to add custom placeholders during runtime."""

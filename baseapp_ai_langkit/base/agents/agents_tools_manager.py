@@ -6,6 +6,7 @@ from baseapp_ai_langkit.vector_stores.models import DefaultVectorStore
 
 
 class AgentsToolsManager(ABC):
+    # TODO: Reevaluate this class. These tools require a vector store, but the vector store is not always needed.
     tools_list: List[Type[InlineTool]] = []
 
     @abstractmethod
