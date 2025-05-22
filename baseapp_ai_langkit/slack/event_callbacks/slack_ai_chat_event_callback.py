@@ -66,7 +66,7 @@ class SlackAIChatEventCallback(BaseSlackEventCallback):
         handler.handle()
 
     def apply_process_incoming_user_slack_message_task(
-        self, handler: BaseSlackAIChatEventCallbackHandler
+        self, handler: BaseSlackAIChatEventCallbackHandler, **kwargs
     ):
         from baseapp_ai_langkit.slack import tasks
 
@@ -75,6 +75,7 @@ class SlackAIChatEventCallback(BaseSlackEventCallback):
             kwargs=dict(
                 slack_chat_id=slack_chat.id,
                 user_message_slack_event_id=self.slack_event.id,
+                **kwargs,
             )
         )
         slack_chat.celery_task_id = result.id
