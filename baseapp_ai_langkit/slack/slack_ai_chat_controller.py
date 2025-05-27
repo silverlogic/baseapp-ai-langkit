@@ -23,6 +23,7 @@ class SlackAIChatController:
     This class is responsible for connecting the Slack event with the desired LLM model.
     """
 
+    kwargs: dict
     slack_instance_controller: SlackInstanceController
     slack_event_data: dict
 
@@ -30,13 +31,15 @@ class SlackAIChatController:
     user_message_slack_event: SlackEvent
     user_message_text: str
 
-    def __init__(self, slack_chat: SlackAIChat, user_message_slack_event: SlackEvent):
+    def __init__(self, slack_chat: SlackAIChat, user_message_slack_event: SlackEvent, **kwargs):
         self.slack_instance_controller = SlackInstanceController()
         self.slack_event_data = slack_chat.slack_event.data
 
         self.slack_chat = slack_chat
         self.user_message_slack_event = user_message_slack_event
         self.user_message_text = self.user_message_slack_event.data["event"]["text"]
+
+        self.kwargs = kwargs
 
     def process_message(self):
         slack_context = self.collect_slack_context()
@@ -53,7 +56,7 @@ class SlackAIChatController:
             self.process_message_response(formatted_output)
         except Exception as e:
             logger.exception(f"Error processing message: {e}")
-            return
+            return e
 
     def get_runner_class(self) -> Type[BaseSlackChatInterface]:
         """

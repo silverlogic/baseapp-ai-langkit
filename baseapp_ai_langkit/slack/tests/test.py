@@ -68,7 +68,7 @@ class SlackTestCase(TestCase):
         """
         Dummy channel id for an im channel
         """
-        return "CXXXXXXXXXM"
+        return "DXXXXXXXXXM"
 
     def user_profile_data(self):
         return {
