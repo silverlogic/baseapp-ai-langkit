@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.4] - 2024-05-27
+
+### Added
+
+- Keyword arguments added to the slack_process_incoming_user_slack_message task and some other methods. This allows to pass additional context, like a placeholder message that is to be overwritten with the final bot answer.
+- process_message returns the exception if there was any.
+
+### Fixed
+
+- Private channel identifier in tests changed to "DXXXXXXXXXM"
+
+
 ## [0.2.3] - 2024-05-09
 
 ### Added
