@@ -31,6 +31,8 @@ class SlackAIChatController:
     user_message_slack_event: SlackEvent
     user_message_text: str
 
+    runner_instance: BaseSlackChatInterface
+
     def __init__(self, slack_chat: SlackAIChat, user_message_slack_event: SlackEvent, **kwargs):
         self.slack_instance_controller = SlackInstanceController()
         self.slack_event_data = slack_chat.slack_event.data
@@ -42,21 +44,26 @@ class SlackAIChatController:
         self.kwargs = kwargs
 
     def process_message(self):
-        slack_context = self.collect_slack_context()
-        runner = self.get_runner_class()
-
         try:
-            llm_output = runner(
-                slack_context=slack_context,
-                session=self.slack_chat.chat_session,
-                user_input=self.user_message_text,
-            ).safe_run()
-
-            formatted_output = self.get_formatted_message(llm_output)
-            self.process_message_response(formatted_output)
+            llm_output = self.process_llm_output()
+            message_chunks = self.get_formatted_message_chunks(llm_output)
+            self.process_message_response(message_chunks)
         except Exception as e:
             logger.exception(f"Error processing message: {e}")
-            return e
+            raise e
+
+    def process_llm_output(self) -> Any:
+        slack_context = self.collect_slack_context()
+        runner_class = self.get_runner_class()
+
+        self.runner_instance = runner_class(
+            slack_context=slack_context,
+            session=self.slack_chat.chat_session,
+            user_input=self.user_message_text,
+        )
+
+        llm_output = self.runner_instance.safe_run()
+        return llm_output
 
     def get_runner_class(self) -> Type[BaseSlackChatInterface]:
         """
@@ -89,7 +96,7 @@ class SlackAIChatController:
             logging.exception(f"Request to Slack API Failed. {e.response['error']}")
         return context
 
-    def get_formatted_message(self, llm_output: Any) -> list[Tuple[str, List[SlackBlock]]]:
+    def get_formatted_message_chunks(self, llm_output: Any) -> list[Tuple[str, List[SlackBlock]]]:
         if not isinstance(llm_output, str):
             raise ValueError("The current slack formatter only supports strings as the LLM output.")
 
@@ -118,11 +125,11 @@ class SlackAIChatController:
             remaining_text = remaining_text[effective_max_length:]
         return chunks
 
-    def process_message_response(self, formatted_chunks: list[Tuple[str, List[SlackBlock]]]):
+    def process_message_response(self, chunks: list[Tuple[str, List[SlackBlock]]]):
         slack_channel: str = self.slack_event_data["event"]["channel"]
         event_ts: Optional[str] = self.slack_event_data["event"]["event_ts"]
 
-        for text, blocks in formatted_chunks:
+        for text, blocks in chunks:
             response = self.slack_instance_controller.slack_web_client.chat_postMessage(
                 channel=slack_channel,
                 blocks=blocks,
