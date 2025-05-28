@@ -70,29 +70,45 @@ class SlackAIChatMessageInline(TabularInline):
     extra = 0
     fields = (
         "id",
+        "chat_message_link",
         "user_message_slack_event",
+        "user_message_text",
         "output_slack_event",
-        "message_text",
-        "created",
-        "modified",
+        "output_message_text",
     )
     readonly_fields = (
         "id",
+        "chat_message_link",
         "user_message_slack_event",
+        "user_message_text",
         "output_slack_event",
-        "message_text",
-        "created",
-        "modified",
+        "output_message_text",
     )
 
-    def message_text(self, obj):
+    def chat_message_link(self, obj):
+        url = reverse("admin:baseapp_ai_langkit_slack_slackaichatmessage_change", args=[obj.id])
+        return format_html('<a href="{}">Chat Message {}</a>', url, obj.id)
+
+    chat_message_link.short_description = "Chat Message"
+
+    def user_message_text(self, obj):
+        data = obj.user_message_slack_event.data
+        if data and isinstance(data, dict):
+            message = data.get("event", {})
+            if isinstance(message, dict):
+                return message.get("text", "")
+        return ""
+
+    user_message_text.short_description = "User Message Text"
+
+    def output_message_text(self, obj):
         if obj.output_response_output_data and isinstance(obj.output_response_output_data, dict):
             message = obj.output_response_output_data.get("message", {})
             if isinstance(message, dict):
                 return message.get("text", "")
         return ""
 
-    message_text.short_description = "Output Message Text"
+    output_message_text.short_description = "Output Message Text"
 
 
 @admin.register(SlackAIChat)
