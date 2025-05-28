@@ -3,10 +3,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from baseapp_ai_langkit.base.utils.model_admin_helper import (
-    ModelAdmin,
-    SimpleListFilter,
-)
+from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin
 
 from .models import ChatIdentity, ChatMessage, ChatPrePromptedQuestion, ChatSession
 
@@ -19,7 +16,7 @@ class ChatIdentityAdmin(ModelAdmin):
     ordering = ("name",)
 
 
-class ChatSessionFilter(SimpleListFilter):
+class ChatSessionFilter(admin.SimpleListFilter):
     title = "session"
     parameter_name = "session"
 
