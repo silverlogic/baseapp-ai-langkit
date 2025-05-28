@@ -126,18 +126,8 @@ class SlackAIChatController:
         return chunks
 
     def process_message_response(self, chunks: list[Tuple[str, List[SlackBlock]]]):
-        slack_channel: str = self.slack_event_data["event"]["channel"]
-        event_ts: Optional[str] = self.slack_event_data["event"]["event_ts"]
-
         for text, blocks in chunks:
-            response = self.slack_instance_controller.slack_web_client.chat_postMessage(
-                channel=slack_channel,
-                blocks=blocks,
-                text=text,
-                thread_ts=event_ts,
-            )
-            response.validate()
-            output_slack_event_data = response.data
+            output_slack_event_data = self.slack_post_message(text, blocks)
             output_slack_event = SlackEvent.objects.create(
                 team_id=self.slack_event_data["team_id"],
                 event_ts=output_slack_event_data["message"]["ts"],
@@ -150,3 +140,16 @@ class SlackAIChatController:
                 output_slack_event=output_slack_event,
                 output_response_output_data=output_slack_event_data,
             )
+
+    def slack_post_message(self, text: str, blocks: list[SlackBlock]) -> dict:
+        slack_channel: str = self.slack_event_data["event"]["channel"]
+        event_ts: Optional[str] = self.slack_event_data["event"]["event_ts"]
+
+        response = self.slack_instance_controller.slack_web_client.chat_postMessage(
+            channel=slack_channel,
+            blocks=blocks,
+            text=text,
+            thread_ts=event_ts,
+        )
+        response.validate()
+        return response.data
