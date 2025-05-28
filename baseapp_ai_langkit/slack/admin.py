@@ -7,6 +7,8 @@ from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 
+from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin, TabularInline
+
 from .models import (
     SlackAIChat,
     SlackAIChatMessage,
@@ -26,14 +28,14 @@ def pretty_json(data):
     )
 
 
-class SlackEventStatusInline(admin.TabularInline):
+class SlackEventStatusInline(TabularInline):
     model = SlackEventStatus
     extra = 0
     readonly_fields = ("id", "created", "modified", "status", "status_message")
 
 
 @admin.register(SlackEvent)
-class SlackEventAdmin(admin.ModelAdmin):
+class SlackEventAdmin(ModelAdmin):
     list_display = ("id", "team_id", "event_ts", "event_type", "created", "modified")
     search_fields = ("id", "team_id", "event_ts", "event_type")
     list_filter = ("team_id", "event_ts", "event_type")
@@ -63,19 +65,62 @@ class SlackEventAdmin(admin.ModelAdmin):
         }
 
 
+class SlackAIChatMessageInline(TabularInline):
+    model = SlackAIChatMessage
+    extra = 0
+    fields = (
+        "id",
+        "user_message_slack_event",
+        "output_slack_event",
+        "message_text",
+        "created",
+        "modified",
+    )
+    readonly_fields = (
+        "id",
+        "user_message_slack_event",
+        "output_slack_event",
+        "message_text",
+        "created",
+        "modified",
+    )
+
+    def message_text(self, obj):
+        if obj.output_response_output_data and isinstance(obj.output_response_output_data, dict):
+            message = obj.output_response_output_data.get("message", {})
+            if isinstance(message, dict):
+                return message.get("text", "")
+        return ""
+
+    message_text.short_description = "Output Message Text"
+
+
 @admin.register(SlackAIChat)
-class SlackAIChatAdmin(admin.ModelAdmin):
+class SlackAIChatAdmin(ModelAdmin):
     list_display = (
         "id",
         "celery_task_id",
         "chat_session_link",
         "slack_event_link",
+        "slack_event_event_ts",
+        "slack_event_event_type",
         "created",
         "modified",
     )
     search_fields = ("id", "celery_task_id")
     ordering = ("-created",)
     readonly_fields = ("id", "created", "modified", "chat_session_link", "slack_event_link")
+    inlines = [SlackAIChatMessageInline]
+
+    def slack_event_event_ts(self, obj):
+        return obj.slack_event.event_ts
+
+    slack_event_event_ts.short_description = "Event TS"
+
+    def slack_event_event_type(self, obj):
+        return obj.slack_event.event_type
+
+    slack_event_event_type.short_description = "Event Type"
 
     def chat_session_link(self, obj):
         url = reverse(
@@ -92,14 +137,14 @@ class SlackAIChatAdmin(admin.ModelAdmin):
     slack_event_link.short_description = "Slack Event"
 
 
-class SlackAIChatMessageReactionInline(admin.TabularInline):
+class SlackAIChatMessageReactionInline(TabularInline):
     model = SlackAIChatMessageReaction
     extra = 0
     readonly_fields = ("id", "created", "modified", "reaction", "slack_event")
 
 
 @admin.register(SlackAIChatMessage)
-class SlackAIChatMessageAdmin(admin.ModelAdmin):
+class SlackAIChatMessageAdmin(ModelAdmin):
     list_display = (
         "id",
         "slack_chat_link",
@@ -146,7 +191,12 @@ class SlackAIChatMessageAdmin(admin.ModelAdmin):
             "admin:baseapp_ai_langkit_slack_slackevent_change",
             args=[obj.user_message_slack_event.id],
         )
-        return format_html('<a href="{}">{}</a>', url, obj.user_message_slack_event.id)
+        return format_html(
+            '<a href="{}">{} (event_ts: {})</a>',
+            url,
+            obj.user_message_slack_event.id,
+            obj.user_message_slack_event.event_ts,
+        )
 
     user_message_slack_event_link.short_description = "User Message Slack Event"
 
@@ -154,7 +204,12 @@ class SlackAIChatMessageAdmin(admin.ModelAdmin):
         url = reverse(
             "admin:baseapp_ai_langkit_slack_slackevent_change", args=[obj.output_slack_event.id]
         )
-        return format_html('<a href="{}">{}</a>', url, obj.output_slack_event.id)
+        return format_html(
+            '<a href="{}">{} (event_ts: {})</a>',
+            url,
+            obj.output_slack_event.id,
+            obj.output_slack_event.event_ts,
+        )
 
     output_slack_event_link.short_description = "Output Slack Event"
 
