@@ -127,7 +127,7 @@ class SlackAIChatController:
 
     def process_message_response(self, chunks: list[Tuple[str, List[SlackBlock]]]):
         for text, blocks in chunks:
-            output_slack_event_data = self.slack_post_message(text, blocks)
+            output_slack_event_data = self.process_message_response_post_message(text, blocks)
             output_slack_event = SlackEvent.objects.create(
                 team_id=self.slack_event_data["team_id"],
                 event_ts=output_slack_event_data["message"]["ts"],
@@ -141,7 +141,7 @@ class SlackAIChatController:
                 output_response_output_data=output_slack_event_data,
             )
 
-    def slack_post_message(self, text: str, blocks: list[SlackBlock]) -> dict:
+    def process_message_response_post_message(self, text: str, blocks: list[SlackBlock]) -> dict:
         slack_channel: str = self.slack_event_data["event"]["channel"]
         event_ts: Optional[str] = self.slack_event_data["event"]["event_ts"]
 
