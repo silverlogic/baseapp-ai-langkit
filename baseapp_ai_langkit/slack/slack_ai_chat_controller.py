@@ -150,6 +150,7 @@ class SlackAIChatController:
             blocks=blocks,
             text=text,
             thread_ts=event_ts,
+            unfurl_links=True,
         )
         response.validate()
         return response.data

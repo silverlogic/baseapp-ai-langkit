@@ -108,6 +108,7 @@ class TestSlackAIChatController(SlackTestCase):
                 "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": llm_output}}],
                 "text": llm_output,
                 "thread_ts": self.slack_event.data["event"]["event_ts"],
+                "unfurl_links": True,
             },
         )
 
