@@ -29,9 +29,14 @@ class TestSlackAIChatController(SlackTestCase):
             }
         )
         self.slack_chat = SlackAIChatFactory(slack_event=self.slack_event)
-        self.controller = SlackAIChatController(
-            slack_chat=self.slack_chat, user_message_slack_event=self.slack_event
-        )
+
+        with patch(
+            "baseapp_ai_langkit.slack.slack_ai_chat_controller.SlackInstanceController.get_or_create_user_from_slack_user"
+        ) as mock_get_user:
+            mock_get_user.return_value = (self.slack_chat.chat_session.user, False)
+            self.controller = SlackAIChatController(
+                slack_chat=self.slack_chat, user_message_slack_event=self.slack_event
+            )
 
     def test_get_runner_class(self):
         runner = self.controller.get_runner_class()

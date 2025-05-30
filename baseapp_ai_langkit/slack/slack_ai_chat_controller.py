@@ -1,6 +1,7 @@
 import logging
 from typing import Any, List, Optional, Tuple, Type
 
+from django.contrib.auth.base_user import AbstractBaseUser
 from pydantic import BaseModel
 from slack_sdk.errors import SlackApiError
 
@@ -30,6 +31,7 @@ class SlackAIChatController:
     slack_chat: SlackAIChat
     user_message_slack_event: SlackEvent
     user_message_text: str
+    user_message_user: AbstractBaseUser
 
     runner_instance: BaseSlackChatInterface
 
@@ -40,6 +42,11 @@ class SlackAIChatController:
         self.slack_chat = slack_chat
         self.user_message_slack_event = user_message_slack_event
         self.user_message_text = self.user_message_slack_event.data["event"]["text"]
+        self.user_message_user, created = (
+            self.slack_instance_controller.get_or_create_user_from_slack_user(
+                self.user_message_slack_event.data["event"]["user"]
+            )
+        )
 
         self.kwargs = kwargs
 
@@ -91,7 +98,7 @@ class SlackAIChatController:
             channel_data = response.data["channel"]
             channel_name = channel_data.get("name", "N/A")
             context["channel_name"] = f"Slack Channel: {channel_name}"
-            context["current_user"] = self.slack_chat.chat_session.user.email
+            context["current_user"] = self.user_message_user.email
         except SlackApiError as e:
             logging.exception(f"Request to Slack API Failed. {e.response['error']}")
         return context
