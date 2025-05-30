@@ -96,7 +96,7 @@ class SlackAIChatMessage(TimeStampedModel):
         blank=False,
         on_delete=models.CASCADE,
     )
-    output_slack_event = models.OneToOneField(
+    output_slack_event = models.ForeignKey(
         "baseapp_ai_langkit_slack.SlackEvent",
         related_name="slack_ai_chat_message_from_output_slack_event",
         null=False,

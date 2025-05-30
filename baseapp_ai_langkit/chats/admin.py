@@ -3,11 +3,13 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
+from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin
+
 from .models import ChatIdentity, ChatMessage, ChatPrePromptedQuestion, ChatSession
 
 
 @admin.register(ChatIdentity)
-class ChatIdentityAdmin(admin.ModelAdmin):
+class ChatIdentityAdmin(ModelAdmin):
     list_display = ("name", "is_active")
     search_fields = ("name",)
     list_filter = ("is_active",)
@@ -28,7 +30,7 @@ class ChatSessionFilter(admin.SimpleListFilter):
 
 
 @admin.register(ChatMessage)
-class ChatMessageAdmin(admin.ModelAdmin):
+class ChatMessageAdmin(ModelAdmin):
     list_display = ("id", "session", "role", "content", "created")
     list_filter = (ChatSessionFilter,)
     search_fields = ("id", "content")
@@ -37,7 +39,7 @@ class ChatMessageAdmin(admin.ModelAdmin):
 
 
 @admin.register(ChatSession)
-class ChatSessionAdmin(admin.ModelAdmin):
+class ChatSessionAdmin(ModelAdmin):
     list_display = ("id", "user", "created", "modified", "view_messages_link")
     search_fields = ("id",)
     ordering = ("-created",)
@@ -53,7 +55,7 @@ class ChatSessionAdmin(admin.ModelAdmin):
 
 
 @admin.register(ChatPrePromptedQuestion)
-class ChatPrePromptedQuestionAdmin(SortableAdminMixin, admin.ModelAdmin):
+class ChatPrePromptedQuestionAdmin(SortableAdminMixin, ModelAdmin):
     list_display = (
         "title",
         "is_active",
