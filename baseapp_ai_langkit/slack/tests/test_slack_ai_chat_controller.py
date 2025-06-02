@@ -117,6 +117,14 @@ class TestSlackAIChatController(SlackTestCase):
             },
         )
 
+    @patch(
+        "baseapp_ai_langkit.slack.slack_ai_chat_controller.SlackAIChatController.process_message_response_post_message",
+        return_value=None,
+    )
+    def test_process_message_response_none_output(self, mock_process_message_response_post_message):
+        self.controller.process_message_response([("test", [])])
+        mock_process_message_response_post_message.assert_called_once_with("test", [])
+
     def test_process_message_response_creates_models(self):
         llm_output = "I am an AI assistant"
         formatted_chunks = [
