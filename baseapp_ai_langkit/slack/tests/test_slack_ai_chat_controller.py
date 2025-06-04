@@ -29,9 +29,14 @@ class TestSlackAIChatController(SlackTestCase):
             }
         )
         self.slack_chat = SlackAIChatFactory(slack_event=self.slack_event)
-        self.controller = SlackAIChatController(
-            slack_chat=self.slack_chat, user_message_slack_event=self.slack_event
-        )
+
+        with patch(
+            "baseapp_ai_langkit.slack.slack_ai_chat_controller.SlackInstanceController.get_or_create_user_from_slack_user"
+        ) as mock_get_user:
+            mock_get_user.return_value = (self.slack_chat.chat_session.user, False)
+            self.controller = SlackAIChatController(
+                slack_chat=self.slack_chat, user_message_slack_event=self.slack_event
+            )
 
     def test_get_runner_class(self):
         runner = self.controller.get_runner_class()
@@ -54,10 +59,10 @@ class TestSlackAIChatController(SlackTestCase):
             self.assertEqual(context, {})
             mock_logging.exception.assert_called_once()
 
-    def test_get_formatted_message_short_text(self):
+    def test_get_formatted_message_chunks_short_text(self):
         llm_output = "I am an AI assistant"
 
-        formatted_chunks = self.controller.get_formatted_message(llm_output)
+        formatted_chunks = self.controller.get_formatted_message_chunks(llm_output)
 
         self.assertEqual(len(formatted_chunks), 1)
         text, blocks = formatted_chunks[0]
@@ -66,10 +71,10 @@ class TestSlackAIChatController(SlackTestCase):
             blocks, [{"type": "section", "text": {"type": "mrkdwn", "text": llm_output}}]
         )
 
-    def test_get_formatted_message_long_text(self):
+    def test_get_formatted_message_chunks_long_text(self):
         long_text = "A" * 4000
 
-        formatted_chunks = self.controller.get_formatted_message(long_text)
+        formatted_chunks = self.controller.get_formatted_message_chunks(long_text)
 
         self.assertEqual(len(formatted_chunks), 2)
 
@@ -84,9 +89,9 @@ class TestSlackAIChatController(SlackTestCase):
         self.assertEqual(text2, long_text[2997:])  # 2997 = 3000 - len("...")
         self.assertEqual(blocks2, [{"type": "section", "text": {"type": "mrkdwn", "text": text2}}])
 
-    def test_get_formatted_message_non_string_input(self):
+    def test_get_formatted_message_chunks_non_string_input(self):
         with self.assertRaises(ValueError):
-            self.controller.get_formatted_message(123)
+            self.controller.get_formatted_message_chunks(123)
 
     def test_process_message_response(self):
         llm_output = "I am an AI assistant"
@@ -108,8 +113,17 @@ class TestSlackAIChatController(SlackTestCase):
                 "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": llm_output}}],
                 "text": llm_output,
                 "thread_ts": self.slack_event.data["event"]["event_ts"],
+                "unfurl_links": True,
             },
         )
+
+    @patch(
+        "baseapp_ai_langkit.slack.slack_ai_chat_controller.SlackAIChatController.process_message_response_post_message",
+        return_value=None,
+    )
+    def test_process_message_response_none_output(self, mock_process_message_response_post_message):
+        self.controller.process_message_response([("test", [])])
+        mock_process_message_response_post_message.assert_called_once_with("test", [])
 
     def test_process_message_response_creates_models(self):
         llm_output = "I am an AI assistant"
@@ -147,7 +161,9 @@ class TestSlackAIChatController(SlackTestCase):
 
         with patch.object(
             self.controller, "get_runner_class", return_value=mock_runner
-        ), patch.object(self.controller, "get_formatted_message") as mock_format, patch.object(
+        ), patch.object(
+            self.controller, "get_formatted_message_chunks"
+        ) as mock_format, patch.object(
             self.controller, "process_message_response"
         ) as mock_process:
 
@@ -188,6 +204,8 @@ class TestSlackAIChatController(SlackTestCase):
                 "conversations.info", response_data=self.conversations_info_data()
             )
 
-            self.controller.process_message()
+            with self.assertRaises(Exception) as context:
+                self.controller.process_message()
 
+            self.assertEqual(str(context.exception), "Test error")
             mock_logger.exception.assert_called_once()

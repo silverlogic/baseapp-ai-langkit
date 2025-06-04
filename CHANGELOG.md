@@ -6,7 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
-## [0.2.4] - 2024-05-27
+## [0.2.5] - 2025-06-04
+
+### Added
+
+- SlackAIChatController.process_response more modular for customizations.
+- Admin model classes using either Django Admin Model or Unfold Admin Model.
+- Model SlackAIChatMessage OneToOne field converted to FK, so we can duplicate threads.
+
+### Fixed
+
+- SlackAIChatController.collect_slack_context fixed to collect the proper current user data.
+
+
+## [0.2.4] - 2025-05-27
 
 ### Added
 
@@ -18,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Private channel identifier in tests changed to "DXXXXXXXXXM"
 
 
-## [0.2.3] - 2024-05-09
+## [0.2.3] - 2025-05-09
 
 ### Added
 
@@ -30,14 +43,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Synthesizer prompt conditional rule adjustment to also check empty lists of selected nodes.
 
 
-## [0.2.2] - 2024-05-07
+## [0.2.2] - 2025-05-07
 
 ### Fixed
 
 - Slack App now it optional
 
 
-## [0.2.1] - 2024-04-25
+## [0.2.1] - 2025-04-25
 
 ### Added
 - Slack bot integration feature
