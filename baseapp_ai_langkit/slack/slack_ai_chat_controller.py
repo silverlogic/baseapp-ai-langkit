@@ -122,21 +122,18 @@ class SlackAIChatController:
                 chunks.append((chunk_text, blocks))
                 break
 
-            # Find the last sentence boundary before the limit
-            last_period = remaining_text[:max_text_length].rfind(".")
-            last_question = remaining_text[:max_text_length].rfind("?")
-            last_exclamation = remaining_text[:max_text_length].rfind("!")
-            sentence_end = max(last_period, last_question, last_exclamation)
-            if sentence_end == -1:
-                sentence_end = remaining_text[:max_text_length].rfind(" ")
-                if sentence_end == -1:
-                    sentence_end = max_text_length - 1
+            # Find the last newline before the max length
+            break_pos = remaining_text[:max_text_length].rfind("\n")
 
-            chunk_text = remaining_text[: sentence_end + 1]
+            # If no newline found or would result in empty chunk, break at max length
+            if break_pos == -1 or break_pos == 0:
+                break_pos = max_text_length - 1
+
+            chunk_text = remaining_text[: break_pos + 1]
             blocks = [dict(type="section", text=dict(type="mrkdwn", text=chunk_text))]
             chunks.append((chunk_text, blocks))
 
-            remaining_text = remaining_text[sentence_end + 1 :].lstrip()
+            remaining_text = remaining_text[break_pos + 1 :].lstrip()
         return chunks
 
     def process_message_response(self, chunks: list[Tuple[str, List[SlackBlock]]]):

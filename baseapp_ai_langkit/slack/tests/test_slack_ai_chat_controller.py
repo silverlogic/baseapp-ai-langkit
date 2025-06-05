@@ -72,30 +72,55 @@ class TestSlackAIChatController(SlackTestCase):
         )
 
     def test_get_formatted_message_chunks_long_text(self):
-        long_text = "This is a long sentence! Another sentence here? And one more sentence. " * 500
+        long_text = (
+            """
+This is a long sentence! Another sentence here? And one more sentence.
+"""
+            * 500
+        )
 
         formatted_chunks = self.controller.get_formatted_message_chunks(long_text)
 
         self.assertTrue(len(formatted_chunks) > 1)
 
-        # Check each chunk ends with a sentence boundary
-        for text, blocks in formatted_chunks[:-1]:
-            self.assertTrue(
-                text.rstrip().endswith(".")
-                or text.rstrip().endswith("!")
-                or text.rstrip().endswith("?")
-            )
+        total_text = ""
+        for text, blocks in formatted_chunks:
             self.assertTrue(len(text) <= 3000)
             self.assertEqual(
                 blocks, [{"type": "section", "text": {"type": "mrkdwn", "text": text}}]
             )
+            total_text += text
 
-        # Check last chunk
-        last_text, last_blocks = formatted_chunks[-1]
-        self.assertTrue(len(last_text) <= 3000)
-        self.assertEqual(
-            last_blocks, [{"type": "section", "text": {"type": "mrkdwn", "text": last_text}}]
-        )
+        self.assertEqual(total_text.strip(), long_text.strip())
+
+    def test_get_formatted_message_chunks_newline_breaks(self):
+        text_with_newlines = "Line 1\nLine 2\nLine 3\n" * 1000
+
+        formatted_chunks = self.controller.get_formatted_message_chunks(text_with_newlines)
+
+        for text, blocks in formatted_chunks[:-1]:
+            self.assertTrue(text.endswith("\n"))
+            self.assertTrue(len(text) <= 3000)
+
+    def test_get_formatted_message_chunks_no_newlines(self):
+        continuous_text = "x" * 10000
+
+        formatted_chunks = self.controller.get_formatted_message_chunks(continuous_text)
+
+        for text, blocks in formatted_chunks[:-1]:
+            self.assertEqual(len(text), 3000)
+
+        combined = "".join(text for text, _ in formatted_chunks)
+        self.assertEqual(combined, continuous_text)
+
+    def test_get_formatted_message_chunks_edge_length(self):
+        text_at_limit = "x" * 3000
+        chunks = self.controller.get_formatted_message_chunks(text_at_limit)
+        self.assertEqual(len(chunks), 1)
+
+        text_over_limit = "x" * 3001
+        chunks = self.controller.get_formatted_message_chunks(text_over_limit)
+        self.assertEqual(len(chunks), 2)
 
     def test_get_formatted_message_chunks_non_string_input(self):
         with self.assertRaises(ValueError):
