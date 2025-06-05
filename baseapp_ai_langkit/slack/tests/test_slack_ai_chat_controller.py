@@ -72,22 +72,30 @@ class TestSlackAIChatController(SlackTestCase):
         )
 
     def test_get_formatted_message_chunks_long_text(self):
-        long_text = "A" * 4000
+        long_text = "This is a long sentence! Another sentence here? And one more sentence. " * 500
 
         formatted_chunks = self.controller.get_formatted_message_chunks(long_text)
 
-        self.assertEqual(len(formatted_chunks), 2)
+        self.assertTrue(len(formatted_chunks) > 1)
 
-        # First chunk should be 3000 chars with ellipsis
-        text1, blocks1 = formatted_chunks[0]
-        self.assertEqual(len(text1), 3000)
-        self.assertTrue(text1.endswith("..."))
-        self.assertEqual(blocks1, [{"type": "section", "text": {"type": "mrkdwn", "text": text1}}])
+        # Check each chunk ends with a sentence boundary
+        for text, blocks in formatted_chunks[:-1]:
+            self.assertTrue(
+                text.rstrip().endswith(".")
+                or text.rstrip().endswith("!")
+                or text.rstrip().endswith("?")
+            )
+            self.assertTrue(len(text) <= 3000)
+            self.assertEqual(
+                blocks, [{"type": "section", "text": {"type": "mrkdwn", "text": text}}]
+            )
 
-        # Second chunk should be the remainder
-        text2, blocks2 = formatted_chunks[1]
-        self.assertEqual(text2, long_text[2997:])  # 2997 = 3000 - len("...")
-        self.assertEqual(blocks2, [{"type": "section", "text": {"type": "mrkdwn", "text": text2}}])
+        # Check last chunk
+        last_text, last_blocks = formatted_chunks[-1]
+        self.assertTrue(len(last_text) <= 3000)
+        self.assertEqual(
+            last_blocks, [{"type": "section", "text": {"type": "mrkdwn", "text": last_text}}]
+        )
 
     def test_get_formatted_message_chunks_non_string_input(self):
         with self.assertRaises(ValueError):
@@ -123,7 +131,7 @@ class TestSlackAIChatController(SlackTestCase):
     )
     def test_process_message_response_none_output(self, mock_process_message_response_post_message):
         self.controller.process_message_response([("test", [])])
-        mock_process_message_response_post_message.assert_called_once_with("test", [])
+        mock_process_message_response_post_message.assert_called_once_with("test", [], None)
 
     def test_process_message_response_creates_models(self):
         llm_output = "I am an AI assistant"
