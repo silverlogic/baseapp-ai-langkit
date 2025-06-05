@@ -122,10 +122,20 @@ class OrchestratedConversationalWorkflow(ConversationalWorkflow):
             synthesizer_context = state["synthesizer_context"]
             user_prompt = state["messages"][-1].content
 
+            messages = [
+                AIMessage(content=worker_output) for worker_output in state["completed_nodes"]
+            ]
+
             response = self.synthesizer.invoke(
-                messages=[
-                    AIMessage(content=worker_output) for worker_output in state["completed_nodes"]
-                ],
+                messages=(
+                    messages
+                    if len(messages) > 0
+                    else [
+                        HumanMessage(
+                            content="Follow the orchestrator instructions to answer the user message."
+                        )
+                    ]
+                ),
                 state={
                     "user_prompt": user_prompt,
                     "synthesizer_context": synthesizer_context,
@@ -146,7 +156,13 @@ class OrchestratedConversationalWorkflow(ConversationalWorkflow):
         except Exception as e:
             logger.exception("Error in the synthesis node: %s", e)
             self.error = e
-            return state
+            state["selected_nodes"].clear()
+            state["completed_nodes"].clear()
+            return {
+                **state,
+                "selected_nodes": [],
+                "completed_nodes": [],
+            }
 
     def workflow_conditional_edge_assign_nodes(self, state: OrchestratorState):
         if len(state["selected_nodes"]) == 0:
