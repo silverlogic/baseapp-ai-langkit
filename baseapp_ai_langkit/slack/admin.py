@@ -250,7 +250,7 @@ class SlackAIChatMessageAdmin(ModelAdmin):
 class SlackAIChatMessageReactionAdmin(ModelAdmin):
     list_display = (
         "id",
-        "user_link",
+        "user_email",
         "slack_chat_message_link",
         "reaction",
         "slack_user_message",
@@ -276,11 +276,8 @@ class SlackAIChatMessageReactionAdmin(ModelAdmin):
     )
     actions = ["export_csv_thumbs_up_action", "export_csv_thumbs_down_action"]
 
-    def user_link(self, obj):
-        url = reverse("admin:auth_user_change", args=[obj.user.id])
-        return format_html('<a href="{}">{}</a>', url, obj.user.email)
-
-    user_link.short_description = "User"
+    def user_email(self, obj):
+        return obj.user.email
 
     def slack_chat_message_link(self, obj):
         url = reverse(

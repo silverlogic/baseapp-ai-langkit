@@ -64,7 +64,7 @@ def generate_reaction_export_csv(queryset, reaction_types, reaction_name) -> Htt
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
     writer = csv.writer(response)
-    writer.writerow(["ID", "Reactions", "User message", "Output message", "URL"])
+    writer.writerow(["ID", "Reactions", "User Email", "User message", "Output message", "URL"])
     for reaction in reactions:
         message = reaction.slack_chat_message
         user_message = message.user_message_slack_event
@@ -72,17 +72,20 @@ def generate_reaction_export_csv(queryset, reaction_types, reaction_name) -> Htt
         user_message_content = get_message_content(user_message)
         output_message_content = get_message_content(output_message)
 
-        print(
-            message.output_response_output_data,
-            message.output_response_output_data.get("channel", ""),
-        )
         if message.output_response_output_data.get("channel", "").startswith("D"):
             url = "Direct message"
         else:
             url = get_message_url(message)
 
         writer.writerow(
-            [message.id, reactions.count(), user_message_content, output_message_content, url]
+            [
+                message.id,
+                reactions.count(),
+                reaction.user.email,
+                user_message_content,
+                output_message_content,
+                url,
+            ]
         )
 
     return response
