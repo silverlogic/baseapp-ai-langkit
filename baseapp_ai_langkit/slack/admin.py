@@ -1,13 +1,17 @@
 import json
 
 from django.contrib import admin
-from django.urls import reverse
+from django.urls import path, reverse
 from django.utils.html import format_html
 from pygments import highlight
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 
 from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin, TabularInline
+from baseapp_ai_langkit.slack.utils.export_reactions_helper import (
+    generate_reaction_export_csv,
+    get_message_content,
+)
 
 from .models import (
     SlackAIChat,
@@ -240,3 +244,88 @@ class SlackAIChatMessageAdmin(ModelAdmin):
                 "css/pretty-json.css",
             ]
         }
+
+
+@admin.register(SlackAIChatMessageReaction)
+class SlackAIChatMessageReactionAdmin(ModelAdmin):
+    list_display = (
+        "id",
+        "user_link",
+        "slack_chat_message_link",
+        "reaction",
+        "slack_user_message",
+        "slack_output_message",
+        "created",
+        "modified",
+    )
+    search_fields = (
+        "id",
+        "user__id",
+        "slack_chat_message__id",
+        "reaction",
+    )
+    ordering = ("-created",)
+    readonly_fields = (
+        "id",
+        "created",
+        "modified",
+        "user",
+        "slack_chat_message",
+        "reaction",
+        "slack_event",
+    )
+    actions = ["export_csv_thumbs_up_action", "export_csv_thumbs_down_action"]
+
+    def user_link(self, obj):
+        url = reverse("admin:auth_user_change", args=[obj.user.id])
+        return format_html('<a href="{}">{}</a>', url, obj.user.email)
+
+    user_link.short_description = "User"
+
+    def slack_chat_message_link(self, obj):
+        url = reverse(
+            "admin:baseapp_ai_langkit_slack_slackaichatmessage_change",
+            args=[obj.slack_chat_message.id],
+        )
+        return format_html('<a href="{}">{}</a>', url, obj.slack_chat_message.id)
+
+    slack_chat_message_link.short_description = "Slack Chat Message"
+
+    def slack_user_message(self, obj):
+        return get_message_content(obj.slack_chat_message.user_message_slack_event)
+
+    slack_user_message.short_description = "User Message"
+
+    def slack_output_message(self, obj):
+        return get_message_content(obj.slack_chat_message.output_slack_event)
+
+    slack_output_message.short_description = "Output Message"
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<path:object_id>/export-csv-thumbs-up/",
+                self.admin_site.admin_view(self.export_csv_thumbs_up_action),
+                name="langkit_slackaichatmessagereaction_export_csv_thumbs_up",
+            ),
+            path(
+                "<path:object_id>/export-csv-thumbs-down/",
+                self.admin_site.admin_view(self.export_csv_thumbs_down_action),
+                name="langkit_slackaichatmessagereaction_export_csv_thumbs_down",
+            ),
+        ]
+        return custom_urls + urls
+
+    def export_csv_thumbs_up_action(self, request, queryset):
+        return generate_reaction_export_csv(
+            queryset, SlackAIChatMessageReaction.THUMBS_UP_REACTIONS, "thumbs_up"
+        )
+
+    def export_csv_thumbs_down_action(self, request, queryset):
+        return generate_reaction_export_csv(
+            queryset, SlackAIChatMessageReaction.THUMBS_DOWN_REACTIONS, "thumbs_down"
+        )
+
+    export_csv_thumbs_up_action.short_description = "Export CSV Thumbs Up"
+    export_csv_thumbs_down_action.short_description = "Export CSV Thumbs Down"
