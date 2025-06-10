@@ -6,6 +6,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.2.6] - 2025-06-10
+
+### Added
+
+- Slack Reactions admin.
+- Export CSV of reactions actions.
+- Improving the slack output formatting to create the chunks based on break lines.
+
+### Fixed
+
+- Orchestrator workflow: making the synthesizer node clear the memory after erros.
+- Slack large responses: chunks are now connected by the previous chunk ts.
+
+
 ## [0.2.5] - 2025-06-04
 
 ### Added

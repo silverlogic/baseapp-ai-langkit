@@ -72,22 +72,55 @@ class TestSlackAIChatController(SlackTestCase):
         )
 
     def test_get_formatted_message_chunks_long_text(self):
-        long_text = "A" * 4000
+        long_text = (
+            """
+This is a long sentence! Another sentence here? And one more sentence.
+"""
+            * 500
+        )
 
         formatted_chunks = self.controller.get_formatted_message_chunks(long_text)
 
-        self.assertEqual(len(formatted_chunks), 2)
+        self.assertTrue(len(formatted_chunks) > 1)
 
-        # First chunk should be 3000 chars with ellipsis
-        text1, blocks1 = formatted_chunks[0]
-        self.assertEqual(len(text1), 3000)
-        self.assertTrue(text1.endswith("..."))
-        self.assertEqual(blocks1, [{"type": "section", "text": {"type": "mrkdwn", "text": text1}}])
+        total_text = ""
+        for text, blocks in formatted_chunks:
+            self.assertTrue(len(text) <= 3000)
+            self.assertEqual(
+                blocks, [{"type": "section", "text": {"type": "mrkdwn", "text": text}}]
+            )
+            total_text += text
 
-        # Second chunk should be the remainder
-        text2, blocks2 = formatted_chunks[1]
-        self.assertEqual(text2, long_text[2997:])  # 2997 = 3000 - len("...")
-        self.assertEqual(blocks2, [{"type": "section", "text": {"type": "mrkdwn", "text": text2}}])
+        self.assertEqual(total_text.strip(), long_text.strip())
+
+    def test_get_formatted_message_chunks_newline_breaks(self):
+        text_with_newlines = "Line 1\nLine 2\nLine 3\n" * 1000
+
+        formatted_chunks = self.controller.get_formatted_message_chunks(text_with_newlines)
+
+        for text, blocks in formatted_chunks[:-1]:
+            self.assertTrue(text.endswith("\n"))
+            self.assertTrue(len(text) <= 3000)
+
+    def test_get_formatted_message_chunks_no_newlines(self):
+        continuous_text = "x" * 10000
+
+        formatted_chunks = self.controller.get_formatted_message_chunks(continuous_text)
+
+        for text, blocks in formatted_chunks[:-1]:
+            self.assertEqual(len(text), 3000)
+
+        combined = "".join(text for text, _ in formatted_chunks)
+        self.assertEqual(combined, continuous_text)
+
+    def test_get_formatted_message_chunks_edge_length(self):
+        text_at_limit = "x" * 3000
+        chunks = self.controller.get_formatted_message_chunks(text_at_limit)
+        self.assertEqual(len(chunks), 1)
+
+        text_over_limit = "x" * 3001
+        chunks = self.controller.get_formatted_message_chunks(text_over_limit)
+        self.assertEqual(len(chunks), 2)
 
     def test_get_formatted_message_chunks_non_string_input(self):
         with self.assertRaises(ValueError):
@@ -123,7 +156,7 @@ class TestSlackAIChatController(SlackTestCase):
     )
     def test_process_message_response_none_output(self, mock_process_message_response_post_message):
         self.controller.process_message_response([("test", [])])
-        mock_process_message_response_post_message.assert_called_once_with("test", [])
+        mock_process_message_response_post_message.assert_called_once_with("test", [], None)
 
     def test_process_message_response_creates_models(self):
         llm_output = "I am an AI assistant"

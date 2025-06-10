@@ -108,8 +108,6 @@ class SlackAIChatController:
             raise ValueError("The current slack formatter only supports strings as the LLM output.")
 
         max_text_length: int = 3000
-        ellipsis = "..."
-        effective_max_length = max_text_length - len(ellipsis)
 
         if len(llm_output) <= max_text_length:
             blocks = [dict(type="section", text=dict(type="mrkdwn", text=llm_output))]
@@ -118,23 +116,32 @@ class SlackAIChatController:
         chunks = []
         remaining_text = llm_output
         while len(remaining_text) > 0:
-            # Last chunk doesn't need ellipsis
             if len(remaining_text) <= max_text_length:
                 chunk_text = remaining_text
                 blocks = [dict(type="section", text=dict(type="mrkdwn", text=chunk_text))]
                 chunks.append((chunk_text, blocks))
                 break
 
-            chunk_text = remaining_text[:effective_max_length] + ellipsis
+            # Find the last newline before the max length
+            break_pos = remaining_text[:max_text_length].rfind("\n")
+
+            # If no newline found or would result in empty chunk, break at max length
+            if break_pos == -1 or break_pos == 0:
+                break_pos = max_text_length - 1
+
+            chunk_text = remaining_text[: break_pos + 1]
             blocks = [dict(type="section", text=dict(type="mrkdwn", text=chunk_text))]
             chunks.append((chunk_text, blocks))
 
-            remaining_text = remaining_text[effective_max_length:]
+            remaining_text = remaining_text[break_pos + 1 :].lstrip()
         return chunks
 
     def process_message_response(self, chunks: list[Tuple[str, List[SlackBlock]]]):
+        previous_ts = None
         for text, blocks in chunks:
-            output_slack_event_data = self.process_message_response_post_message(text, blocks)
+            output_slack_event_data = self.process_message_response_post_message(
+                text, blocks, previous_ts
+            )
             if output_slack_event_data is not None:
                 output_slack_event = SlackEvent.objects.create(
                     team_id=self.slack_event_data["team_id"],
@@ -148,12 +155,13 @@ class SlackAIChatController:
                     output_slack_event=output_slack_event,
                     output_response_output_data=output_slack_event_data,
                 )
+                previous_ts = output_slack_event_data["message"]["ts"]
 
     def process_message_response_post_message(
-        self, text: str, blocks: list[SlackBlock]
+        self, text: str, blocks: list[SlackBlock], previous_ts: Optional[str] = None
     ) -> dict | None:
         slack_channel: str = self.slack_event_data["event"]["channel"]
-        event_ts: Optional[str] = self.slack_event_data["event"]["event_ts"]
+        event_ts: Optional[str] = previous_ts or self.slack_event_data["event"]["event_ts"]
 
         response = self.slack_instance_controller.slack_web_client.chat_postMessage(
             channel=slack_channel,
