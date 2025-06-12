@@ -1,10 +1,12 @@
 from django.contrib import admin
 
+from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin, TabularInline
+
 from ..tools.admin import DefaultToolInline
 from .models import DefaultDocumentEmbedding, DefaultVectorStore
 
 
-class DefaultDocumentEmbeddingInline(admin.TabularInline):
+class DefaultDocumentEmbeddingInline(TabularInline):
     model = DefaultDocumentEmbedding
     extra = 0
     can_delete = False
@@ -15,7 +17,7 @@ class DefaultDocumentEmbeddingInline(admin.TabularInline):
 
 
 @admin.register(DefaultVectorStore)
-class DefaultVectorStoreAdmin(admin.ModelAdmin):
+class DefaultVectorStoreAdmin(ModelAdmin):
     list_display = ("name", "description", "created", "modified")
     search_fields = ("name", "description")
     ordering = ("name",)

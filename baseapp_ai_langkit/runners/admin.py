@@ -6,6 +6,7 @@ from django.utils.safestring import mark_safe
 
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
+from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin
 from baseapp_ai_langkit.runners.models import (
     LLMRunner,
     LLMRunnerNode,
@@ -131,7 +132,7 @@ class LLMRunnerNodeInline(AddAndDeleteBlockerMixin, nested_admin.NestedStackedIn
 
 
 @admin.register(LLMRunner)
-class LLMRunnerAdmin(nested_admin.NestedModelAdmin):
+class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
     ordering = ("name",)
