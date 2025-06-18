@@ -5,10 +5,7 @@ from baseapp_ai_langkit.tools.models import InlineTool
 from baseapp_ai_langkit.vector_stores.models import DefaultVectorStore
 
 
-class AgentsToolsManager(ABC):
-    # TODO: Reevaluate this class. These tools require a vector store, but the vector store is not always needed.
-    tools_list: List[Type[InlineTool]] = []
-
+class VectorStoreToolsHelper(ABC):
     @abstractmethod
     def get_vector_store_key(self, tool_class: Type[InlineTool]) -> str:
         """
