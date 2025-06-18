@@ -183,13 +183,13 @@ In this section, we will guide you through the process of creating custom agents
     - **Tools**: Agents require tools, which should be created and managed accordingly.
     - **Example**:
         ```python
-        from baseapp_ai_langkit.tools.models import InlineTool
+        from baseapp_ai_langkit.base.tools.inline_tool import InlineTool
 
         class CustomTool(InlineTool):
             name = "CustomTool"
             description = "A tool for custom operations."
 
-            def execute(self, *args, **kwargs):
+            def tool_func(self, *args, **kwargs):
                 # Tool logic here
                 pass
 

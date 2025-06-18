@@ -9,8 +9,8 @@ from langgraph.prebuilt import create_react_agent
 
 from baseapp_ai_langkit.base.agents.base_agent import BaseAgent
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
+from baseapp_ai_langkit.base.tools.inline_tool import InlineTool
 from baseapp_ai_langkit.chats.checkpointer import LangGraphCheckpointer
-from baseapp_ai_langkit.tools.models import InlineTool
 
 logger = logging.getLogger(__name__)
 

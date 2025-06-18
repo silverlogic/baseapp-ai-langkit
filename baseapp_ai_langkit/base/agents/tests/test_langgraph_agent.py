@@ -6,7 +6,7 @@ from langchain_core.messages import AIMessage
 
 from baseapp_ai_langkit.base.agents.tests.factories import LangGraphAgentFactory
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
-from baseapp_ai_langkit.tools.models import InlineTool
+from baseapp_ai_langkit.base.tools.inline_tool import InlineTool
 
 
 class MockReactAgent(MagicMock):

@@ -33,7 +33,7 @@ class BaseAgent(ABC):
 
     def __init__(
         self,
-        tools: List[Tool],
+        tools: List[Tool] = None,
     ):
         self.tools = tools
         self.validate_tools()

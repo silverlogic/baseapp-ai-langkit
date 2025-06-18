@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List, Tuple
 
 from django.db import models
+from langchain.tools import Tool
 from langchain_openai import OpenAIEmbeddings
 from model_utils.models import TimeStampedModel
 from pgvector.django import CosineDistance, VectorField
@@ -143,3 +144,25 @@ class DefaultDocumentEmbedding(TimeStampedModel):
 
     def __str__(self):
         return f"Embedding for vector store: {self.vector_store}"
+
+
+class DefaultVectorStoreTool(TimeStampedModel):
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    vector_store = models.ForeignKey(
+        DefaultVectorStore, on_delete=models.CASCADE, related_name="tools"
+    )
+
+    def __str__(self):
+        return self.name
+
+    def to_langchain_tool(self) -> Tool:
+        return Tool(
+            name=self.name,
+            func=self.tool_func,
+            description=self.description,
+        )
+
+    def tool_func(self, input_text: str) -> str:
+        results = self.vector_store.similarity_search(input_text)
+        return "\n".join([res["content"] for res in results])
