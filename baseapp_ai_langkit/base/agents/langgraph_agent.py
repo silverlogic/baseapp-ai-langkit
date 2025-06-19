@@ -63,12 +63,16 @@ class LangGraphAgent(LLMNodeInterface, BaseAgent):
         tools = []
         for tool_class in self.tools_list:
             try:
-                tool = tool_class()
+                tool = self.initialize_tool(tool_class)
                 tools.append(tool.to_langchain_tool())
             except Exception as e:
                 logger.error("Failed to initialize tool %s: %s", tool_class.__name__, str(e))
                 raise
         return tools
+
+    def initialize_tool(self, tool_class: Type[InlineTool]) -> InlineTool:
+        """Override this method to send custom arguments to the tool constructor."""
+        return tool_class()
 
     def update_agent(self, state_modifier: Optional[SystemMessage]):
         self.agent_executor = create_react_agent(
