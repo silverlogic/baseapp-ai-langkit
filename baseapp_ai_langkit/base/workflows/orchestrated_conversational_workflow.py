@@ -177,13 +177,13 @@ class OrchestratedConversationalWorkflow(ConversationalWorkflow):
                     {
                         "node_key": node.name,
                         "custom_prompt": node.prompt,
-                        **self.get_node_extra_states(node.name),
+                        **self.get_node_extra_state_fields(node.name, state),
                     },
                 )
             )
         return sends
 
-    def get_node_extra_states(self, node_key: str) -> dict:
+    def get_node_extra_state_fields(self, node_key: str, state: OrchestratorState) -> dict:
         return {}
 
     def setup_workflow_chain(self):
