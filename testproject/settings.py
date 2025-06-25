@@ -46,7 +46,6 @@ INSTALLED_APPS = [
     "baseapp_ai_langkit.chats",
     "baseapp_ai_langkit.executors",
     "baseapp_ai_langkit.runners",
-    "baseapp_ai_langkit.tools",
     "baseapp_ai_langkit.vector_stores",
     "baseapp_ai_langkit.slack",
 ]

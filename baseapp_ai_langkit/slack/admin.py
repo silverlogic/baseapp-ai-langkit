@@ -8,6 +8,7 @@ from pygments.formatters import HtmlFormatter
 from pygments.lexers import JsonLexer
 
 from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin, TabularInline
+from baseapp_ai_langkit.slack.filters import ChannelTypeFilter
 from baseapp_ai_langkit.slack.utils.export_reactions_helper import (
     generate_reaction_export_csv,
     get_message_content,
@@ -168,8 +169,9 @@ class SlackAIChatMessageAdmin(ModelAdmin):
     list_display = (
         "id",
         "slack_chat_link",
-        "user_message_slack_event_link",
-        "output_slack_event_link",
+        "user_message_slack_event_link_with_content",
+        "output_slack_event_link_with_content",
+        "is_dm",
         "created",
         "modified",
     )
@@ -179,6 +181,7 @@ class SlackAIChatMessageAdmin(ModelAdmin):
         "user_message_slack_event__id",
         "output_slack_event__id",
     )
+    list_filter = (ChannelTypeFilter,)
     ordering = ("-created",)
     fields = (
         "id",
@@ -200,38 +203,51 @@ class SlackAIChatMessageAdmin(ModelAdmin):
     )
     inlines = [SlackAIChatMessageReactionInline]
 
+    def is_dm(self, obj):
+        if obj.output_response_output_data and isinstance(obj.output_response_output_data, dict):
+            channel = obj.output_response_output_data.get("channel", "")
+            return channel.startswith("D")
+        return False
+
+    is_dm.boolean = True
+    is_dm.short_description = "DM"
+
     def slack_chat_link(self, obj):
         url = reverse("admin:baseapp_ai_langkit_slack_slackevent_change", args=[obj.slack_chat.id])
         return format_html('<a href="{}">{}</a>', url, obj.slack_chat.id)
 
     slack_chat_link.short_description = "Slack Chat"
 
-    def user_message_slack_event_link(self, obj):
+    def user_message_slack_event_link_with_content(self, obj):
         url = reverse(
             "admin:baseapp_ai_langkit_slack_slackevent_change",
             args=[obj.user_message_slack_event.id],
         )
-        return format_html(
+        link = format_html(
             '<a href="{}">{} (event_ts: {})</a>',
             url,
             obj.user_message_slack_event.id,
             obj.user_message_slack_event.event_ts,
         )
+        content = get_message_content(obj.user_message_slack_event)
+        return format_html("{}<br>{}", link, content)
 
-    user_message_slack_event_link.short_description = "User Message Slack Event"
+    user_message_slack_event_link_with_content.short_description = "User Message"
 
-    def output_slack_event_link(self, obj):
+    def output_slack_event_link_with_content(self, obj):
         url = reverse(
             "admin:baseapp_ai_langkit_slack_slackevent_change", args=[obj.output_slack_event.id]
         )
-        return format_html(
+        link = format_html(
             '<a href="{}">{} (event_ts: {})</a>',
             url,
             obj.output_slack_event.id,
             obj.output_slack_event.event_ts,
         )
+        content = get_message_content(obj.output_slack_event)
+        return format_html("{}<br>{}", link, content)
 
-    output_slack_event_link.short_description = "Output Slack Event"
+    output_slack_event_link_with_content.short_description = "Output Message"
 
     def output_response_output_data_json_pretty(self, instance):
         return pretty_json(instance.output_response_output_data)

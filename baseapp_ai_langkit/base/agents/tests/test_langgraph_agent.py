@@ -1,16 +1,22 @@
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from langchain.tools import BaseTool
 from langchain_core.messages import AIMessage
 
 from baseapp_ai_langkit.base.agents.tests.factories import LangGraphAgentFactory
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
-from baseapp_ai_langkit.tools.tests.factories import ToolFactory
+from baseapp_ai_langkit.base.tools.inline_tool import InlineTool
 
 
 class MockReactAgent(MagicMock):
     def invoke(self, *args, **kwargs) -> AIMessage:
         return {"messages": [AIMessage(content="Mocked content")]}
+
+
+class MockInlineTool(InlineTool):
+    name = "MockInlineTool"
+    description = "MockInlineTool description"
 
 
 class TestLangGraphAgent(TestCase):
@@ -24,7 +30,7 @@ class TestLangGraphAgent(TestCase):
         cls.mock_create_react_agent.return_value = MockReactAgent()
 
     def setUp(self):
-        self.tools = [ToolFactory()]
+        self.tools = [MockInlineTool]
         self.state_modifier_schema = BasePromptSchema(
             description="Test description", prompt="Test prompt"
         )
@@ -33,25 +39,25 @@ class TestLangGraphAgent(TestCase):
         )
 
     def test_base_langgraph_agent(self):
-        agent = LangGraphAgentFactory(tools=self.tools)
-        self.assertEqual(agent.tools, self.tools)
+        agent = LangGraphAgentFactory(tools_list=self.tools)
+        self.assertIsInstance(agent.tools[0], BaseTool)
         self.assertIsNone(agent.checkpointer)
         self.assertFalse(agent.debug)
 
     def test_langgraph_agent_with_state_modifier(self):
         agent = LangGraphAgentFactory(
-            tools=self.tools, state_modifier_schema=self.state_modifier_schema
+            tools_list=self.tools, state_modifier_schema=self.state_modifier_schema
         )
         self.assertEqual(agent.state_modifier_schema, self.state_modifier_schema)
 
     def test_langgraph_agent_with_usage_prompt_schema(self):
         agent = LangGraphAgentFactory(
-            tools=self.tools, usage_prompt_schema=self.usage_prompt_schema
+            tools_list=self.tools, usage_prompt_schema=self.usage_prompt_schema
         )
         self.assertEqual(agent.usage_prompt_schema, self.usage_prompt_schema)
 
     def test_langgraph_agent_invoke(self):
-        agent = LangGraphAgentFactory(tools=self.tools)
+        agent = LangGraphAgentFactory(tools_list=self.tools)
         messages = [MagicMock()]
         response = agent.invoke(messages)
         self.assertEqual(response.content, "Mocked content")
@@ -61,7 +67,7 @@ class TestLangGraphAgent(TestCase):
         mock_agent.invoke.side_effect = Exception("Test error")
         self.mock_create_react_agent.return_value = mock_agent
 
-        agent = LangGraphAgentFactory(tools=self.tools)
+        agent = LangGraphAgentFactory(tools_list=self.tools)
         messages = [MagicMock()]
 
         with self.assertRaises(Exception) as context:

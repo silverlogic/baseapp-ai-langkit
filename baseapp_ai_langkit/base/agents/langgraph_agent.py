@@ -1,5 +1,5 @@
 import logging
-from typing import List, Optional
+from typing import List, Optional, Type
 
 from django.utils.translation import gettext_lazy as _
 from langchain.schema import AIMessage
@@ -9,6 +9,7 @@ from langgraph.prebuilt import create_react_agent
 
 from baseapp_ai_langkit.base.agents.base_agent import BaseAgent
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
+from baseapp_ai_langkit.base.tools.inline_tool import InlineTool
 from baseapp_ai_langkit.chats.checkpointer import LangGraphCheckpointer
 
 logger = logging.getLogger(__name__)
@@ -37,20 +38,41 @@ class LangGraphAgent(LLMNodeInterface, BaseAgent):
     checkpointer: Optional[LangGraphCheckpointer]
     debug: bool
 
+    tools_list: List[Type[InlineTool]] = []
+
     def __init__(
         self,
-        tools: List[Tool],
+        tools_list: List[Type[InlineTool]] = None,
         checkpointer: Optional[LangGraphCheckpointer] = None,
         debug: Optional[bool] = False,
         *args,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.tools = tools
+
+        if tools_list:
+            self.tools_list = tools_list
+
+        self.tools = self.get_tools()
         self.validate_tools()
 
         self.checkpointer = checkpointer
         self.debug = debug
+
+    def get_tools(self) -> List[Tool]:
+        tools = []
+        for tool_class in self.tools_list:
+            try:
+                tool = self.initialize_tool(tool_class)
+                tools.append(tool.to_langchain_tool())
+            except Exception as e:
+                logger.error("Failed to initialize tool %s: %s", tool_class.__name__, str(e))
+                raise
+        return tools
+
+    def initialize_tool(self, tool_class: Type[InlineTool]) -> InlineTool:
+        """Override this method to send custom arguments to the tool constructor."""
+        return tool_class()
 
     def update_agent(self, state_modifier: Optional[SystemMessage]):
         self.agent_executor = create_react_agent(

@@ -98,6 +98,7 @@ class OrchestratedConversationalWorkflow(ConversationalWorkflow):
                 messages=[
                     HumanMessage(content=state["custom_prompt"]),
                 ],
+                state=state,
             )
             return {"completed_nodes": [f"{node_key} response: {response.content}"]}
         except Exception as e:
@@ -176,10 +177,14 @@ class OrchestratedConversationalWorkflow(ConversationalWorkflow):
                     {
                         "node_key": node.name,
                         "custom_prompt": node.prompt,
+                        **self.get_node_extra_state_fields(node.name, state),
                     },
                 )
             )
         return sends
+
+    def get_node_extra_state_fields(self, node_key: str, state: OrchestratorState) -> dict:
+        return {}
 
     def setup_workflow_chain(self):
         # Add nodes.
