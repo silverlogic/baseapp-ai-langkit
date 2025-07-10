@@ -22,8 +22,7 @@ class SlackInstanceController:
     ) -> Tuple[Optional[AbstractBaseUser], bool]:
         response = self.slack_web_client.users_profile_get(
             user=slack_user_id,
-        )
-        response.validate()
+        ).validate()
         user_profile: dict = response["profile"]
         is_from_bot = isinstance(user_profile.get("api_app_id"), str)
         if is_from_bot:

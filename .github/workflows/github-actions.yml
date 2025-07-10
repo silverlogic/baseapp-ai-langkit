@@ -27,7 +27,7 @@ jobs:
         run: docker compose build --build-arg "PYTHON_VERSION=${{ matrix.python-version }}"
 
       - name: docker compose up
-        run: docker compose up -d --wait
+        run: cp .env.example .env && docker compose up -d --wait
 
       - name: flake8
         id: flake8

@@ -17,7 +17,7 @@ from baseapp_ai_langkit.slack.tests.test import SlackTestCase
 class TestSlackWebhookViewSet(APITestCase, SlackTestCase):
     def setUp(self):
         super().setUp()
-        self.url = reverse("v1:slack-webhook-list")
+        self.url = reverse("v1:slack_webhook-list")
 
     @patch.object(SlackWebhookViewSet, "permission_classes", new=[])
     def test_url_verification(self):
