@@ -1,0 +1,78 @@
+_metadata:
+  major_version: 1
+  minor_version: 0
+display_information:
+  name: BaseApp AI LangKit
+  description: BaseApp AI LangKit (Development)
+  background_color: "#424242"
+features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true
+    messages_tab_read_only_enabled: false
+  bot_user:
+    display_name: BaseApp-AI-LangKit
+    always_online: true
+  slash_commands:
+    - command: /example
+      # TODO: Replace with your local ngrok url
+      url: https://6125-70-77-231-206.ngrok-free.app/v1/langkit/slack/slash/example/
+      description: Example Slash Command
+      should_escape: false
+  unfurl_domains:
+    # TODO: Replace with your local ngrok url
+    - 6125-70-77-231-206.ngrok-free.app
+oauth_config:
+  scopes:
+    user:
+      - chat:write
+      - im:history
+      - im:read
+      - im:write
+      - mpim:read
+      - users.profile:read
+      - mpim:history
+      - mpim:write
+      - links:read
+      - links:write
+    bot:
+      - app_mentions:read
+      - channels:history
+      - chat:write
+      - chat:write.public
+      - commands
+      - im:history
+      - im:read
+      - im:write
+      - mpim:history
+      - mpim:read
+      - mpim:write
+      - users.profile:read
+      - users:read
+      - links:read
+      - links:write
+      - reactions:read
+      - channels:read
+      - groups:read
+      - chat:write.customize
+settings:
+  event_subscriptions:
+    # TODO: Replace with your local ngrok url
+    request_url: https://6125-70-77-231-206.ngrok-free.app/v1/langkit/slack/webhook/
+    bot_events:
+      - app_mention
+      - app_uninstalled
+      - link_shared
+      - message.channels
+      - message.im
+      - message.mpim
+      - reaction_added
+      - reaction_removed
+      - tokens_revoked
+  interactivity:
+    is_enabled: true
+    # TODO: Replace with your local ngrok url
+    request_url: https://6125-70-77-231-206.ngrok-free.app/v1/langkit/slack/interactive-endpoint/
+  org_deploy_enabled: true
+  socket_mode_enabled: false
+  token_rotation_enabled: false

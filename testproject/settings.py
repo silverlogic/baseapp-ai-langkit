@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django_extensions",
     "pgtrigger",
     "rest_framework",
     "rest_framework.authtoken",
@@ -154,9 +155,35 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.TokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ),
+    "DEFAULT_PAGINATION_CLASS": "testproject.api.pagination.DefaultPageNumberPagination",
     "PAGE_SIZE": 30,
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.NamespaceVersioning",
     "ORDERING_PARAM": "order_by",
     "SEARCH_PARAM": "q",
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
+
+# Logging
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "root": {"handlers": ["console"], "level": "DEBUG"},
+    "formatters": {
+        "simple": {"format": "[%(name)s] [%(levelname)s] %(message)s"},
+        "simple_date": {
+            "format": "[%(asctime)s] [%(name)s] [%(levelname)s] %(message)s",
+            "datefmt": "%Y/%m/%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "formatter": "simple"},
+    },
+    "loggers": {},
+}
+
+BASEAPP_AI_LANGKIT_SLACK_SLASH_COMMANDS = [
+    "testproject.extensions.baseapp_ai_langkit.slack.rest_framework.slash_commands.example.viewset.SlackExampleSlashCommandViewSet"
+]
+BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS = [
+    "testproject.extensions.baseapp_ai_langkit.slack.rest_framework.slash_commands.example.viewset.SlackExampleInteractiveEndpointHandler"
+]

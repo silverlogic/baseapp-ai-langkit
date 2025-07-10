@@ -65,7 +65,11 @@ This section provides guidance on maintaining the `baseapp-ai-langkit` package.
     ```
 
 3. **Environment Configuration**:
-    Create a `.env` file with the necessary environment variables, including `OPENAI_API_KEY` (if you want to run the dummy bot).
+    Initialize the `.env` file with the necessary environment variables, including `OPENAI_API_KEY` (if you want to run the dummy bot).
+
+    ```sh
+    cp .env.example .env
+    ```
 
 ### Testing
 
@@ -233,3 +237,23 @@ By following this flow, you ensure that all components are properly integrated a
 ## References
 
 For more detailed information on workflows, workers, agents, and language models, please refer to the [Langchain](https://langchain.com) and [Langgraph](https://langgraph.com) documentation.
+
+---
+
+# Baseapp AI Langkit Slack
+
+## Overview
+
+The Baseapp AI Langkit Slack package enables seamless integration between Slack and the Baseapp AI Langkit platform, allowing you to deploy AI-powered chatbots, automate workflows, and handle interactive Slack features (like slash commands and modals) directly within your Slack workspace using the robust tools and agents provided by Baseapp AI Langkit.
+
+1. Adding custom slash commands
+
+    Create a custom `ViewSet` for your slash command. Add a `name` paramater. This should match the name of the slash command and will be used as the url path for the viewset. Add the import path of this viewset to your project settings `BASEAPP_AI_LANGKIT_SLACK_SLASH_COMMANDS`.
+    
+    For an example see `SlackExampleSlashCommandViewSet` in the `testproject`.
+
+1. Adding interactive endpoint handlers
+
+    Create a custom `SlackBaseInteractiveEndpointHandler`. Add the import path of this viewset to your project settings `BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS`.
+    
+    For an example see `SlackExampleInteractiveEndpointHandler` in the `testproject`.
