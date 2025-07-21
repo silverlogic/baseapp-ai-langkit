@@ -257,3 +257,9 @@ The Baseapp AI Langkit Slack package enables seamless integration between Slack 
     Create a custom `SlackBaseInteractiveEndpointHandler`. Add the import path of this viewset to your project settings `BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS`.
     
     For an example see `SlackExampleInteractiveEndpointHandler` in the `testproject`.
+
+# Baseapp AI Langkit Embeddings
+
+## Overview
+
+TODO: epic/rag Write the documentation before merging this feature into main
