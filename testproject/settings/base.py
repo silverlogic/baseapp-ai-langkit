@@ -49,6 +49,8 @@ INSTALLED_APPS = [
     "baseapp_ai_langkit.runners",
     "baseapp_ai_langkit.vector_stores",
     "baseapp_ai_langkit.slack",
+    "baseapp_ai_langkit.embeddings",
+    "testproject.apps.example",
 ]
 
 MIDDLEWARE = [
@@ -187,3 +189,8 @@ BASEAPP_AI_LANGKIT_SLACK_SLASH_COMMANDS = [
 BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS = [
     "testproject.extensions.baseapp_ai_langkit.slack.rest_framework.slash_commands.example.viewset.SlackExampleInteractiveEndpointHandler"
 ]
+
+# baseApp-ai-langkit.embeddings Settings
+BASEAPP_AI_LANGKIT_EMBEDDINGS_EMBEDDING_MODEL_DIMENSIONS = 1024
+BASEAPP_AI_LANGKIT_EMBEDDINGS_CHUNK_SIZE = 512
+BASEAPP_AI_LANGKIT_EMBEDDINGS_CHUNK_OVERLAP = 64
