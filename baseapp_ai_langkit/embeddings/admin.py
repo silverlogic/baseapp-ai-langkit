@@ -56,21 +56,21 @@ def _decode_content_object_choice(encoded: str) -> typing.Tuple[str, str, str]:
 
 
 class GenericChunkForm(forms.ModelForm):
-    content_object = forms.ChoiceField(choices=_build_content_object_choices)
+    _content_object = forms.ChoiceField(choices=_build_content_object_choices)
 
     class Meta:
         model = GenericChunk
         fields = (
             "content_type",
             "object_id",
-            "content_object",
+            "_content_object",
         )
 
     def __init__(self, *args, instance=None, initial={}, **kwargs):
         if instance is not None:
             initial = {
                 **initial,
-                "content_object": _encode_content_object_choice(
+                "_content_object": _encode_content_object_choice(
                     instance.content_type.app_label, instance.content_type.model, instance.object_id
                 ),
             }
@@ -82,12 +82,12 @@ class GenericChunkForm(forms.ModelForm):
 
     def clean(self):
         super(GenericChunkForm, self).clean()
-        decoded = _decode_content_object_choice(self.cleaned_data["content_object"])
+        decoded = _decode_content_object_choice(self.cleaned_data["_content_object"])
         content_type = ContentType.objects.all().get(app_label=decoded[0], model=decoded[1])
         content_object = content_type.get_all_objects_for_this_type().get(pk=decoded[2])
         self.cleaned_data["content_type"] = content_type
         self.cleaned_data["object_id"] = content_object.pk
-        del self.cleaned_data["content_object"]
+        del self.cleaned_data["_content_object"]
 
 
 @admin.register(GenericChunk)
