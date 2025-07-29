@@ -2,9 +2,7 @@ from typing import Type
 
 from django.test import TestCase
 
-from baseapp_ai_langkit.vector_stores.tools.inline_vector_store_tool import (
-    InlineVectorStoreTool,
-)
+from baseapp_ai_langkit.vector_stores.tools.inline_vector_store_tool import InlineVectorStoreTool
 from baseapp_ai_langkit.vector_stores.tools.tools_with_vector_store_helper import (
     ToolsWithVectorStoreHelper,
 )

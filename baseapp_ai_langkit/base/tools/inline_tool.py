@@ -1,6 +1,5 @@
-from langchain.tools import StructuredTool
-
 from baseapp_ai_langkit.base.tools.base_tool import AbstractBaseTool
+from langchain.tools import StructuredTool
 
 
 class InlineTool(AbstractBaseTool):

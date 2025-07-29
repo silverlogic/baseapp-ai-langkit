@@ -1,9 +1,8 @@
+from baseapp_ai_langkit.chats.tests.factories import ChatPrePromptedQuestionFactory
+from baseapp_ai_langkit.tests.factories import UserFactory
 from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
-
-from baseapp_ai_langkit.chats.tests.factories import ChatPrePromptedQuestionFactory
-from baseapp_ai_langkit.tests.factories import UserFactory
 
 
 class TestChatPrePromptedQuestionViewSet(APITestCase):

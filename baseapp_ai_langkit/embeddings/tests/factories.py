@@ -1,6 +1,6 @@
-import factory
 from django.contrib.contenttypes.models import ContentType
 
+import factory
 from baseapp_ai_langkit.embeddings.models import GenericChunk
 
 

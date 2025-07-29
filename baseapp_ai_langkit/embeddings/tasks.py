@@ -1,13 +1,10 @@
 import logging
 from uuid import UUID
 
-from celery import shared_task
 from django.contrib.contenttypes.models import ContentType
 
-from baseapp_ai_langkit.embeddings.embedding_utils import (
-    generate_vector_embeddings as _generate_vector_embeddings,
-)
 from baseapp_ai_langkit.embeddings.model_utils import validate_content_type_for_model
+from celery import shared_task
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +23,10 @@ def generate_vector_embeddings(
     validate_content_type_for_model(model_cls=embeddable_type)
     try:
         embeddable = embeddable_type.objects.get(id=embeddable_id)
+
+        ChunkGenerator = embeddable.chunk_generator_class()
+        chunk_generator = ChunkGenerator()
+        chunk_generator.generate_chunks(embeddable=embeddable)
     except embeddable_type.DoesNotExist:
         # This exception might happen if the triggering model is saved during a long-running import task with transaction.atomic.
         # In this case, the saved object will only be available after the whole transaction is committed.
@@ -42,6 +43,3 @@ def generate_vector_embeddings(
             logger.error(
                 f"Embeddable object with ID {embeddable_id} still not found. I'm giving up."
             )
-        return
-
-    _generate_vector_embeddings(embeddable)

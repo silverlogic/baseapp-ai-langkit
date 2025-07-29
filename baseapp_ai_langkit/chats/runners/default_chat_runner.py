@@ -1,10 +1,9 @@
-from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.postgres import PostgresSaver
-
 from baseapp_ai_langkit.base.interfaces.base_runner import BaseChatInterface
 from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
 from baseapp_ai_langkit.base.workflows.general_chat_workflow import GeneralChatWorkflow
 from baseapp_ai_langkit.chats.checkpointer import LangGraphCheckpointer
+from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.postgres import PostgresSaver
 
 
 class DefaultChatRunner(BaseChatInterface):

@@ -1,9 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from langchain.schema import AIMessage
-
 from baseapp_ai_langkit.base.agents.tests.factories import DefaultAgentFactory
+from langchain.schema import AIMessage
 
 pytestmark = pytest.mark.django_db
 

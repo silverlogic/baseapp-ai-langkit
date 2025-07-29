@@ -1,14 +1,9 @@
-from langchain_openai import ChatOpenAI
-from langgraph.checkpoint.postgres import PostgresSaver
-
 from baseapp_ai_langkit.base.workflows.general_chat_workflow import GeneralChatWorkflow
 from baseapp_ai_langkit.chats.checkpointer import LangGraphCheckpointer
-from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import (
-    BaseSlackChatInterface,
-)
-from baseapp_ai_langkit.slack.base.workers.default_slack_worker import (
-    DefaultSlackWorker,
-)
+from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import BaseSlackChatInterface
+from baseapp_ai_langkit.slack.base.workers.default_slack_worker import DefaultSlackWorker
+from langchain_openai import ChatOpenAI
+from langgraph.checkpoint.postgres import PostgresSaver
 
 
 class DefaultSlackChatRunner(BaseSlackChatInterface):

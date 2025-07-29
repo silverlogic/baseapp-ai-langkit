@@ -1,23 +1,29 @@
 from __future__ import annotations
 
-from typing import List
+import typing
 
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from model_utils.models import TimeStampedModel
-from pgvector.django import VectorField
 
 from baseapp_ai_langkit.embeddings.conf import app_settings
 from baseapp_ai_langkit.embeddings.model_utils import available_content_types_query
 from baseapp_ai_langkit.embeddings.querysets import GenericChunkQuerySet
+from model_utils.models import TimeStampedModel
+from pgvector.django import VectorField
+
+if typing.TYPE_CHECKING:
+    from baseapp_ai_langkit.embeddings.chunk_generators import BaseChunkGenerator
 
 
 class EmbeddableModelMixin(models.Model):
     chunks = GenericRelation("baseapp_ai_langkit_embeddings.GenericChunk")
     embedding_error = models.TextField(null=True, blank=True)
 
-    def embeddable_content(self) -> List[str]:
+    def chunk_generator_class(self) -> typing.Type[BaseChunkGenerator]:
+        raise NotImplementedError("Subclasses must implement this method")
+
+    def embeddable_content(self) -> typing.List[str]:
         raise NotImplementedError("Subclasses must implement this method")
 
     def save(self, *args, **kwargs):
