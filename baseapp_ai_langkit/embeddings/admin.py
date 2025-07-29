@@ -9,15 +9,15 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.utils.translation import gettext_lazy as _
-from pygments import highlight
-from pygments.formatters import HtmlFormatter
-from pygments.lexers import JsonLexer
 
 from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin
 from baseapp_ai_langkit.embeddings.admin_filters import ContentTypeFilter
 from baseapp_ai_langkit.embeddings.model_utils import available_content_types_query
 from baseapp_ai_langkit.embeddings.models import GenericChunk
 from baseapp_ai_langkit.embeddings.tasks import generate_vector_embeddings
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import JsonLexer
 
 
 def _build_content_object_choices():

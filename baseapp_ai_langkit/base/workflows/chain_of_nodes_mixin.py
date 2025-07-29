@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 
-from langgraph.graph import END, START
-
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
+from langgraph.graph import END, START
 
 
 class ChainOfNodesMixin(ABC):

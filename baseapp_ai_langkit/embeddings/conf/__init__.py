@@ -10,7 +10,6 @@ class AppSettings:
     EMBEDDING_MODEL_DIMENSIONS: int
     CHUNK_SIZE: int
     CHUNK_OVERLAP: int
-    # COSINE_DISTANCE_FILTER: float
     SKIP_EMBEDDING_GENERATION: bool
 
     def __init__(self, prefix):

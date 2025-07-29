@@ -1,9 +1,9 @@
 from typing import Type, Union
 
-import nested_admin
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
+import nested_admin
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin

@@ -4,11 +4,12 @@ import uuid
 
 import django.db.models.deletion
 import django.utils.timezone
+from django.conf import settings
+from django.db import migrations, models
+
 import model_utils.fields
 import pgtrigger.compiler
 import pgtrigger.migrations
-from django.conf import settings
-from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

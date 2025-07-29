@@ -1,8 +1,7 @@
 from typing import List
 
-from langchain_core.messages import AIMessage, AnyMessage
-
 from baseapp_ai_langkit.base.workers.base_worker import BaseWorker
+from langchain_core.messages import AIMessage, AnyMessage
 
 
 class MessagesWorker(BaseWorker):

@@ -1,5 +1,4 @@
 from django.utils.translation import gettext_lazy as _
-from rest_framework import serializers
 
 from baseapp_ai_langkit.chats.models import (
     ChatIdentity,
@@ -7,6 +6,7 @@ from baseapp_ai_langkit.chats.models import (
     ChatPrePromptedQuestion,
     ChatSession,
 )
+from rest_framework import serializers
 
 
 class BaseChatSerializer(serializers.Serializer):

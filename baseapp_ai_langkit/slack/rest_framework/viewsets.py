@@ -2,19 +2,18 @@ import abc
 import json
 import logging
 import typing
-from dataclasses import dataclass
-from dataclasses import field as dcfield
+from dataclasses import dataclass, field as dcfield
 
-import pydash
 from django.conf import settings
 from django.utils.module_loading import import_string
-from rest_framework import status, viewsets
-from rest_framework.request import Request
-from rest_framework.response import Response
 
+import pydash
 from baseapp_ai_langkit.slack import tasks
 from baseapp_ai_langkit.slack.models import SlackEvent, SlackEventStatus
 from baseapp_ai_langkit.slack.permissions import isSlackRequestSigned
+from rest_framework import status, viewsets
+from rest_framework.request import Request
+from rest_framework.response import Response
 
 logger = logging.getLogger(__name__)
 

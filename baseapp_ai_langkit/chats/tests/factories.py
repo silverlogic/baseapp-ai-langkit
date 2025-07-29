@@ -1,6 +1,4 @@
 import factory
-from factory.django import DjangoModelFactory
-
 from baseapp_ai_langkit.chats.models import (
     ChatIdentity,
     ChatMessage,
@@ -8,6 +6,7 @@ from baseapp_ai_langkit.chats.models import (
     ChatSession,
 )
 from baseapp_ai_langkit.tests.factories import UserFactory
+from factory.django import DjangoModelFactory
 
 
 class ChatSessionFactory(DjangoModelFactory):

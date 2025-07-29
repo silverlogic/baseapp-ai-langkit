@@ -1,8 +1,9 @@
 import uuid
 
-import pgtrigger
 from django.contrib.auth import get_user_model
 from django.db import models
+
+import pgtrigger
 from model_utils import Choices
 from model_utils.models import TimeStampedModel
 

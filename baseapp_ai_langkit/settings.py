@@ -11,6 +11,7 @@ __all__ = [
     "SLACK_SIGNING_SECRET",
 ]
 
+
 # Baseapp AI Langkit Slack Settings
 BASEAPP_AI_LANGKIT_SLACK_AI_CHAT_EVENT_CALLBACK = (
     "baseapp_ai_langkit.slack.event_callbacks.slack_ai_chat_event_callback.SlackAIChatEventCallback"

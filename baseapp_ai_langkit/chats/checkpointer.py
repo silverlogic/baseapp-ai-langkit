@@ -1,6 +1,7 @@
-import psycopg
 from django.conf import settings
 from django.db import DEFAULT_DB_ALIAS
+
+import psycopg
 from langgraph.checkpoint.postgres import PostgresSaver
 
 
