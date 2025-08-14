@@ -76,7 +76,6 @@ class ChatPrePromptedQuestion(TimeStampedModel):
     )
 
     prompt = models.TextField(
-        max_length=400,
         help_text=(
             "Text shown in the user input when a pre-prompt is selected. "
             "This is the prompt that will be sent to the LLM."
