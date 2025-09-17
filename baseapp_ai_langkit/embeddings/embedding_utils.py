@@ -3,10 +3,10 @@ from __future__ import annotations
 import logging
 
 from django.db.models.manager import BaseManager
+from pgvector.django import CosineDistance
 
 from baseapp_ai_langkit.embeddings.embedding_models import openai_embeddings
 from baseapp_ai_langkit.embeddings.models import GenericChunk
-from pgvector.django import CosineDistance
 
 logger = logging.getLogger(__name__)
 

@@ -1,11 +1,12 @@
 import factory
+from factory.django import DjangoModelFactory
+
 from baseapp_ai_langkit.runners.models import (
     LLMRunner,
     LLMRunnerNode,
     LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
 )
-from factory.django import DjangoModelFactory
 
 
 class LLMRunnerFactory(DjangoModelFactory):

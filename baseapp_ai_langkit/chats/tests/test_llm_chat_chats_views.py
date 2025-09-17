@@ -1,13 +1,17 @@
 import uuid
 from unittest.mock import patch
 
-from baseapp_ai_langkit.base.interfaces.exceptions import LLMChatInterfaceException
-from baseapp_ai_langkit.chats.models import ChatMessage
-from baseapp_ai_langkit.chats.tests.factories import ChatMessageFactory, ChatSessionFactory
-from baseapp_ai_langkit.tests.factories import UserFactory
 from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+
+from baseapp_ai_langkit.base.interfaces.exceptions import LLMChatInterfaceException
+from baseapp_ai_langkit.chats.models import ChatMessage
+from baseapp_ai_langkit.chats.tests.factories import (
+    ChatMessageFactory,
+    ChatSessionFactory,
+)
+from baseapp_ai_langkit.tests.factories import UserFactory
 
 
 class TestBaseChatViewSet(APITestCase):

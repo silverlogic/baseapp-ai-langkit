@@ -1,15 +1,17 @@
 import json
 import logging
 
-from django.views.decorators.csrf import csrf_exempt
-
 import pydash
-from baseapp_ai_langkit.slack.permissions import isSlackRequestSigned
-from baseapp_ai_langkit.slack.rest_framework.viewsets import SlackBaseInteractiveEndpointHandler
-from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
+from django.views.decorators.csrf import csrf_exempt
 from rest_framework import status, viewsets
 from rest_framework.request import Request
 from rest_framework.response import Response
+
+from baseapp_ai_langkit.slack.permissions import isSlackRequestSigned
+from baseapp_ai_langkit.slack.rest_framework.viewsets import (
+    SlackBaseInteractiveEndpointHandler,
+)
+from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
 
 from ....modals.test_modal import SlackExampleModalBuilder
 

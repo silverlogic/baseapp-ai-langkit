@@ -1,13 +1,13 @@
 from unittest.mock import MagicMock
 
 from django.test import TestCase
+from langchain_core.language_models.fake_chat_models import FakeChatModel
+from langchain_core.messages import AnyMessage
 
 from baseapp_ai_langkit.base.workers.orchestrator_worker import (
     OrchestratorResponse,
     OrchestratorWorker,
 )
-from langchain_core.language_models.fake_chat_models import FakeChatModel
-from langchain_core.messages import AnyMessage
 
 
 class MockLLM(MagicMock):

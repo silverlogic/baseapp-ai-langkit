@@ -1,4 +1,6 @@
 import factory
+from factory.django import DjangoModelFactory
+
 from baseapp_ai_langkit.chats.tests.factories import ChatSessionFactory
 from baseapp_ai_langkit.slack.models import (
     SlackAIChat,
@@ -8,7 +10,6 @@ from baseapp_ai_langkit.slack.models import (
     SlackEventStatus,
 )
 from baseapp_ai_langkit.tests.factories import UserFactory
-from factory.django import DjangoModelFactory
 
 
 class SlackEventFactory(DjangoModelFactory):

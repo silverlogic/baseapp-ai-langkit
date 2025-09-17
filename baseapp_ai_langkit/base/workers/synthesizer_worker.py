@@ -1,8 +1,9 @@
 from typing import List
 
+from langchain_core.messages import AIMessage, AnyMessage
+
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
-from langchain_core.messages import AIMessage, AnyMessage
 
 
 class SynthesizerWorker(MessagesWorker):

@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+
 from baseapp_ai_langkit.vector_stores.models import DefaultDocumentEmbedding
 from baseapp_ai_langkit.vector_stores.tests.factories import (
     DefaultDocumentEmbeddingFactory,

@@ -1,8 +1,8 @@
+from adminsortable2.admin import SortableAdminMixin
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 
-from adminsortable2.admin import SortableAdminMixin
 from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin
 
 from .models import ChatIdentity, ChatMessage, ChatPrePromptedQuestion, ChatSession

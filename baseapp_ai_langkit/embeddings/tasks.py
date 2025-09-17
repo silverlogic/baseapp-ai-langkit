@@ -1,10 +1,10 @@
 import logging
 from uuid import UUID
 
+from celery import shared_task
 from django.contrib.contenttypes.models import ContentType
 
 from baseapp_ai_langkit.embeddings.model_utils import validate_content_type_for_model
-from celery import shared_task
 
 logger = logging.getLogger(__name__)
 

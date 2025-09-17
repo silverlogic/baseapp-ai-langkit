@@ -1,5 +1,7 @@
 import logging
 
+from celery.result import AsyncResult
+
 from baseapp_ai_langkit.slack.event_callback_handlers.base_slack_ai_chat_event_callback_handler import (
     BaseSlackAIChatEventCallbackHandler,
 )
@@ -21,7 +23,6 @@ from baseapp_ai_langkit.slack.event_callback_handlers.slack_ai_chat_reaction_rem
 from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
     BaseSlackEventCallback,
 )
-from celery.result import AsyncResult
 
 logger = logging.getLogger(__name__)
 

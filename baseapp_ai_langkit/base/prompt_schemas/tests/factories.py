@@ -1,4 +1,5 @@
 import factory
+
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 
 
