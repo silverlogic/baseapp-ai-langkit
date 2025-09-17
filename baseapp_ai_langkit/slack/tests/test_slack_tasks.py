@@ -10,7 +10,10 @@ from baseapp_ai_langkit.slack.tasks import (
     slack_handle_event_hook_event_callback_data,
     slack_process_incoming_user_slack_message,
 )
-from baseapp_ai_langkit.slack.tests.factories import SlackAIChatFactory, SlackEventFactory
+from baseapp_ai_langkit.slack.tests.factories import (
+    SlackAIChatFactory,
+    SlackEventFactory,
+)
 
 from .test import SlackTestCase
 

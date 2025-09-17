@@ -1,8 +1,8 @@
+from celery import shared_task
 from django.conf import settings
 from django.utils.module_loading import import_string
 
 from baseapp_ai_langkit.slack.models import SlackAIChat, SlackEvent
-from celery import shared_task
 
 
 @shared_task

@@ -1,9 +1,10 @@
 from typing import List, Tuple
 
-from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
-from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
 from langchain_core.messages import AnyMessage
 from pydantic import BaseModel, Field
+
+from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
+from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
 
 
 class AvailableNode(BaseModel):

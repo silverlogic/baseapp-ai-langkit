@@ -3,13 +3,13 @@ import logging
 import typing
 
 from django.db import transaction
+from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 from baseapp_ai_langkit.embeddings.chunk_generators import BaseChunkGenerator
 from baseapp_ai_langkit.embeddings.conf import app_settings
 from baseapp_ai_langkit.embeddings.embedding_models import openai_embeddings
 from baseapp_ai_langkit.embeddings.model_utils import validate_content_type_for_model
 from baseapp_ai_langkit.embeddings.models import EmbeddableModelMixin, GenericChunk
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
 

@@ -1,9 +1,10 @@
 from typing import Type
 
+from typing_extensions import TypedDict
+
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.workflows.base_workflow import BaseWorkflow
 from baseapp_ai_langkit.base.workflows.chain_of_nodes_mixin import ChainOfNodesMixin
-from typing_extensions import TypedDict
 
 
 class OutputState(TypedDict):

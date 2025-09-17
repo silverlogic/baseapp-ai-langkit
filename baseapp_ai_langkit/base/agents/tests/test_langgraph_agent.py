@@ -1,12 +1,12 @@
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
+from langchain.tools import BaseTool
+from langchain_core.messages import AIMessage
 
 from baseapp_ai_langkit.base.agents.tests.factories import LangGraphAgentFactory
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.base.tools.inline_tool import InlineTool
-from langchain.tools import BaseTool
-from langchain_core.messages import AIMessage
 
 
 class MockReactAgent(MagicMock):

@@ -1,6 +1,7 @@
 import abc
 import itertools
-from dataclasses import dataclass, field as dcfield
+from dataclasses import dataclass
+from dataclasses import field as dcfield
 
 import pydash
 

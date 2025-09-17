@@ -2,15 +2,15 @@ import json
 import logging
 import typing
 
+from bs4 import BeautifulSoup
 from django.db import transaction
+from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 
 from baseapp_ai_langkit.embeddings.chunk_generators import BaseChunkGenerator
 from baseapp_ai_langkit.embeddings.conf import app_settings
 from baseapp_ai_langkit.embeddings.embedding_models import openai_embeddings
 from baseapp_ai_langkit.embeddings.model_utils import validate_content_type_for_model
 from baseapp_ai_langkit.embeddings.models import EmbeddableModelMixin, GenericChunk
-from bs4 import BeautifulSoup
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
 
 logger = logging.getLogger(__name__)
 

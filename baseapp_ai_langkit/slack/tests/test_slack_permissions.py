@@ -3,8 +3,9 @@ import hmac
 import time
 from unittest.mock import MagicMock, patch
 
-from baseapp_ai_langkit.slack.permissions import isSlackRequestSigned
 from rest_framework.test import APIRequestFactory
+
+from baseapp_ai_langkit.slack.permissions import isSlackRequestSigned
 
 from .test import SlackTestCase
 

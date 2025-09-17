@@ -1,9 +1,8 @@
 import json
 import re
 
-from django.test import TestCase
-
 import httpretty
+from django.test import TestCase
 
 
 class SlackTestCase(TestCase):
