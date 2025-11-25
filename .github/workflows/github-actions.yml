@@ -31,7 +31,7 @@ jobs:
 
       - name: flake8
         id: flake8
-        run: docker compose exec web flake8 ./ --show-source --statistics --count
+        run: docker compose exec web flake8 baseapp_ai_langkit/ testproject/ --show-source --statistics --count
 
       - name: isort
         id: isort
