@@ -79,7 +79,7 @@ class LangGraphAgent(LLMNodeInterface, BaseAgent):
             model=self.llm,
             tools=self.tools,
             debug=self.debug,
-            state_modifier=state_modifier,
+            prompt=state_modifier,
             checkpointer=self.checkpointer,
         )
 
