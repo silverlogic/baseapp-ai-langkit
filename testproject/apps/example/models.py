@@ -1,8 +1,6 @@
 import typing
 
 from django.db import models
-from model_utils import FieldTracker
-from model_utils.models import TimeStampedModel
 
 from baseapp_ai_langkit.embeddings.chunk_generators import (
     BaseChunkGenerator,
@@ -10,6 +8,8 @@ from baseapp_ai_langkit.embeddings.chunk_generators import (
     HTMLChunkGenerator,
 )
 from baseapp_ai_langkit.embeddings.models import EmbeddableModelMixin
+from model_utils import FieldTracker
+from model_utils.models import TimeStampedModel
 
 
 class ExampleEmbeddable(EmbeddableModelMixin, TimeStampedModel):

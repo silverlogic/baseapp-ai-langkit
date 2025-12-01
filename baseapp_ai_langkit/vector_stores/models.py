@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List, Tuple
 
 from django.db import models
+
 from langchain.tools import Tool
 from langchain_openai import OpenAIEmbeddings
 from model_utils.models import TimeStampedModel

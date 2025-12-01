@@ -1,10 +1,9 @@
 import factory
-from langchain.prompts import PromptTemplate
-from langchain_core.language_models.fake_chat_models import FakeChatModel
-
 from baseapp_ai_langkit.base.agents.base_agent import DefaultAgent
 from baseapp_ai_langkit.base.agents.langgraph_agent import LangGraphAgent
 from baseapp_ai_langkit.base.tools.tests.factories import ToolFactory
+from langchain.prompts import PromptTemplate
+from langchain_core.language_models.fake_chat_models import FakeChatModel
 
 
 class LLMFactory(factory.Factory):

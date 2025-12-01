@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from langchain_openai import OpenAIEmbeddings
-
 from baseapp_ai_langkit.embeddings.conf import app_settings
+from langchain_openai import OpenAIEmbeddings
 
 
 def openai_embeddings(

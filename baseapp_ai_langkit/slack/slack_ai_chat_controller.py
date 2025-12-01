@@ -2,14 +2,12 @@ import logging
 from typing import Any, List, Optional, Tuple, Type
 
 from django.contrib.auth.base_user import AbstractBaseUser
-from pydantic import BaseModel
-from slack_sdk.errors import SlackApiError
 
-from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import (
-    BaseSlackChatInterface,
-)
+from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import BaseSlackChatInterface
 from baseapp_ai_langkit.slack.models import SlackAIChat, SlackAIChatMessage, SlackEvent
 from baseapp_ai_langkit.slack.slack_instance_controller import SlackInstanceController
+from pydantic import BaseModel
+from slack_sdk.errors import SlackApiError
 
 logger = logging.getLogger(__name__)
 

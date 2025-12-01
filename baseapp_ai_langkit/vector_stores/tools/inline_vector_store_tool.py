@@ -1,7 +1,6 @@
-from langchain.tools import Tool
-
 from baseapp_ai_langkit.base.tools.base_tool import AbstractBaseTool
 from baseapp_ai_langkit.vector_stores.models import AbstractBaseVectorStore
+from langchain.tools import Tool
 
 
 class InlineVectorStoreTool(AbstractBaseTool):

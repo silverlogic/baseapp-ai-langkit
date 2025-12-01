@@ -1,15 +1,10 @@
+from baseapp_ai_langkit.base.interfaces.base_runner import BaseChatInterface
+from baseapp_ai_langkit.base.interfaces.exceptions import LLMChatInterfaceException
+from baseapp_ai_langkit.chats.models import ChatIdentity, ChatMessage, ChatPrePromptedQuestion
+from baseapp_ai_langkit.chats.runners.default_chat_runner import DefaultChatRunner
 from rest_framework import permissions, status, viewsets
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-
-from baseapp_ai_langkit.base.interfaces.base_runner import BaseChatInterface
-from baseapp_ai_langkit.base.interfaces.exceptions import LLMChatInterfaceException
-from baseapp_ai_langkit.chats.models import (
-    ChatIdentity,
-    ChatMessage,
-    ChatPrePromptedQuestion,
-)
-from baseapp_ai_langkit.chats.runners.default_chat_runner import DefaultChatRunner
 
 from .serializers import (
     ChatCreateSerializer,

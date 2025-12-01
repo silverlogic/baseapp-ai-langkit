@@ -1,5 +1,4 @@
 import factory
-
 from baseapp_ai_langkit.vector_stores.models import (
     DefaultDocumentEmbedding,
     DefaultVectorStore,

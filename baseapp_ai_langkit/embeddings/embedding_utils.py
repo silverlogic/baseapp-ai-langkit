@@ -4,10 +4,10 @@ import logging
 from typing import Any, Callable, Mapping, Optional, Sequence
 
 from django.db.models import QuerySet
-from pgvector.django import CosineDistance
 
 from baseapp_ai_langkit.embeddings.embedding_models import openai_embeddings
 from baseapp_ai_langkit.embeddings.models import GenericChunk
+from pgvector.django import CosineDistance
 
 logger = logging.getLogger(__name__)
 

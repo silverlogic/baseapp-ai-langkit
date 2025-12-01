@@ -3,12 +3,12 @@ from typing import Optional, Type
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from model_utils.models import TimeStampedModel
 
 from baseapp_ai_langkit.base.interfaces.base_runner import BaseRunnerInterface
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.runners.registry import RunnerRegistry
+from model_utils.models import TimeStampedModel
 
 logger = logging.getLogger(__name__)
 

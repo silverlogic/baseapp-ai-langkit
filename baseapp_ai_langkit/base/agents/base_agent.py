@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from django.utils.translation import gettext_lazy as _
+
 from langchain.agents import AgentExecutor, create_react_agent
 from langchain.base_language import BaseLanguageModel
 from langchain.prompts import PromptTemplate

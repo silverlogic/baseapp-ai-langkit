@@ -5,12 +5,12 @@ import typing
 from django.contrib.contenttypes.fields import GenericForeignKey, GenericRelation
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
-from model_utils.models import TimeStampedModel
-from pgvector.django import VectorField
 
 from baseapp_ai_langkit.embeddings.conf import app_settings
 from baseapp_ai_langkit.embeddings.model_utils import available_content_types_query
 from baseapp_ai_langkit.embeddings.querysets import GenericChunkQuerySet
+from model_utils.models import TimeStampedModel
+from pgvector.django import VectorField
 
 if typing.TYPE_CHECKING:
     from baseapp_ai_langkit.embeddings.chunk_generators import BaseChunkGenerator
