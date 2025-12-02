@@ -200,14 +200,19 @@ apps/
 
 ### 2. Create apps/mcp/app.py
 
-This file imports the global MCP server from `baseapp_mcp` and registers your tools:
+This file creates your own MCP server instance and registers your tools:
 
 ```python
 import asyncio
 import logging
 import typing as typ
 
-from baseapp_mcp.app import get_application, mcp
+from baseapp_mcp.app import (
+    DjangoFastMCP,
+    get_application,
+    register_debug_tool,
+    register_health_check_route,
+)
 from baseapp_mcp.utils import get_user_identifier
 from fastmcp import Context
 
@@ -216,6 +221,16 @@ from apps.mcp.tools.fetch_tool import FetchTool
 
 logger = logging.getLogger(__name__)
 
+# Create your MCP server instance
+server_instructions = """
+Your custom server instructions here.
+"""
+
+mcp = DjangoFastMCP.create(instructions=server_instructions)
+
+# Register optional helper tools/routes (optional)
+register_debug_tool(mcp)
+register_health_check_route(mcp)
 
 # Register project-specific tools using the @mcp.tool decorator
 
@@ -268,7 +283,7 @@ async def fetch(ctx: Context, id: str) -> typ.Dict[str, typ.Any]:
 
 
 # Export the application for use with gunicorn/uvicorn
-application = get_application()
+application = get_application(mcp)
 ```
 
 ## Creating Tools
@@ -449,15 +464,18 @@ class SimpleTool(MCPTool):
 
 ## Registering Tools on the Server
 
-After creating your tools, register them on the MCP server using the `@mcp.tool` decorator:
+After creating your MCP server instance, register tools using the `@mcp.tool` decorator:
 
 ```python
 # apps/mcp/app.py
-from baseapp_mcp.app import mcp
+from baseapp_mcp.app import DjangoFastMCP
 from fastmcp import Context
 from apps.mcp.tools.my_tool import MyTool
 from baseapp_mcp.utils import get_user_identifier
 import asyncio
+
+# Create your MCP server instance
+mcp = DjangoFastMCP.create()
 
 @mcp.tool(
     title="My Custom Tool",
@@ -532,6 +550,55 @@ Available tools:
 - my_tool: Custom tool for specific operations
 """
 ```
+
+### Custom Lifespan Function
+
+The lifespan function controls startup and shutdown behavior of the MCP server. By default, `baseapp_mcp` provides a `default_lifespan` that only logs startup/shutdown events.
+
+You can create a custom lifespan function to add startup tasks (e.g., database connections, cache initialization) or cleanup tasks:
+
+```python
+# apps/mcp/app.py
+from contextlib import asynccontextmanager
+from baseapp_mcp.app import DjangoFastMCP, default_lifespan
+import typing as typ
+from fastmcp import FastMCP
+
+@asynccontextmanager
+async def custom_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
+    """
+    Custom lifespan with startup and cleanup tasks.
+    """
+    try:
+        # Startup tasks
+        logger.info("🚀 MCP Server starting up...")
+        
+        # Example: Initialize database connections
+        # await initialize_db_pool()
+        
+        # Example: Load cache
+        # await load_initial_cache()
+        
+        logger.info("✅ MCP Server startup complete")
+        yield {"startup_time": "server_ready"}
+        
+    finally:
+        # Cleanup tasks
+        logger.info("🔄 MCP Server shutting down...")
+        
+        # Example: Close database connections
+        # await close_db_pool()
+        
+        # Example: Save cache
+        # await save_cache()
+        
+        logger.info("✅ MCP Server shutdown complete")
+
+# Create server with custom lifespan
+mcp = DjangoFastMCP.create(lifespan=custom_lifespan)
+```
+
+**Note**: The lifespan function receives the `FastMCP` server instance as a parameter, which can be useful for accessing server state or configuration.
 
 ### Rate Limiting per Tool
 

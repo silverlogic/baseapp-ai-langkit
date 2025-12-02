@@ -31,10 +31,22 @@ Register custom tools using the register_tool function or by extending this modu
 
 
 @asynccontextmanager
-async def custom_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
+async def default_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
+    """
+    Default lifespan function for MCP server.
+
+    Provides basic startup and shutdown logging. Projects can create their own
+    lifespan function to add custom startup/cleanup tasks (e.g., database connections,
+    cache initialization, etc.).
+
+    Args:
+        mcp_server: The FastMCP server instance
+
+    Yields:
+        Dictionary with startup information
+    """
     try:
         logger.info("🚀 MCP Server starting up...")
-        # TODO: Add any startup tasks here
         logger.info("✅ MCP Server startup complete")
 
         # Yield control back to the server
@@ -43,7 +55,6 @@ async def custom_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
 
     finally:
         logger.info("🔄 MCP Server shutting down...")
-        # TODO: Add any cleanup tasks here
         logger.info("✅ MCP Server shutdown complete")
 
 
@@ -161,64 +172,68 @@ class DjangoFastMCP(FastMCP):
             )
         )
 
+    @classmethod
+    def create(
+        cls,
+        name: str | None = None,
+        instructions: str | None = None,
+        lifespan: typ.Callable | None = None,
+        auth: GoogleProvider | None = None,
+        debug: bool | None = None,
+    ) -> "DjangoFastMCP":
+        """
+        Create and configure an MCP server instance.
 
-def create_mcp_server(
-    name: str | None = None,
-    instructions: str | None = None,
-    lifespan: typ.Callable | None = None,
-    auth: GoogleProvider | None = None,
-    debug: bool | None = None,
-) -> DjangoFastMCP:
+        Args:
+            name: Server name (defaults to settings.APPLICATION_NAME + " MCP")
+            instructions: Server instructions (defaults to settings.MCP_SERVER_INSTRUCTIONS or DEFAULT_SERVER_INSTRUCTIONS)
+            lifespan: Custom lifespan function (defaults to default_lifespan)
+            auth: Auth provider (defaults to GoogleProvider with settings)
+            debug: Debug mode (defaults to settings.DEBUG)
+
+        Returns:
+            Configured DjangoFastMCP instance
+        """
+        name = name or f"{settings.APPLICATION_NAME} MCP"
+        # Allow project-specific instructions via Django settings
+        if instructions is None:
+            instructions = (
+                getattr(settings, "MCP_SERVER_INSTRUCTIONS", None) or DEFAULT_SERVER_INSTRUCTIONS
+            )
+        lifespan = lifespan or default_lifespan
+        debug = debug if debug is not None else settings.DEBUG
+
+        if auth is None:
+            auth = GoogleProvider(
+                client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
+                client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET,
+                base_url=settings.MCP_URL,
+                required_scopes=[
+                    "openid",
+                    "https://www.googleapis.com/auth/userinfo.email",
+                ],
+            )
+
+        return cls(
+            name=name,
+            lifespan=lifespan,
+            instructions=instructions,
+            auth=auth,
+            debug=debug,
+        )
+
+
+def register_debug_tool(mcp_server: DjangoFastMCP) -> None:
     """
-    Create and configure an MCP server instance.
+    Register a debug tool that returns user info (only useful in DEBUG mode).
 
     Args:
-        name: Server name (defaults to settings.APPLICATION_NAME + " MCP")
-        instructions: Server instructions (defaults to settings.MCP_SERVER_INSTRUCTIONS or DEFAULT_SERVER_INSTRUCTIONS)
-        lifespan: Custom lifespan function (defaults to custom_lifespan)
-        auth: Auth provider (defaults to GoogleProvider with settings)
-        debug: Debug mode (defaults to settings.DEBUG)
-
-    Returns:
-        Configured DjangoFastMCP instance
+        mcp_server: The MCP server instance to register the tool on
     """
-    name = name or f"{settings.APPLICATION_NAME} MCP"
-    # Allow project-specific instructions via Django settings
-    if instructions is None:
-        instructions = (
-            getattr(settings, "MCP_SERVER_INSTRUCTIONS", None) or DEFAULT_SERVER_INSTRUCTIONS
-        )
-    lifespan = lifespan or custom_lifespan
-    debug = debug if debug is not None else settings.DEBUG
+    if not settings.DEBUG:
+        return
 
-    if auth is None:
-        auth = GoogleProvider(
-            client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
-            client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET,
-            base_url=settings.MCP_URL,
-            required_scopes=[
-                "openid",
-                "https://www.googleapis.com/auth/userinfo.email",
-            ],
-        )
-
-    return DjangoFastMCP(
-        name=name,
-        lifespan=lifespan,
-        instructions=instructions,
-        auth=auth,
-        debug=debug,
-    )
-
-
-# Create default MCP server instance
-mcp = create_mcp_server()
-
-
-# Optional debug tool (only registered if DEBUG is True)
-if settings.DEBUG:
-
-    @mcp.tool
+    @mcp_server.tool
     async def get_user_info() -> dict:
         """Returns information about the authenticated Google user."""
         from fastmcp.server.dependencies import get_access_token
@@ -241,15 +256,22 @@ if settings.DEBUG:
         return sanitize_sensitive_dict(data=token.claims, sensitive_keys=sensitive_keys)
 
 
-# Custom Routes
+def register_health_check_route(mcp_server: DjangoFastMCP, route_path: str | None = None) -> None:
+    """
+    Register a health check route on the MCP server.
+
+    Args:
+        mcp_server: The MCP server instance to register the route on
+        route_path: Optional custom path (defaults to /{MCP_ROUTE_PATH}/health)
+    """
+    path = route_path or f"/{MCP_ROUTE_PATH}/health"
+
+    @mcp_server.custom_route(path, methods=["GET"])
+    async def health_check(request: Request) -> JSONResponse:
+        return JSONResponse(dict(status="Running"), status_code=200)
 
 
-@mcp.custom_route(f"/{MCP_ROUTE_PATH}/health", methods=["GET"])
-async def health_check(request: Request) -> JSONResponse:
-    return JSONResponse(dict(status="Running"), status_code=200)
-
-
-def get_application(instructions: str | None = None) -> StarletteWithLifespan:
+def get_application(mcp_server: DjangoFastMCP) -> StarletteWithLifespan:
     """
     Get the MCP application instance with middleware configured.
 
@@ -257,34 +279,13 @@ def get_application(instructions: str | None = None) -> StarletteWithLifespan:
     gunicorn/uvicorn workers.
 
     Args:
-        instructions: Optional custom instructions to override default instructions.
-                     If provided, a new server instance will be created with these instructions.
-                     NOTE: If you register tools using @mcp.tool decorator, they will only
-                     be available on the global 'mcp' instance. For custom instructions with
-                     custom tools, create your own server instance using create_mcp_server().
+        mcp_server: The MCP server instance to create the application from
 
     Returns:
         Starlette application with MCP server configured
     """
     if not django.apps.apps.ready:
         django.setup(set_prefix=False)
-
-    # If custom instructions are provided, create a new server instance
-    # WARNING: Tools registered with @mcp.tool will only be on the global 'mcp' instance
-    # For custom instructions, we use the global mcp but note that instructions
-    # cannot be changed after creation. The instructions parameter is ignored
-    # if tools are already registered on the global mcp instance.
-    server_to_use = mcp
-
-    # Note: We cannot change instructions on an existing FastMCP instance
-    # If custom instructions are really needed, the server should be created
-    # before registering tools. For now, we'll use the global instance.
-    if instructions is not None:
-        logger.warning(
-            "Custom instructions provided but cannot be applied to existing server instance. "
-            "Using default server instance. To use custom instructions, create server before "
-            "registering tools."
-        )
 
     middleware = (
         [
@@ -298,27 +299,8 @@ def get_application(instructions: str | None = None) -> StarletteWithLifespan:
         else []
     )
 
-    return server_to_use.streamable_http_app(
+    return mcp_server.streamable_http_app(
         path=f"/{MCP_ROUTE_PATH}",
         stateless_http=True,
         middleware=middleware,
     )
-
-
-def register_tool(tool_func: typ.Callable) -> None:
-    """
-    Register a tool function with the MCP server.
-
-    This is a convenience function to register tools externally.
-    Tools can also be registered directly using the @mcp.tool decorator.
-
-    Args:
-        tool_func: The tool function to register (should be decorated with @mcp.tool)
-    """
-    # The function should already be decorated with @mcp.tool
-    # This is just a helper for documentation/clarity
-    pass
-
-
-# Export the application for ASGI servers
-application = get_application()
