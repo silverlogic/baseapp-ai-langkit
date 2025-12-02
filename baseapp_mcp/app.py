@@ -23,7 +23,7 @@ MCP_ROUTE_PATH = "mcp"
 
 logger = logging.getLogger(__name__)
 
-# Default server instructions - can be overridden
+# Default server instructions - can be overridden via Django settings.MCP_SERVER_INSTRUCTIONS
 DEFAULT_SERVER_INSTRUCTIONS = """
 This server provides MCP (Model Context Protocol) tools for document search and retrieval.
 Register custom tools using the register_tool function or by extending this module.
@@ -174,7 +174,7 @@ def create_mcp_server(
 
     Args:
         name: Server name (defaults to settings.APPLICATION_NAME + " MCP")
-        instructions: Server instructions (defaults to DEFAULT_SERVER_INSTRUCTIONS)
+        instructions: Server instructions (defaults to settings.MCP_SERVER_INSTRUCTIONS or DEFAULT_SERVER_INSTRUCTIONS)
         lifespan: Custom lifespan function (defaults to custom_lifespan)
         auth: Auth provider (defaults to GoogleProvider with settings)
         debug: Debug mode (defaults to settings.DEBUG)
@@ -183,7 +183,11 @@ def create_mcp_server(
         Configured DjangoFastMCP instance
     """
     name = name or f"{settings.APPLICATION_NAME} MCP"
-    instructions = instructions or DEFAULT_SERVER_INSTRUCTIONS
+    # Allow project-specific instructions via Django settings
+    if instructions is None:
+        instructions = (
+            getattr(settings, "MCP_SERVER_INSTRUCTIONS", None) or DEFAULT_SERVER_INSTRUCTIONS
+        )
     lifespan = lifespan or custom_lifespan
     debug = debug if debug is not None else settings.DEBUG
 
