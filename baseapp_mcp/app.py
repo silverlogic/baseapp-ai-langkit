@@ -3,14 +3,10 @@ import typing as typ
 from contextlib import asynccontextmanager
 from functools import partial
 
-import django
-from django.conf import settings
-
 import anyio
+import django
 import uvicorn
-from baseapp_mcp.extensions.fastmcp.server.http import create_streamable_http_app
-from baseapp_mcp.middleware.rate_limiting import UserRateLimitMiddleware
-from baseapp_mcp.utils import sanitize_sensitive_dict
+from django.conf import settings
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.google import GoogleProvider
 from fastmcp.server.http import StarletteWithLifespan
@@ -18,6 +14,10 @@ from fastmcp.utilities.cli import log_server_banner
 from starlette.middleware import Middleware as ASGIMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
+from baseapp_mcp.extensions.fastmcp.server.http import create_streamable_http_app
+from baseapp_mcp.middleware.rate_limiting import UserRateLimitMiddleware
+from baseapp_mcp.utils import sanitize_sensitive_dict
 
 MCP_ROUTE_PATH = "mcp"
 

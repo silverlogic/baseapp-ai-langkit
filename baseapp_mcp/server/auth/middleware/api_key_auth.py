@@ -3,18 +3,18 @@ import re
 import typing as typ
 
 from django.conf import settings
-
-from baseapp_mcp.server.auth.provider import (
-    APIKeyVerifier,
-    APIKeyVerifierProtocol,
-    BaseAPIKeyVerifier,
-)
 from mcp.server.auth.middleware.bearer_auth import AuthenticatedUser
 from mcp.server.auth.provider import AccessToken
 from pydantic import AnyHttpUrl
 from starlette.authentication import AuthCredentials, AuthenticationBackend
 from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Receive, Scope, Send
+
+from baseapp_mcp.server.auth.provider import (
+    APIKeyVerifier,
+    APIKeyVerifierProtocol,
+    BaseAPIKeyVerifier,
+)
 
 
 class AuthenticatedAPIKeyUser(AuthenticatedUser):

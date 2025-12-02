@@ -11,7 +11,7 @@ urllib3==2.5.0
 factory-boy==3.3.0
 
 # lint
-black==24.1.0
+black==25.11.0
 flake8==7.0.0
 isort==5.13.2
 
@@ -21,4 +21,4 @@ channels_redis==4.0.0
 
 Pillow==10.3.0
 
--e .
+-e .[langkit,dev]

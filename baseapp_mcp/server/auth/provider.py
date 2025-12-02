@@ -3,7 +3,6 @@ import typing
 from datetime import datetime, time
 
 from django.apps import apps
-
 from fastmcp.server.auth.auth import AccessToken
 
 logger = logging.getLogger(__name__)

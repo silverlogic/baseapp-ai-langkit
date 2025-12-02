@@ -1,6 +1,7 @@
+from langchain.schema import AIMessage
+
 from baseapp_ai_langkit.base.agents.base_agent import DefaultAgent
 from baseapp_ai_langkit.base.interfaces.base_runner import BaseRunnerInterface
-from langchain.schema import AIMessage
 
 
 class ConsoleInterface(BaseRunnerInterface):

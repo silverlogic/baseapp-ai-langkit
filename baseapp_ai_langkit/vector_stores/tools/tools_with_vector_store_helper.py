@@ -2,7 +2,9 @@ from abc import ABC, abstractmethod
 from typing import List, Tuple, Type
 
 from baseapp_ai_langkit.vector_stores.models import DefaultVectorStore
-from baseapp_ai_langkit.vector_stores.tools.inline_vector_store_tool import InlineVectorStoreTool
+from baseapp_ai_langkit.vector_stores.tools.inline_vector_store_tool import (
+    InlineVectorStoreTool,
+)
 
 
 class ToolsWithVectorStoreHelper(ABC):

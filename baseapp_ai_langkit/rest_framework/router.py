@@ -1,12 +1,12 @@
 from django.apps import apps
 from django.conf import settings
+from rest_framework import routers
 
 from baseapp_ai_langkit.chats.rest_framework.views import (
     BaseChatViewSet,
     ChatIdentityViewSet,
     ChatPrePromptedQuestionViewSet,
 )
-from rest_framework import routers
 
 # Chats
 baseapp_ai_langkit_router = routers.DefaultRouter()

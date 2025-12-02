@@ -1,6 +1,8 @@
 from unittest.mock import MagicMock, patch
 
-from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import BaseSlackChatInterface
+from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import (
+    BaseSlackChatInterface,
+)
 from baseapp_ai_langkit.slack.models import SlackAIChatMessage, SlackEvent
 from baseapp_ai_langkit.slack.slack_ai_chat_controller import SlackAIChatController
 

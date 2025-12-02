@@ -8,9 +8,10 @@ custom fetch and content processing functions.
 import logging
 from typing import Any, Callable, Dict, Tuple
 
+from pydantic import BaseModel, Field
+
 from baseapp_mcp import exceptions
 from baseapp_mcp.tools.base_mcp_tool import MCPTool
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 

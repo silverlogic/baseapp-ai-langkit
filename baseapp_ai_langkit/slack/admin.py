@@ -3,6 +3,9 @@ import json
 from django.contrib import admin
 from django.urls import path, reverse
 from django.utils.html import format_html
+from pygments import highlight
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import JsonLexer
 
 from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin, TabularInline
 from baseapp_ai_langkit.slack.filters import ChannelTypeFilter
@@ -10,9 +13,6 @@ from baseapp_ai_langkit.slack.utils.export_reactions_helper import (
     generate_reaction_export_csv,
     get_message_content,
 )
-from pygments import highlight
-from pygments.formatters import HtmlFormatter
-from pygments.lexers import JsonLexer
 
 from .models import (
     SlackAIChat,

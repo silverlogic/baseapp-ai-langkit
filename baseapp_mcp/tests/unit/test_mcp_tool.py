@@ -1,8 +1,8 @@
 from unittest import mock
 
+import pytest
 from django.test import override_settings
 
-import pytest
 from baseapp_mcp import exceptions
 from baseapp_mcp.logs.models import MCPLog
 from baseapp_mcp.rate_limits.models import TokenUsage

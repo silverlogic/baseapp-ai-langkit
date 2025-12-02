@@ -3,13 +3,13 @@ import logging
 from typing import Any, Dict
 
 from django.conf import settings
+from langchain.tools import StructuredTool
 
 from baseapp_mcp import exceptions as mcp_exceptions
 from baseapp_mcp.logs.models import MCPLog
 from baseapp_mcp.rate_limits.models import TokenUsage
 from baseapp_mcp.rate_limits.utils import RateLimiter
 from baseapp_mcp.tools.compat import create_mcp_tool_base_class
-from langchain.tools import StructuredTool
 
 logger = logging.getLogger(__name__)
 

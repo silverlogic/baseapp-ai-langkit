@@ -5,7 +5,9 @@ from django.test import TestCase
 from baseapp_ai_langkit.base.agents.tests.factories import LLMFactory
 from baseapp_ai_langkit.base.interfaces.base_runner import BaseRunnerInterface
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
-from baseapp_ai_langkit.base.prompt_schemas.tests.factories import BasePromptSchemaFactory
+from baseapp_ai_langkit.base.prompt_schemas.tests.factories import (
+    BasePromptSchemaFactory,
+)
 from baseapp_ai_langkit.runners.tests.factories import (
     LLMRunnerFactory,
     LLMRunnerNodeFactory,

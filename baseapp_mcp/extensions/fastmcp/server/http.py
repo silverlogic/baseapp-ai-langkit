@@ -5,15 +5,6 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from django.conf import settings
-
-from baseapp_mcp.extensions.starlette.middleware.authentication import (
-    MultipleAuthenticationMiddleware,
-)
-from baseapp_mcp.server.auth.middleware.api_key_auth import (
-    APIKeyAuthBackend,
-    RequireAPIKeyMiddleware,
-    RequireAPIKeyOrAuthMiddleware,
-)
 from fastmcp.server.auth import AuthProvider
 from fastmcp.server.http import (
     StarletteWithLifespan,
@@ -30,6 +21,15 @@ from mcp.server.streamable_http import EventStore
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
 from starlette.routing import BaseRoute, Route
+
+from baseapp_mcp.extensions.starlette.middleware.authentication import (
+    MultipleAuthenticationMiddleware,
+)
+from baseapp_mcp.server.auth.middleware.api_key_auth import (
+    APIKeyAuthBackend,
+    RequireAPIKeyMiddleware,
+    RequireAPIKeyOrAuthMiddleware,
+)
 
 if typ.TYPE_CHECKING:
     from fastmcp.server.server import FastMCP

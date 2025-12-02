@@ -2,10 +2,9 @@
 
 import django.db.models.deletion
 import django.utils.timezone
-from django.db import migrations, models
-
 import model_utils.fields
 import pgvector.django.vector
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):

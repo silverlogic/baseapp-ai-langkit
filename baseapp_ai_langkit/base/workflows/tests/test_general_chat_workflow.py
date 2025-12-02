@@ -1,11 +1,11 @@
 from unittest.mock import MagicMock
 
 from django.test import TestCase
+from langchain_core.language_models.fake_chat_models import FakeChatModel
+from langchain_core.messages import AIMessage
 
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.workflows.general_chat_workflow import GeneralChatWorkflow
-from langchain_core.language_models.fake_chat_models import FakeChatModel
-from langchain_core.messages import AIMessage
 
 
 class MockWorkflowChain(MagicMock):

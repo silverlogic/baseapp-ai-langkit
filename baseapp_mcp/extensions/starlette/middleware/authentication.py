@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from starlette.authentication import AuthCredentials, AuthenticationError, UnauthenticatedUser
+from starlette.authentication import (
+    AuthCredentials,
+    AuthenticationError,
+    UnauthenticatedUser,
+)
 from starlette.middleware.authentication import AuthenticationMiddleware
 from starlette.requests import HTTPConnection
 from starlette.types import Receive, Scope, Send

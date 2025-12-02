@@ -4,7 +4,10 @@ from baseapp_ai_langkit.slack.event_callback_handlers.base_slack_ai_chat_event_c
 from baseapp_ai_langkit.slack.event_callbacks.base_slack_event_callback import (
     BaseSlackEventCallback,
 )
-from baseapp_ai_langkit.slack.models import SlackAIChatMessage, SlackAIChatMessageReaction
+from baseapp_ai_langkit.slack.models import (
+    SlackAIChatMessage,
+    SlackAIChatMessageReaction,
+)
 
 
 class SlackAIChatReactionAddedCallbackHandler(BaseSlackAIChatEventCallbackHandler):

@@ -1,10 +1,10 @@
 from unittest.mock import MagicMock
 
 from django.test import TestCase
-
-from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
 from langchain_core.language_models.fake_chat_models import FakeChatModel
 from langchain_core.messages import AIMessage, AnyMessage
+
+from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
 
 
 class MockLLM(MagicMock):

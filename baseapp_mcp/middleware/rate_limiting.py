@@ -1,8 +1,9 @@
-from baseapp_mcp.rate_limits.utils import RateLimiter
-from baseapp_mcp.utils import get_user_identifier
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
+
+from baseapp_mcp.rate_limits.utils import RateLimiter
+from baseapp_mcp.utils import get_user_identifier
 
 
 class UserRateLimitMiddleware(BaseHTTPMiddleware):

@@ -1,8 +1,7 @@
+from celery.result import AsyncResult
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
-
-from celery.result import AsyncResult
 from model_utils import Choices
 from model_utils.models import TimeStampedModel
 

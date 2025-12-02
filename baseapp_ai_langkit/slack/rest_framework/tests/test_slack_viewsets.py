@@ -1,13 +1,17 @@
 import json
 from unittest.mock import patch
 
-from baseapp_ai_langkit.slack.models import SlackEvent, SlackEventStatus
-from baseapp_ai_langkit.slack.rest_framework.viewsets import SlackWebhookViewSet
-from baseapp_ai_langkit.slack.tests.factories import SlackEventFactory, SlackEventStatusFactory
-from baseapp_ai_langkit.slack.tests.test import SlackTestCase
 from rest_framework import status
 from rest_framework.reverse import reverse
 from rest_framework.test import APITestCase
+
+from baseapp_ai_langkit.slack.models import SlackEvent, SlackEventStatus
+from baseapp_ai_langkit.slack.rest_framework.viewsets import SlackWebhookViewSet
+from baseapp_ai_langkit.slack.tests.factories import (
+    SlackEventFactory,
+    SlackEventStatusFactory,
+)
+from baseapp_ai_langkit.slack.tests.test import SlackTestCase
 
 
 class TestSlackWebhookViewSet(APITestCase, SlackTestCase):
