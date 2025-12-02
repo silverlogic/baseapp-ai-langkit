@@ -81,6 +81,44 @@ Use the search tool to find relevant documents, then use fetch to retrieve compl
 """
 ```
 
+#### Custom Route Path
+
+```python
+# Custom route path for the MCP server endpoint
+# Default: "mcp" (server will be available at /mcp)
+MCP_ROUTE_PATH = "custom-mcp-path"  # Server will be available at /custom-mcp-path
+```
+
+#### Authentication Configuration
+
+```python
+# Disable OAuth authentication (API keys only)
+MCP_ENABLE_OAUTH = True
+```
+
+**For custom authentication providers**, override the `get_auth()` method in a custom `DjangoFastMCP` subclass:
+
+```python
+# apps/mcp/app.py
+from baseapp_mcp import DjangoFastMCP
+from fastmcp.server.auth.providers.google import GoogleProvider
+
+class MyDjangoFastMCP(DjangoFastMCP):
+    @classmethod
+    def get_auth(cls):
+        # Your custom authentication logic
+        # Return None for API keys only, or an AuthProvider instance
+        return GoogleProvider(
+            client_id=settings.GOOGLE_OAUTH_CLIENT_ID,
+            client_secret=settings.GOOGLE_OAUTH_CLIENT_SECRET,
+            base_url=settings.MCP_URL,
+            required_scopes=["openid", "email"],
+        )
+
+# Use your custom class
+mcp = MyDjangoFastMCP.create(instructions=server_instructions)
+```
+
 #### Rate Limiting
 
 ```python
@@ -207,7 +245,7 @@ import asyncio
 import logging
 import typing as typ
 
-from baseapp_mcp.app import (
+from baseapp_mcp import (
     DjangoFastMCP,
     get_application,
     register_debug_tool,
@@ -468,7 +506,7 @@ After creating your MCP server instance, register tools using the `@mcp.tool` de
 
 ```python
 # apps/mcp/app.py
-from baseapp_mcp.app import DjangoFastMCP
+from baseapp_mcp import DjangoFastMCP
 from fastmcp import Context
 from apps.mcp.tools.my_tool import MyTool
 from baseapp_mcp.utils import get_user_identifier
@@ -560,7 +598,7 @@ You can create a custom lifespan function to add startup tasks (e.g., database c
 ```python
 # apps/mcp/app.py
 from contextlib import asynccontextmanager
-from baseapp_mcp.app import DjangoFastMCP, default_lifespan
+from baseapp_mcp import DjangoFastMCP, default_lifespan
 import typing as typ
 from fastmcp import FastMCP
 

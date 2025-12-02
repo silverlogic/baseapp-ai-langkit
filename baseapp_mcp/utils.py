@@ -3,7 +3,6 @@
 from collections.abc import Mapping
 from typing import Optional
 
-from fastmcp.server.dependencies import get_access_token
 from starlette.requests import Request
 
 
@@ -53,6 +52,8 @@ def get_user_identifier(request: Optional[Request] = None) -> str:
 
     # Try OAuth access token first (if available)
     try:
+        from fastmcp.server.dependencies import get_access_token
+
         token = get_access_token()
         if token and token.claims:
             email = token.claims.get("email")

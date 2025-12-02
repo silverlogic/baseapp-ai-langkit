@@ -10,7 +10,7 @@ from starlette.authentication import AuthCredentials, AuthenticationBackend
 from starlette.requests import HTTPConnection
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from baseapp_mcp.server.auth.provider import (
+from baseapp_mcp.auth.provider import (
     APIKeyVerifier,
     APIKeyVerifierProtocol,
     BaseAPIKeyVerifier,
