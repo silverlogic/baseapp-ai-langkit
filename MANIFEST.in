@@ -7,4 +7,6 @@ recursive-include baseapp_ai_langkit *.py
 recursive-include baseapp_ai_langkit/templates *
 recursive-include baseapp_ai_langkit/static *
 recursive-include baseapp_ai_langkit/migrations *
-recursive-include baseapp_ai_langkit/locale * 
+recursive-include baseapp_ai_langkit/locale *
+recursive-include baseapp_mcp *.py
+recursive-include baseapp_mcp/migrations * 

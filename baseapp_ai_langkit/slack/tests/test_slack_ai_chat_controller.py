@@ -192,13 +192,11 @@ This is a long sentence! Another sentence here? And one more sentence.
         mock_runner.return_value = mock_runner_instance
         mock_runner_instance.safe_run.return_value = "AI response"
 
-        with patch.object(
-            self.controller, "get_runner_class", return_value=mock_runner
-        ), patch.object(
-            self.controller, "get_formatted_message_chunks"
-        ) as mock_format, patch.object(
-            self.controller, "process_message_response"
-        ) as mock_process:
+        with (
+            patch.object(self.controller, "get_runner_class", return_value=mock_runner),
+            patch.object(self.controller, "get_formatted_message_chunks") as mock_format,
+            patch.object(self.controller, "process_message_response") as mock_process,
+        ):
 
             formatted_response = [
                 (
@@ -229,9 +227,10 @@ This is a long sentence! Another sentence here? And one more sentence.
         mock_runner.return_value = mock_runner_instance
         mock_runner_instance.safe_run.side_effect = Exception("Test error")
 
-        with patch.object(self.controller, "get_runner_class", return_value=mock_runner), patch(
-            "baseapp_ai_langkit.slack.slack_ai_chat_controller.logger"
-        ) as mock_logger:
+        with (
+            patch.object(self.controller, "get_runner_class", return_value=mock_runner),
+            patch("baseapp_ai_langkit.slack.slack_ai_chat_controller.logger") as mock_logger,
+        ):
 
             self.mock_slack_api_call(
                 "conversations.info", response_data=self.conversations_info_data()
