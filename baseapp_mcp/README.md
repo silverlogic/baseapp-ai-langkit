@@ -334,7 +334,7 @@ To create a tool from scratch, extend `MCPTool`:
 import logging
 from typing import Any, Dict
 
-from baseapp_mcp.tools.base_mcp_tool import MCPTool
+from baseapp_mcp.tools import MCPTool
 from baseapp_mcp import exceptions
 from pydantic import BaseModel, Field
 
@@ -378,31 +378,26 @@ class MyTool(MCPTool):
             "count": len(results),
         }
 
-        simplified = {
+        simplified_response_for_logging = {
             "count": len(results),
         }
 
-        return doc, simplified
+        return doc, simplified_response_for_logging
 ```
 
-### Example 2: Tool Using Generic SearchTool
+### Example 2: Tool Using Generic BaseSearchTool
 
-To create a search tool, use the generic `SearchTool`:
+To create a search tool, extend the generic `BaseSearchTool`:
 
 ```python
 import logging
 from typing import Any, Dict
 
-from baseapp_mcp.tools.search_tool import SearchTool as BaseSearchTool
-from pydantic import BaseModel, Field
+from baseapp_mcp.tools import BaseSearchTool
 
 from myapp.models import MyDocument
 
 logger = logging.getLogger(__name__)
-
-
-class SearchInput(BaseModel):
-    query: str = Field(description="The search query to find relevant content")
 
 
 class MySearchTool(BaseSearchTool):
@@ -410,29 +405,32 @@ class MySearchTool(BaseSearchTool):
     Specific SearchTool implementation for MyDocument.
     """
 
-    def __init__(self, user_identifier: str):
-        # Configure the search function to use your model
-        def my_search(query: str) -> list[Dict[str, Any]]:
-            return MyDocument.semantic_search(
-                query=query,
-                strip_html=True,
-                use_snippets=True
-            )
+    def search(self, query: str) -> list[Dict[str, Any]]:
+        """
+        Search for documents using semantic similarity.
 
-        super().__init__(user_identifier, search_function=my_search)
+        Args:
+            query: Search query string
+        Returns:
+            List of result dictionaries with at least 'id' and 'title' keys
+        """
+        return MyDocument.semantic_search(
+            query=query,
+            strip_html=True,
+            use_snippets=True
+        )
 ```
 
-### Example 3: Tool Using Generic FetchTool
+### Example 3: Tool Using Generic BaseFetchTool
 
-To create a fetch tool, use the generic `FetchTool`:
+To create a fetch tool, extend the generic `BaseFetchTool`:
 
 ```python
 import logging
 from typing import Any, Dict, Tuple
 
-from baseapp_mcp.tools.fetch_tool import FetchTool as BaseFetchTool
+from baseapp_mcp.tools import BaseFetchTool
 from baseapp_mcp import exceptions
-from pydantic import BaseModel, Field
 
 from myapp.models import MyDocument
 from myapp.utils import build_doc_from_document, strip_html
@@ -440,44 +438,77 @@ from myapp.utils import build_doc_from_document, strip_html
 logger = logging.getLogger(__name__)
 
 
-class FetchArgs(BaseModel):
-    id: str = Field(..., description="ID of the document to retrieve")
-
-
 class MyFetchTool(BaseFetchTool):
     """
     Specific FetchTool implementation for MyDocument.
     """
 
-    def __init__(self, user_identifier: str):
-        def my_fetch(doc_id: str) -> MyDocument:
-            try:
-                return MyDocument.objects.get(id=int(doc_id.strip()))
-            except MyDocument.DoesNotExist:
-                raise exceptions.MCPDataError(f"Document with ID {doc_id} not found.")
+    def fetch(self, search_term: str) -> MyDocument:
+        """
+        Fetch a document by ID.
 
-        def content_processor(doc: MyDocument) -> str:
-            return strip_html(doc.html)
+        Args:
+            search_term: Document ID
+        Returns:
+            MyDocument instance
+        """
+        try:
+            return MyDocument.objects.get(id=int(search_term))
+        except MyDocument.DoesNotExist:
+            raise exceptions.MCPDataError(f"Document with ID {search_term} not found.")
 
-        def doc_builder(
-            doc: MyDocument, content: str
-        ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
-            return build_doc_from_document(doc, content)
+    def content_processor(self, document: MyDocument) -> str:
+        """
+        Process document content to plain text.
 
-        super().__init__(
-            user_identifier,
-            fetch_function=my_fetch,
-            content_processor=content_processor,
-            doc_builder=doc_builder,
-        )
+        Args:
+            document: MyDocument instance
+        Returns:
+            Plain text content
+        """
+        return strip_html(document.html)
+
+    def doc_builder(
+        self, document: MyDocument, content: str
+    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+        """
+        Build document dictionaries for full and simplified responses.
+
+        Args:
+            document: MyDocument instance
+            content: Plain text content
+        Returns:
+            Tuple containing (full_doc_dict, simplified_doc_dict)
+        """
+        return build_doc_from_document(document, content)
 ```
 
 ### Example 4: Simple Tool Without Rate Limiting
 
-For tools that don't need rate limiting or tracking:
+By default tools don't have rate limiting or tracking:
 
 ```python
-from baseapp_mcp.tools.base_mcp_tool import MCPTool
+from baseapp_mcp.tools import MCPTool
+from pydantic import BaseModel
+
+class SimpleToolArgs(BaseModel):
+    text: str
+
+class SimpleTool(MCPTool):
+    name = "simple_tool"
+    description = "A simple tool"
+    args_schema = SimpleToolArgs
+    
+    def tool_func_core(self, text: str):
+        return {"result": text.upper()}, {"result": "processed"}
+```
+
+## Example 5: Simple Tool With Rate Limiting
+
+For tools that need rate limiting or tracking:
+
+```python
+from baseapp_mcp.tools import MCPTool
 from pydantic import BaseModel
 
 class SimpleToolArgs(BaseModel):
@@ -489,11 +520,11 @@ class SimpleTool(MCPTool):
     args_schema = SimpleToolArgs
     
     def __init__(self, user_identifier: str):
-        # Disable rate limiting and tracking
+        # Enable rate limiting and tracking
         super().__init__(
             user_identifier,
-            uses_tokens=False,
-            uses_transformer_calls=False,
+            uses_tokens=True,
+            uses_transformer_calls=True,
         )
     
     def tool_func_core(self, text: str):
@@ -609,7 +640,7 @@ async def custom_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
     """
     try:
         # Startup tasks
-        logger.info("🚀 MCP Server starting up...")
+        # logger.info("🚀 MCP Server starting up...")
         
         # Example: Initialize database connections
         # await initialize_db_pool()
@@ -640,13 +671,17 @@ mcp = DjangoFastMCP.create(lifespan=custom_lifespan)
 
 ### Rate Limiting per Tool
 
-Rate limiting is automatically applied to all tools that extend `MCPTool`. To disable it for a specific tool:
+Rate limiting can be applied to tools by simply overriding some of the parameters of the `__init__` method in `MCPTool`. To enable it for a specific tool:
 
 ```python
 class MyTool(MCPTool):
     def __init__(self, user_identifier: str):
         # Disable rate limiting (not recommended)
-        super().__init__(user_identifier)
+        super().__init__(
+            user_identifier,
+            uses_tokens=True,
+            uses_transformer_calls=True,
+        )
         # The tool will still be logged, but won't have rate limiting
 ```
 
@@ -801,9 +836,9 @@ baseapp_mcp/
 ├── tools/              # Generic tools
 │   ├── base_tool.py
 │   ├── base_mcp_tool.py
-│   ├── compat.py
-│   ├── search_tool.py
-│   └── fetch_tool.py
+│   ├── base_search_tool.py
+│   ├── base_fetch_tool.py
+│   └── compat.py
 ├── middleware/         # Authentication and rate limiting middleware
 ├── server/             # Server configuration
 └── extensions/         # FastMCP extensions

@@ -1,15 +1,16 @@
 import inspect
 import logging
+from abc import ABC, abstractmethod
 from typing import Any, Dict
 
 from django.conf import settings
 from langchain.tools import StructuredTool
+from pydantic import BaseModel
 
 from baseapp_mcp import exceptions as mcp_exceptions
 from baseapp_mcp.logs.models import MCPLog
 from baseapp_mcp.rate_limits.models import TokenUsage
 from baseapp_mcp.rate_limits.utils import RateLimiter
-from baseapp_mcp.tools.compat import create_mcp_tool_base_class
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +21,8 @@ period = settings.MCP_TOOL_RATE_LIMIT_PERIOD
 # Global rate limiter instance to be used by all MCP tools
 _rate_limiter = RateLimiter(calls, period)
 
-# Create base class that optionally inherits from InlineTool
-_MCPToolBase = create_mcp_tool_base_class()
 
-
-class MCPTool(_MCPToolBase):
+class MCPTool(ABC):
     """
     Base class for MCP tools with token usage logging and rate limiting.
 
@@ -34,14 +32,18 @@ class MCPTool(_MCPToolBase):
     - Monthly limit checking
     """
 
+    name: str
+    description: str
+    args_schema: type[BaseModel] | None = None
+
     def __init__(
         self,
         user_identifier: str,
         uses_tokens: bool = False,
         uses_transformer_calls: bool = False,
-        name: str = None,
-        description: str = None,
-        args_schema=None,
+        name: str | None = None,
+        description: str | None = None,
+        args_schema: type[BaseModel] | None = None,
     ):
         """
         Initialize MCPTool with user identifier and usage flags.
@@ -54,12 +56,15 @@ class MCPTool(_MCPToolBase):
             description: Tool description (optional, defaults to class attribute)
             args_schema: Pydantic model for tool arguments (optional, defaults to class attribute)
         """
-        # Initialize base class (BaseMCPToolInterface)
-        # The InlineToolCompatibilityMixin will handle compatibility with InlineTool if available
-        super().__init__(name=name, description=description, args_schema=args_schema)
         self.user_identifier = user_identifier
         self.uses_tokens = uses_tokens
         self.uses_transformer_calls = uses_transformer_calls
+        if name:
+            self.name = name
+        if description:
+            self.description = description
+        if args_schema:
+            self.args_schema = args_schema
         self._reset_tokens()
 
     def _reset_tokens(self):
@@ -281,6 +286,7 @@ class MCPTool(_MCPToolBase):
 
         return response
 
+    @abstractmethod
     def tool_func_core(self, *args, **kwargs) -> Any:
         """
         Override this method in subclasses.
@@ -290,7 +296,7 @@ class MCPTool(_MCPToolBase):
             Can be a tuple of the form (response, simplified_response_for_logging)
             If the return value is not a tuple of length two, it is assumed that response = simplified_response_for_logging
         """
-        raise NotImplementedError("Subclasses must implement tool_func_core")
+        pass
 
     def to_langchain_tool(self) -> StructuredTool:
         """

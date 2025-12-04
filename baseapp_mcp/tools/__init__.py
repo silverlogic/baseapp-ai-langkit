@@ -1,17 +1,12 @@
 """MCP Tools package."""
 
-from baseapp_mcp.tools.base_mcp_tool import MCPTool
-from baseapp_mcp.tools.base_tool import BaseMCPToolInterface
-from baseapp_mcp.tools.compat import (
-    create_mcp_tool_base_class,
-    get_inline_tool_class,
-    is_inline_tool_compatible,
-)
+# isort skip to avoid circular import
+from baseapp_mcp.tools.base_mcp_tool import MCPTool  # isort: skip
+from baseapp_mcp.tools.base_fetch_tool import BaseFetchTool
+from baseapp_mcp.tools.base_search_tool import BaseSearchTool
 
 __all__ = [
     "MCPTool",
-    "BaseMCPToolInterface",
-    "get_inline_tool_class",
-    "is_inline_tool_compatible",
-    "create_mcp_tool_base_class",
+    "BaseFetchTool",
+    "BaseSearchTool",
 ]

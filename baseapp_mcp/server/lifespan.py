@@ -27,7 +27,6 @@ async def default_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
         Dictionary with startup information
     """
     try:
-        logger.info("🚀 MCP Server starting up...")
         logger.info("✅ MCP Server startup complete")
 
         # Yield control back to the server

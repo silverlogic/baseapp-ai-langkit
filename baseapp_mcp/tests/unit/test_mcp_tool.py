@@ -6,7 +6,7 @@ from django.test import override_settings
 from baseapp_mcp import exceptions
 from baseapp_mcp.logs.models import MCPLog
 from baseapp_mcp.rate_limits.models import TokenUsage
-from baseapp_mcp.tools.base_mcp_tool import MCPTool
+from baseapp_mcp.tools import MCPTool
 
 MCPDataError = exceptions.MCPDataError
 MCPRateError = exceptions.MCPRateError
