@@ -1,7 +1,14 @@
 import json
 import re
 
-import httpretty
+import pytest
+
+try:
+    import httpretty
+except ImportError:
+    httpretty = None
+    pytest.skip("httpretty not available", allow_module_level=True)
+
 from django.test import TestCase
 
 
