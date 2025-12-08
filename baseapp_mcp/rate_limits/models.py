@@ -5,8 +5,10 @@ from model_utils.models import TimeStampedModel
 from .manager import TokenUsageManager
 
 
-class TokenUsage(TimeStampedModel):
-    """Track token usage per user per month."""
+class BaseTokenUsage(TimeStampedModel):
+    """
+    Base abstract model for tracking token usage per user per month.
+    """
 
     user_identifier = models.CharField(
         max_length=255, db_index=True, help_text="User email, username, or IP address"
@@ -21,6 +23,7 @@ class TokenUsage(TimeStampedModel):
     objects = TokenUsageManager()
 
     class Meta:
+        abstract = True
         verbose_name = _("Token usage")
         verbose_name_plural = _("Token usages")
         ordering = ["-year", "-month", "user_identifier"]
@@ -28,3 +31,8 @@ class TokenUsage(TimeStampedModel):
 
     def __str__(self):
         return f"{self.user_identifier} - {self.year}/{self.month} - {self.total_tokens} tokens - {self.transformer_calls} calls"
+
+
+class TokenUsage(BaseTokenUsage):
+    class Meta(BaseTokenUsage.Meta):
+        pass
