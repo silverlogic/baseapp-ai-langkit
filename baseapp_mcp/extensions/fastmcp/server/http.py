@@ -106,7 +106,7 @@ def create_streamable_http_app(
         auth_routes = auth.get_routes()
         required_scopes = getattr(auth, "required_scopes", None) or []
         # Get resource metadata URL for WWW-Authenticate header
-        resource_metadata_url = auth.get_resource_metadata_url()
+        resource_metadata_url = auth._get_resource_url()
         # Get email regex rules from settings, with default empty list (no email validation)
         email_regex_rules = getattr(settings, "MCP_EMAIL_REGEX_RULES", [])
         server_require_auth_middleware = RequireAPIKeyOrAuthMiddleware(
@@ -136,8 +136,9 @@ def create_streamable_http_app(
     # Create a lifespan manager to start and stop the session manager
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncGenerator[None, None]:
-        async with session_manager.run():
-            yield
+        async with server._lifespan_manager():
+            async with session_manager.run():
+                yield
 
     # Create and return the app with lifespan
     app = create_base_app(

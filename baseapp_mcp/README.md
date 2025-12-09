@@ -640,7 +640,7 @@ async def custom_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
     """
     try:
         # Startup tasks
-        # logger.info("🚀 MCP Server starting up...")
+        logger.info("🚀 MCP Server starting up...")
         
         # Example: Initialize database connections
         # await initialize_db_pool()
