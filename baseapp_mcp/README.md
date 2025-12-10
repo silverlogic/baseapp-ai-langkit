@@ -676,13 +676,12 @@ Rate limiting can be applied to tools by simply overriding some of the parameter
 ```python
 class MyTool(MCPTool):
     def __init__(self, user_identifier: str):
-        # Disable rate limiting (not recommended)
+        # Enable Token and Transformer Call limits
         super().__init__(
             user_identifier,
             uses_tokens=True,
             uses_transformer_calls=True,
         )
-        # The tool will still be logged, but won't have rate limiting
 ```
 
 ### Authentication
