@@ -18,6 +18,6 @@ class MultipleAuthenticationMiddleware(AuthenticationMiddleware):
                 # If a user is already authenticated, skip further authentication
                 await self.app(scope, receive, send)
                 return
-        
+
         # Otherwise, proceed with normal authentication
         await super().__call__(scope, receive, send)

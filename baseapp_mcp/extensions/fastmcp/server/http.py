@@ -1,3 +1,8 @@
+# This file contains basically the create_streamable_http_app function from fastmcp.server.http,
+# but with the APIKey auth middleware from baseapp_mcp.auth.middleware.api_key_auth added
+#
+# If you run into issues while updating fastmcp, make sure to port over any changes here.
+
 from __future__ import annotations
 
 import typing as typ
@@ -92,6 +97,12 @@ def create_streamable_http_app(
 
     if auth:
         # OAuth
+
+        # AuthProvider (in fastmcp/server/auth/auth.py) defines get_middleware returning
+        # [ Middleware(AuthenticationMiddleware, backend=BearerAuthBackend(self),),
+        #   Middleware(AuthContextMiddleware), ]
+        # This adds the first middleware, modified to allow multiple authentication methods.
+        # The second is added below.
         auth_middleware.append(
             Middleware(
                 MultipleAuthenticationMiddleware,
