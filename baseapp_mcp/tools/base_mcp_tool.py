@@ -284,7 +284,33 @@ class MCPTool(ABC):
 
         self._save_token_usage()
 
+        return self._clean_response(response)
+
+    def _clean_response(self, response: Any) -> Any:
+        """
+        Clean the response.
+        Calls replace_bad_characters recursively on strings within the response.
+        """
+        if isinstance(response, str):
+            return self.replace_bad_characters(response)
+        elif isinstance(response, list):
+            return [self._clean_response(item) for item in response]
+        elif isinstance(response, dict):
+            return {key: self._clean_response(value) for key, value in response.items()}
         return response
+
+    def replace_bad_characters(self, text: str) -> str:
+        """
+        Replace problematic unicode characters in a string.
+        You can override this method in subclasses if needed.
+
+        Args:
+            text: Input string
+
+        Returns:
+            Cleaned string
+        """
+        return text.replace("\u2028", "\n").replace("\u2029", "\n")
 
     @abstractmethod
     def tool_func_core(self, *args, **kwargs) -> Any:
