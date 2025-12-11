@@ -1,3 +1,8 @@
+# This file contains basically the create_streamable_http_app function from fastmcp.server.http,
+# but with the APIKey auth middleware from baseapp_mcp.auth.middleware.api_key_auth added
+#
+# If you run into issues while updating fastmcp, make sure to port over any changes here.
+
 from __future__ import annotations
 
 import typing as typ
@@ -89,12 +94,15 @@ def create_streamable_http_app(
     auth_routes = []
     required_scopes = []
     resource_metadata_url = None
-    server_require_auth_middleware = RequireAPIKeyMiddleware(
-        streamable_http_app, required_scopes, resource_metadata_url
-    )
 
     if auth:
         # OAuth
+
+        # AuthProvider (in fastmcp/server/auth/auth.py) defines get_middleware returning
+        # [ Middleware(AuthenticationMiddleware, backend=BearerAuthBackend(self),),
+        #   Middleware(AuthContextMiddleware), ]
+        # This adds the first middleware, modified to allow multiple authentication methods.
+        # The second is added below.
         auth_middleware.append(
             Middleware(
                 MultipleAuthenticationMiddleware,
@@ -106,7 +114,7 @@ def create_streamable_http_app(
         auth_routes = auth.get_routes()
         required_scopes = getattr(auth, "required_scopes", None) or []
         # Get resource metadata URL for WWW-Authenticate header
-        resource_metadata_url = auth.get_resource_metadata_url()
+        resource_metadata_url = auth._get_resource_url()
         # Get email regex rules from settings, with default empty list (no email validation)
         email_regex_rules = getattr(settings, "MCP_EMAIL_REGEX_RULES", [])
         server_require_auth_middleware = RequireAPIKeyOrAuthMiddleware(
@@ -114,6 +122,10 @@ def create_streamable_http_app(
             email_regex_rules=email_regex_rules,
             required_scopes=required_scopes,
             resource_metadata_url=resource_metadata_url,
+        )
+    else:
+        server_require_auth_middleware = RequireAPIKeyMiddleware(
+            streamable_http_app, required_scopes, resource_metadata_url
         )
 
     auth_middleware.append(Middleware(AuthContextMiddleware))
@@ -136,7 +148,7 @@ def create_streamable_http_app(
     # Create a lifespan manager to start and stop the session manager
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncGenerator[None, None]:
-        async with session_manager.run():
+        async with server._lifespan_manager(), session_manager.run():
             yield
 
     # Create and return the app with lifespan

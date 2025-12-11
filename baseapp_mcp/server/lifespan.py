@@ -34,5 +34,4 @@ async def default_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
         yield {"startup_time": "server_ready"}
 
     finally:
-        logger.info("🔄 MCP Server shutting down...")
         logger.info("✅ MCP Server shutdown complete")

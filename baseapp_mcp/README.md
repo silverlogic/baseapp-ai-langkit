@@ -640,7 +640,7 @@ async def custom_lifespan(mcp_server: FastMCP) -> typ.AsyncIterator[typ.Any]:
     """
     try:
         # Startup tasks
-        # logger.info("🚀 MCP Server starting up...")
+        logger.info("🚀 MCP Server starting up...")
         
         # Example: Initialize database connections
         # await initialize_db_pool()
@@ -676,13 +676,12 @@ Rate limiting can be applied to tools by simply overriding some of the parameter
 ```python
 class MyTool(MCPTool):
     def __init__(self, user_identifier: str):
-        # Disable rate limiting (not recommended)
+        # Enable Token and Transformer Call limits
         super().__init__(
             user_identifier,
             uses_tokens=True,
             uses_transformer_calls=True,
         )
-        # The tool will still be logged, but won't have rate limiting
 ```
 
 ### Authentication
