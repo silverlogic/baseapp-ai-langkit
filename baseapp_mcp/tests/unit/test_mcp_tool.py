@@ -384,12 +384,11 @@ class TestMCPTool:
         assert usage2["total_tokens"] == 200
 
     def test_tool_func_core_not_implemented(self):
-        """Test that tool_func_core must be implemented."""
-        tool = MCPTool(user_identifier="test@example.com")
-        tool.name = "broken tool"
-
-        with pytest.raises(NotImplementedError, match="tool_func_core"):
-            tool.tool_func()
+        """Test that tool_func_core must be implemented in subclasses."""
+        # Since MCPTool is now an abstract class, trying to instantiate it
+        # directly will raise TypeError at instantiation time
+        with pytest.raises(TypeError, match="abstract"):
+            MCPTool(user_identifier="test@example.com")
 
     @mock.patch("baseapp_mcp.tools.base_mcp_tool.logger")
     def test_save_token_usage_handles_errors(self, mock_logger):
@@ -578,3 +577,129 @@ class TestMCPTool:
         # Token usage should still be saved
         usage = TokenUsage.objects.get_monthly_usage("test@example.com")
         assert usage["total_tokens"] == 100
+
+    class MockToolWithBadChars(MCPTool):
+        """Mock tool that returns responses with problematic characters."""
+
+        name = "mock_bad_chars"
+        description = "A mock tool that returns bad unicode characters"
+
+        def __init__(self, user_identifier: str, response_data):
+            super().__init__(user_identifier)
+            self.response_data = response_data
+
+        def tool_func_core(self, *args, **kwargs):
+            return self.response_data
+
+    def test_clean_response_with_string(self):
+        """Test cleaning a string response with problematic unicode characters."""
+        response = "Hello\u2028World\u2029!"
+        tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
+
+        result = tool.tool_func()
+
+        assert result == "Hello\nWorld\n!"
+        assert "\u2028" not in result
+        assert "\u2029" not in result
+
+    def test_clean_response_with_dict(self):
+        """Test cleaning a dict response with problematic unicode characters."""
+        response = {"text": "Hello\u2028World", "description": "Line\u2029Break"}
+        tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
+
+        result = tool.tool_func()
+
+        assert result == {"text": "Hello\nWorld", "description": "Line\nBreak"}
+        assert "\u2028" not in result["text"]
+        assert "\u2029" not in result["description"]
+
+    def test_clean_response_with_list(self):
+        """Test cleaning a list response with problematic unicode characters."""
+        response = ["First\u2028Item", "Second\u2029Item", "Third Item"]
+        tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
+
+        result = tool.tool_func()
+
+        assert result == ["First\nItem", "Second\nItem", "Third Item"]
+        assert "\u2028" not in result[0]
+        assert "\u2029" not in result[1]
+
+    def test_clean_response_with_nested_structure(self):
+        """Test cleaning a nested structure with problematic unicode characters."""
+        response = {
+            "items": [
+                {"name": "Item\u20281", "desc": "Description\u2029A"},
+                {"name": "Item\u20282", "desc": "Description\u2029B"},
+            ],
+            "summary": "Total\u2028items\u2029found",
+        }
+        tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
+
+        result = tool.tool_func()
+
+        assert result["items"][0]["name"] == "Item\n1"
+        assert result["items"][0]["desc"] == "Description\nA"
+        assert result["items"][1]["name"] == "Item\n2"
+        assert result["items"][1]["desc"] == "Description\nB"
+        assert result["summary"] == "Total\nitems\nfound"
+
+    def test_clean_response_with_non_string_values(self):
+        """Test that non-string values are preserved."""
+        response = {
+            "text": "Hello\u2028World",
+            "number": 42,
+            "boolean": True,
+            "null": None,
+            "list": [1, 2, 3],
+        }
+        tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
+
+        result = tool.tool_func()
+
+        assert result["text"] == "Hello\nWorld"
+        assert result["number"] == 42
+        assert result["boolean"] is True
+        assert result["null"] is None
+        assert result["list"] == [1, 2, 3]
+
+    def test_clean_response_with_empty_string(self):
+        """Test cleaning an empty string."""
+        response = ""
+        tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
+
+        result = tool.tool_func()
+
+        assert result == ""
+
+    def test_clean_response_with_no_bad_characters(self):
+        """Test that normal text is not affected by cleaning."""
+        response = "Hello World! This is normal text."
+        tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
+
+        result = tool.tool_func()
+
+        assert result == "Hello World! This is normal text."
+
+    def test_custom_replace_bad_characters_override(self):
+        """Test that replace_bad_characters can be overridden in subclasses."""
+
+        class CustomCleaningTool(MCPTool):
+            """Tool with custom character replacement."""
+
+            name = "custom_clean"
+            description = "Custom cleaning tool"
+
+            def __init__(self, user_identifier: str):
+                super().__init__(user_identifier)
+
+            def tool_func_core(self):
+                return "Hello\u2028World"
+
+            def replace_bad_characters(self, text: str) -> str:
+                # Custom replacement: remove instead of replacing with newline
+                return text.replace("\u2028", "").replace("\u2029", "")
+
+        tool = CustomCleaningTool(user_identifier="test@example.com")
+        result = tool.tool_func()
+
+        assert result == "HelloWorld"  # Characters removed, not replaced
