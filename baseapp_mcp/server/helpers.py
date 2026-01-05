@@ -99,6 +99,6 @@ def get_application(mcp_server: "DjangoFastMCP") -> StarletteWithLifespan:
     mcp_route_path = get_mcp_route_path()
     return mcp_server.streamable_http_app(
         path=f"/{mcp_route_path}",
-        stateless_http=True,
+        stateless_http=False,
         middleware=middleware,
     )
