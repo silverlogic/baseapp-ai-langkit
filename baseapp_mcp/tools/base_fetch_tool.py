@@ -7,18 +7,12 @@ custom fetch and content processing functions.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
-
-from pydantic import BaseModel, Field
+from typing import Annotated, Any
 
 from baseapp_mcp import exceptions
-from baseapp_mcp.tools import MCPTool
+from baseapp_mcp.tools.mcp_tool import MCPTool
 
 logger = logging.getLogger(__name__)
-
-
-class FetchArgs(BaseModel):
-    search_term: str = Field(..., description="Search term to fetch the document.")
 
 
 class BaseFetchTool(MCPTool, ABC):
@@ -28,36 +22,26 @@ class BaseFetchTool(MCPTool, ABC):
 
     name: str = "fetch"
     description: str = "Fetch a document by its search term."
-    args_schema = FetchArgs
 
-    def tool_func_core(self, **kwargs) -> dict[str, Any] | tuple[dict[str, Any], dict[str, Any]]:
-        search_term = self.get_search_term(kwargs)
+    def tool_func_core(
+        self, search_term: Annotated[str, "Search term to fetch the document."]
+    ) -> dict[str, Any]:
         if not search_term:
-            raise exceptions.MCPValidationError("Document ID cannot be empty or whitespace.")
+            raise exceptions.MCPValidationError("Search term cannot be empty or whitespace.")
 
         try:
             document = self.fetch(search_term)
         except Exception as e:
-            logger.error(f"Error fetching document {search_term}: {e}")
-            raise exceptions.MCPDataError(f"Document with ID {search_term} not found.")
+            logger.error(f"Error fetching document '{search_term}': {e}")
+            raise exceptions.MCPDataError(f"Document '{search_term}' not found.")
 
         # Process content
         content = self.content_processor(document)
 
         # Build document dict
-        full_doc, simplified_doc = self.doc_builder(document, content)
+        doc = self.doc_builder(document, content)
 
-        return full_doc, simplified_doc
-
-    def get_search_term(self, kwargs: dict[str, Any]) -> str:
-        """
-        If you change the search_term field in the args_schema, you need to override this method.
-        It's good practice to update the args_schema field so the LLM isn't confused by contradictory arguments.
-
-        Returns:
-            The search term from the arguments.
-        """
-        return kwargs.get("search_term", "").strip()
+        return doc
 
     @abstractmethod
     def fetch(self, search_term: str) -> Any:
@@ -65,7 +49,7 @@ class BaseFetchTool(MCPTool, ABC):
         Abstract method that takes a document ID and returns a document object.
 
         Args:
-            id: Document ID
+            search_term: Search term to fetch the document (can be ID, title, URL, etc.)
         Returns:
             Document object
         """
@@ -93,9 +77,9 @@ class BaseFetchTool(MCPTool, ABC):
 
         return str(document)
 
-    def doc_builder(self, document: Any, content: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    def doc_builder(self, document: Any, content: str) -> dict[str, Any]:
         """
-        Function that takes (document, content) and returns (full_doc_dict, simplified_doc_dict).
+        Function that takes (document, content) and returns a dictionary.
         By default it uses the page_id, page_title, url and content to build the document.
         Override this method to provide a custom document builder.
 
@@ -103,18 +87,30 @@ class BaseFetchTool(MCPTool, ABC):
             document: Document object
             content: Plain text content
         Returns:
-            tuple containing full document dictionary and simplified document dictionary
+            Document dictionary
         """
-        full_doc = {
+        doc = {
             "id": getattr(document, "page_id", getattr(document, "id", "")),
             "title": getattr(document, "page_title", getattr(document, "title", "")),
             "text": content,
             "url": getattr(document, "url", None),
         }
-        simplified_doc = {
-            "id": full_doc["id"],
-            "title": full_doc["title"],
-            "text": content if len(content) < 200 else f"{content[:200]}...",
-            "url": full_doc.get("url"),
+        return doc
+
+    def simplify_response(self, response: dict[str, Any]) -> dict[str, Any]:
+        """
+        Simplify the response for logging purposes.
+
+        Args:
+            response: The full response dictionary.
+        Returns:
+            A simplified version of the response.
+        """
+        text = response.get("text", "")
+        simplified = {
+            "id": response.get("id"),
+            "title": response.get("title"),
+            "text": text[:200] + "..." if len(text) > 200 else text,
+            "url": response.get("url"),
         }
-        return full_doc, simplified_doc
+        return simplified

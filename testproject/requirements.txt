@@ -21,4 +21,4 @@ channels_redis==4.0.0
 
 Pillow==10.3.0
 
--e .[langkit,dev]
+-e .[mcp,langkit,dev]

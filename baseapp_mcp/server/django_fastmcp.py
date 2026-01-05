@@ -1,6 +1,7 @@
 import logging
 import typing as typ
 from functools import partial
+from typing import TYPE_CHECKING
 
 import anyio
 import uvicorn
@@ -18,6 +19,9 @@ from baseapp_mcp.server.config import (
     get_server_instructions,
 )
 from baseapp_mcp.server.lifespan import default_lifespan
+
+if TYPE_CHECKING:
+    from baseapp_mcp.tools.base_mcp_tool import BaseMCPTool
 
 logger = logging.getLogger(__name__)
 
@@ -174,6 +178,21 @@ class DjangoFastMCP(FastMCP):
                 **transport_kwargs,
             )
         )
+
+    def register_tool(self, mcp_tool: type["BaseMCPTool"]) -> None:
+        """
+        Register a tool with the MCP server.
+
+        Args:
+            mcp_tool: The MCP tool class to register (subclass of BaseMCPTool)
+        """
+
+        if not getattr(mcp_tool, "name", None):
+            raise ValueError("Tool must have a name to be registered.")
+        if not getattr(mcp_tool, "description", None):
+            raise ValueError("Tool must have a description to be registered.")
+
+        self.tool(mcp_tool.get_fastmcp_tool_func(), annotations=mcp_tool.annotations)
 
     @classmethod
     def create(
