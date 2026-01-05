@@ -104,6 +104,12 @@ class BaseMCPTool(ABC):
         Returns:
             Callable that can be registered as an MCP tool with the same signature as tool_func
         """
+        name = cls.get_name()
+        description = cls.get_description()
+        if not name:
+            raise ValueError("Tool must have a name.")
+        if not description:
+            raise ValueError("Tool must have a description.")
 
         async def fast_mcp_tool_func(**kwargs):
             user_identifier = get_user_identifier()

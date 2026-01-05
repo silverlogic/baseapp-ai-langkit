@@ -186,12 +186,6 @@ class DjangoFastMCP(FastMCP):
         Args:
             mcp_tool: The MCP tool class to register (subclass of BaseMCPTool)
         """
-
-        if not getattr(mcp_tool, "name", None):
-            raise ValueError("Tool must have a name to be registered.")
-        if not getattr(mcp_tool, "description", None):
-            raise ValueError("Tool must have a description to be registered.")
-
         self.tool(mcp_tool.get_fastmcp_tool_func(), annotations=mcp_tool.annotations)
 
     @classmethod
