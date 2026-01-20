@@ -241,9 +241,9 @@ apps/
 This file creates your own MCP server instance and registers your tools:
 
 ```python
-import asyncio
 import logging
-import typing as typ
+
+import django
 
 from baseapp_mcp import (
     DjangoFastMCP,
@@ -251,13 +251,11 @@ from baseapp_mcp import (
     register_debug_tool,
     register_health_check_route,
 )
-from baseapp_mcp.utils import get_user_identifier
-from fastmcp import Context
-
-from apps.mcp.tools.search_tool import SearchTool
-from apps.mcp.tools.fetch_tool import FetchTool
 
 logger = logging.getLogger(__name__)
+
+if not django.apps.apps.ready:
+    django.setup(set_prefix=False)
 
 # Create your MCP server instance
 server_instructions = """
@@ -266,59 +264,19 @@ Your custom server instructions here.
 
 mcp = DjangoFastMCP.create(instructions=server_instructions)
 
-# Register optional helper tools/routes (optional)
-register_debug_tool(mcp)
-register_health_check_route(mcp)
+def register_tools():
+    logger.info("Registering MCP tools and routes...")
 
-# Register project-specific tools using the @mcp.tool decorator
+    register_debug_tool(mcp)
+    register_health_check_route(mcp)
 
-@mcp.tool(
-    title="Search Documents",
-    description="Search documents by semantic similarity to find relevant documents.",
-    annotations={"readOnlyHint": True},
-)
-async def search(ctx: Context, query: str) -> typ.Dict[str, typ.Any]:
-    """
-    Search for documents using a query string.
+    # Register project-specific tools 
+    # Any imports relying on django setup need to come below django.setup(...), so cannot be at the top
+    from somewhere import YourTool, AnotherTool
+    mcp.register_tool(YourTool)
+    mcp.register_tool(AnotherTool)
 
-    Args:
-        query: The search query string. Natural language queries work best.
-
-    Returns:
-        A dictionary with 'results' key containing list of matching documents.
-    """
-    user_identifier = get_user_identifier()
-
-    def _search():
-        tool = SearchTool(user_identifier)
-        return tool.tool_func(query=query.strip())
-
-    loop = asyncio.get_event_loop()
-    results = await loop.run_in_executor(None, _search)
-    return results
-
-
-@mcp.tool(annotations={"readOnlyHint": True})
-async def fetch(ctx: Context, id: str) -> typ.Dict[str, typ.Any]:
-    """
-    Retrieve complete document content by ID.
-
-    Args:
-        id: The document ID to fetch.
-
-    Returns:
-        A dictionary containing the complete document.
-    """
-    user_identifier = get_user_identifier()
-
-    def _fetch():
-        tool = FetchTool(user_identifier)
-        return tool.tool_func(id=id)
-
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, _fetch)
-    return result
-
+register_tools()
 
 # Export the application for use with gunicorn/uvicorn
 application = get_application(mcp)
@@ -332,18 +290,12 @@ To create a tool from scratch, extend `MCPTool`:
 
 ```python
 import logging
-from typing import Any, Dict
+from typing import Annotated, Any, Dict
 
 from baseapp_mcp.tools import MCPTool
 from baseapp_mcp import exceptions
-from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
-
-
-class MyToolArgs(BaseModel):
-    query: str = Field(..., description="Search query")
-    limit: int = Field(default=10, description="Maximum number of results")
 
 
 class MyTool(MCPTool):
@@ -352,20 +304,16 @@ class MyTool(MCPTool):
     """
     name: str = "my_tool"
     description: str = "My custom tool that does something specific"
-    args_schema = MyToolArgs
 
-    def tool_func_core(self, query: str, limit: int = 10) -> Dict[str, Any]:
+    def tool_func_core(
+        self, 
+        query: Annotated[str, "The search query"],
+        limit: Annotated[int, "Result limit"] = 10
+    ) -> Dict[str, Any]:
         """
         Main tool implementation.
-
-        Args:
-            query: Search query
-            limit: Result limit
-
-        Returns:
-            Tuple (doc, simplified) where:
-            - doc: Complete dictionary with data
-            - simplified: Simplified version for logging
+        Name ("my_tool") and description ("My custom tool ...") are defined above
+        The args schema is extracted from the annotations and automatically appended to the description.
         """
         if not query or not query.strip():
             raise exceptions.MCPValidationError("Query cannot be empty")
@@ -378,11 +326,7 @@ class MyTool(MCPTool):
             "count": len(results),
         }
 
-        simplified_response_for_logging = {
-            "count": len(results),
-        }
-
-        return doc, simplified_response_for_logging
+        return doc
 ```
 
 ### Example 2: Tool Using Generic BaseSearchTool
@@ -404,16 +348,16 @@ class MySearchTool(BaseSearchTool):
     """
     Specific SearchTool implementation for MyDocument.
     """
+    name = "search"
+    description = "Searches for XYZ objects in the database."
 
-    def search(self, query: str) -> list[Dict[str, Any]]:
-        """
-        Search for documents using semantic similarity.
+    def tool_func_core(
+        self, title: Annotated[str, "The title to search for"]
+    ) -> dict[str, Any]:
+        # This just renames the parameter from query to title and changes the annotation
+        return super().tool_func_core(title)
 
-        Args:
-            query: Search query string
-        Returns:
-            List of result dictionaries with at least 'id' and 'title' keys
-        """
+    def search(self, title: str) -> list[Dict[str, Any]]:
         return MyDocument.semantic_search(
             query=query,
             strip_html=True,
@@ -442,18 +386,26 @@ class MyFetchTool(BaseFetchTool):
     """
     Specific FetchTool implementation for MyDocument.
     """
+    name: str = "fetch"
+    description: str = "Fetch documents of type XYZ by url."
 
-    def fetch(self, search_term: str) -> MyDocument:
+    def tool_func_core(
+        self, url: Annotated[str, "URL of the document to fetch."]
+    ) -> dict[str, Any]:
+        # This just renames the parameter from search_term to url and changes the annotation
+        return super().tool_func_core(url)
+
+    def fetch(self, url: str) -> MyDocument:
         """
-        Fetch a document by ID.
+        Fetch a document by URL.
 
         Args:
-            search_term: Document ID
+            url: Document URL
         Returns:
             MyDocument instance
         """
         try:
-            return MyDocument.objects.get(id=int(search_term))
+            return MyDocument.objects.get(url=url)
         except MyDocument.DoesNotExist:
             raise exceptions.MCPDataError(f"Document with ID {search_term} not found.")
 
@@ -483,87 +435,67 @@ class MyFetchTool(BaseFetchTool):
         return build_doc_from_document(document, content)
 ```
 
-### Example 4: Simple Tool Without Rate Limiting
+### Example 4: Simple Tool Without Token Limiting
 
-By default tools don't have rate limiting or tracking:
+By default, token limiting is disabled for MCP tools, so you do not need to do anything specific:
 
 ```python
 from baseapp_mcp.tools import MCPTool
-from pydantic import BaseModel
-
-class SimpleToolArgs(BaseModel):
-    text: str
 
 class SimpleTool(MCPTool):
     name = "simple_tool"
     description = "A simple tool"
-    args_schema = SimpleToolArgs
     
-    def tool_func_core(self, text: str):
-        return {"result": text.upper()}, {"result": "processed"}
+    def tool_func_core(self, text: Annotated[str, "Text to capitalize"]) -> Dict[str, Any]:
+        return {"result": text.upper()}
 ```
 
-## Example 5: Simple Tool With Rate Limiting
+### Example 5: Simple Tool With Token Limiting
 
-For tools that need rate limiting or tracking:
+For tools that need token limiting:
 
 ```python
 from baseapp_mcp.tools import MCPTool
-from pydantic import BaseModel
-
-class SimpleToolArgs(BaseModel):
-    text: str
 
 class SimpleTool(MCPTool):
     name = "simple_tool"
     description = "A simple tool"
-    args_schema = SimpleToolArgs
     
-    def __init__(self, user_identifier: str):
-        # Enable rate limiting and tracking
-        super().__init__(
-            user_identifier,
-            uses_tokens=True,
-            uses_transformer_calls=True,
-        )
+    uses_tokens = True # Enables token tracking
+    uses_transformer_calls = True # Enables transformer call tracking
     
-    def tool_func_core(self, text: str):
-        return {"result": text.upper()}, {"result": "processed"}
+    def tool_func_core(self) -> Dict[str, Any]:
+        # If you do an operation using a transformer call, call
+        # add_transformer_calls to track it
+        something_using_a_transformer()
+        self.add_transformer_calls()
+
+        # If you invoke an LLM using Langchain, call add_token_usage
+        # with its response to track the tokens used
+        response = llm.invoke(prompt)
+        self.add_token_usage(response)
+        
+        return {"result": "succeeded"}
 ```
+This will automatically keep track of the tokens consumed by each user. If token limits are enabled in the settings, the tool will throw a `RateLimitException` when exceeded.
 
 ## Registering Tools on the Server
 
-After creating your MCP server instance, register tools using the `@mcp.tool` decorator:
+After creating your MCP server instance, register tools using `mcp.register_tool`:
 
 ```python
 # apps/mcp/app.py
 from baseapp_mcp import DjangoFastMCP
-from fastmcp import Context
 from apps.mcp.tools.my_tool import MyTool
-from baseapp_mcp.utils import get_user_identifier
-import asyncio
 
 # Create your MCP server instance
 mcp = DjangoFastMCP.create()
 
-@mcp.tool(
-    title="My Custom Tool",
-    description="Does something custom",
-    annotations={"readOnlyHint": True},
-)
-async def my_tool(ctx: Context, query: str) -> dict:
-    """
-    Async wrapper for the tool.
-    """
-    user_identifier = get_user_identifier()
-    
-    def _execute():
-        tool = MyTool(user_identifier)
-        return tool.tool_func(query=query)
-    
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _execute)
+# Register your tool
+mcp.register_tool(MyTool)
 ```
+
+If you create tools from scratch (not deriving `MCPTool`), you can use the `@mcp.tool()` decorator to register them. The `register_tool` method from above will ensure that name, description, and argument schema are correctly copied from your `MCPTool` class.
 
 ## Testing
 
@@ -669,20 +601,79 @@ mcp = DjangoFastMCP.create(lifespan=custom_lifespan)
 
 **Note**: The lifespan function receives the `FastMCP` server instance as a parameter, which can be useful for accessing server state or configuration.
 
-### Rate Limiting per Tool
+### Limits
 
-Rate limiting can be applied to tools by simply overriding some of the parameters of the `__init__` method in `MCPTool`. To enable it for a specific tool:
+You can enforce rate and token limits. Here, rate limits bound the number of times users can call tools in certain periods, while token limits bound the number of tokens that users can spend calling tools.
 
+#### Rate Limiting
+
+There are two kinds of rate limits you can enforce: any interactions with the server by a user (including all requests, configured as a middleware) and number of tool calls. For the first, define the limits as follows: 
 ```python
-class MyTool(MCPTool):
-    def __init__(self, user_identifier: str):
-        # Enable Token and Transformer Call limits
-        super().__init__(
-            user_identifier,
-            uses_tokens=True,
-            uses_transformer_calls=True,
-        )
+# settings/base.py
+MCP_ENABLE_GENERAL_RATE_LIMITING = True
+MCP_GENERAL_RATE_LIMIT_PERIOD = 60  # seconds
+MCP_GENERAL_RATE_LIMIT_CALLS = 500  # max calls per period
 ```
+This will limit any requests that a user can make to the server to the specified number.
+
+To limit the number of tool calls only, you can use these settings (applying to all tools):
+```python
+# settings/base.py
+MCP_ENABLE_TOOL_RATE_LIMITING = True
+MCP_TOOL_RATE_LIMIT_PERIOD = 60  # seconds
+MCP_TOOL_RATE_LIMIT_CALLS = 30  # max calls per period
+```
+Any tool calls count towards this limit. If you need further customization on a per tool basis, you can exempt a single tool from the global rate limits
+```python
+from baseapp_mcp.tools import MCPTool
+
+class MyTool(MCPTool):
+    ...
+    # Allow calling this tool even if the tool rate limit is exceeded
+    def is_rate_limit_enabled(self) -> bool:
+        return False
+```
+or change the rate limiter on a per tool basis:
+```python
+from baseapp_mcp.rate_limits.utils import RateLimiter
+from baseapp_mcp.tools import MCPTool
+
+class MyRateLimiter(RateLimiter):
+    pass
+
+_my_rate_limiter = MyRateLimiter()
+
+class MyTool(MCPTool):
+    ...
+    # Use a custom rate limiter for this tool
+    def get_rate_limiter(self) -> RateLimiter:
+        return _my_rate_limiter
+```
+
+#### Token Limits
+
+There are different steps for limiting the amount of tokens that are available to users when calling tools.
+1. To enable token tracking, set `uses_tokens = True` or `uses_transformer_calls = True` on your tool class. This configuration just indicates that the tool is using tokens/transformer calls, so that
+   - token/transformer usage is tracked and logged in the Django admin (without these settings, token usage is omitted from some logs)
+   - the tool might be disabled if limits are enforced (without these settings, it is assumed that the tool does not need tokens/transformer calls, so keeps working even if any token/transformer limits are exceeded)
+2. To enable token/transformer limits globally for all tools (so that tools using tokens/transformers stop working when these limits are exceeded and tools not using tokens/transformers keep functioning), define
+```python
+# settings/base.py
+MCP_ENABLE_MONTHLY_LIMITS = True
+MCP_MONTHLY_TOKEN_LIMIT = 1000000
+MCP_MONTHLY_TRANSFORMER_CALL_LIMIT = 1000000
+```
+3. You can override this setting on a per tool bases by `is_monthly_limit_enabled`
+```python
+from baseapp_mcp.tools import MCPTool
+
+class MyTool(MCPTool):
+    ...
+    # Override global MCP_ENABLE_MONTHLY_LIMITS per tool
+    def is_monthly_limit_enabled(self):
+        return True
+```
+Different limits for different tools (e.g. 1,000 tokens for tool A and 1,000,000 tokens for tool B) are currently not supported out of the box. For this, we recommend customizing the token tracking on the tools to save `token_a` and `token_b` and enforce different limits for those.
 
 ### Authentication
 
@@ -790,6 +781,15 @@ To use your MCP server with Cursor:
 5. Restart Cursor to apply the changes
 
 Now you can use your MCP server tools directly from Cursor's AI chat interface.
+
+### Copilot in VSCode
+
+To use your MCP server with Copilot in VSCode (assuming VSCode is installed and Copilot is already enabled):
+1. Create a folder `.vscode` if it does not exist yet.
+2. In that folder, create an `mcp.json` file with the same content as in Step 3 of the Cursor setup.
+3. Save the file. VSCode will automatically show options to Stop or Restart the MCP server within this file. Make sure the server is running.
+
+Now you can use your MCP server tools directly from Copilots chat interface.
 
 ### ChatGPT
 

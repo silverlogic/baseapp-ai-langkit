@@ -7,18 +7,12 @@ a custom search function via the search_function parameter.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
-
-from pydantic import BaseModel, Field
+from typing import Annotated, Any
 
 from baseapp_mcp import exceptions
-from baseapp_mcp.tools.base_mcp_tool import MCPTool
+from baseapp_mcp.tools.mcp_tool import MCPTool
 
 logger = logging.getLogger(__name__)
-
-
-class SearchInput(BaseModel):
-    query: str = Field(description="The search query to find relevant content")
 
 
 class BaseSearchTool(MCPTool, ABC):
@@ -31,18 +25,11 @@ class BaseSearchTool(MCPTool, ABC):
 
     name: str = "search"
     description: str = "Search documents by semantic similarity to find relevant documents."
-    args_schema = SearchInput
+    uses_transformer_calls: bool = True
 
-    def __init__(self, *args, **kwargs):
-        """
-        Initialize BaseSearchTool with user identifier.
-        """
-        if "uses_transformer_calls" not in kwargs:
-            kwargs["uses_transformer_calls"] = True
-
-        super().__init__(*args, **kwargs)
-
-    def tool_func_core(self, query: str) -> dict[str, Any]:
+    def tool_func_core(
+        self, query: Annotated[str, "The search query to find relevant content"]
+    ) -> dict[str, Any]:
         if not query or not query.strip():
             raise exceptions.MCPValidationError("Query cannot be empty or whitespace.")
 

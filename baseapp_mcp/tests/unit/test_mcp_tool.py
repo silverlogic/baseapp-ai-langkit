@@ -1,6 +1,7 @@
 from unittest import mock
 
 import pytest
+from asgiref.sync import async_to_sync
 from django.test import override_settings
 
 from baseapp_mcp import exceptions
@@ -32,9 +33,7 @@ class TestMCPTool:
 
         name = "mock_tool_with_tokens"
         description = "A mock tool with token usage"
-
-        def __init__(self, user_identifier: str):
-            super().__init__(user_identifier, uses_tokens=True)
+        uses_tokens = True
 
         def tool_func_core(self, *args, **kwargs):
             # Simulate LLM response
@@ -54,9 +53,7 @@ class TestMCPTool:
 
         name = "mock_tool_with_transformer"
         description = "A mock tool with transformer calls"
-
-        def __init__(self, user_identifier: str):
-            super().__init__(user_identifier, uses_transformer_calls=True)
+        uses_transformer_calls = True
 
         def tool_func_core(self, *args, **kwargs):
             self.add_transformer_calls(1)
@@ -69,9 +66,15 @@ class TestMCPTool:
         description = "A mock tool with simplified response"
 
         def tool_func_core(self, query: str, top_k: int, options: dict = None):
-            full_response = {"query": query, "results": [(n, "bla") for n in range(top_k)]}
-            simplified = {"query": query, "num_results": top_k}
-            return full_response, simplified
+            response = {"query": query, "results": [(n, "bla") for n in range(top_k)]}
+            return response
+
+        def simplify_response(self, response):
+            simplified_response = {
+                "query": response["query"],
+                "num_results": len(response["results"]),
+            }
+            return simplified_response
 
     class MockToolThatRaisesValidationError(MCPTool):
         """Mock tool that raises validation error."""
@@ -92,6 +95,19 @@ class TestMCPTool:
 
         def tool_func_core(self, id: str):
             raise MCPDataError(f"Document with ID {id} not found")
+
+    class MockToolWithBadChars(MCPTool):
+        """Mock tool that returns responses with problematic characters."""
+
+        name = "mock_bad_chars"
+        description = "A mock tool that returns bad unicode characters"
+
+        def __init__(self, user_identifier: str, response_data):
+            super().__init__(user_identifier)
+            self.response_data = response_data
+
+        def tool_func_core(self, *args, **kwargs):
+            return self.response_data
 
     def test_initialization_mock_tool(self):
         """Test MCPTool initialization."""
@@ -219,7 +235,7 @@ class TestMCPTool:
     def test_save_token_usage(self):
         """Test saving token usage to database."""
         tool = self.MockToolWithTokens(user_identifier="test@example.com")
-        tool.tool_func()
+        async_to_sync(tool.tool_func)()
 
         usage = TokenUsage.objects.get_monthly_usage("test@example.com")
         assert usage["total_tokens"] == 100
@@ -228,14 +244,14 @@ class TestMCPTool:
     def test_save_transformer_calls(self):
         """Test saving transformer calls to database."""
         tool = self.MockToolWithTransformer(user_identifier="test@example.com")
-        tool.tool_func()
+        async_to_sync(tool.tool_func)()
 
         usage = TokenUsage.objects.get_monthly_usage("test@example.com")
         assert usage["total_tokens"] == 0
         assert usage["transformer_calls"] == 1
 
     @override_settings(MCP_ENABLE_TOOL_RATE_LIMITING=True)
-    @mock.patch("baseapp_mcp.tools.base_mcp_tool._rate_limiter")
+    @mock.patch("baseapp_mcp.tools.mcp_tool._rate_limiter")
     def test_rate_limiting(self, mock_rate_limiter):
         """Test that rate limiting works."""
         from baseapp_mcp.rate_limits.utils import RateLimiter
@@ -248,15 +264,15 @@ class TestMCPTool:
 
         # First 2 calls should succeed
         tool1 = self.MockTool(user_identifier=user_id)
-        tool1.tool_func()
+        async_to_sync(tool1.tool_func)()
 
         tool2 = self.MockTool(user_identifier=user_id)
-        tool2.tool_func()
+        async_to_sync(tool2.tool_func)()
 
         # Third call should raise exception
         tool3 = self.MockTool(user_identifier=user_id)
         with pytest.raises(MCPRateError, match="Tool rate limit exceeded"):
-            tool3.tool_func()
+            async_to_sync(tool3.tool_func)()
 
     @override_settings(MCP_ENABLE_TOOL_RATE_LIMITING=False)
     def test_rate_limiting_disabled(self):
@@ -266,7 +282,7 @@ class TestMCPTool:
         # Should be able to call many times
         for _ in range(10):
             tool = self.MockTool(user_identifier=user_id)
-            tool.tool_func()
+            async_to_sync(tool.tool_func)()
 
     @override_settings(
         MCP_ENABLE_MONTHLY_LIMITS=True,
@@ -285,7 +301,7 @@ class TestMCPTool:
         # Tool with uses_tokens=True should raise exception
         tool = self.MockToolWithTokens(user_identifier=user_id)
         with pytest.raises(MCPRateError, match="Monthly token limit exceeded"):
-            tool.tool_func()
+            async_to_sync(tool.tool_func)()
 
     @override_settings(
         MCP_ENABLE_MONTHLY_LIMITS=True,
@@ -303,7 +319,7 @@ class TestMCPTool:
 
         # Tool with uses_tokens=False should NOT raise exception
         tool = self.MockTool(user_identifier=user_id)
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
         assert result == {"result": "success"}
 
     @override_settings(
@@ -323,7 +339,7 @@ class TestMCPTool:
         # Tool with uses_transformer_calls=True should raise exception
         tool = self.MockToolWithTransformer(user_identifier=user_id)
         with pytest.raises(MCPRateError, match="Monthly transformer call limit exceeded"):
-            tool.tool_func()
+            async_to_sync(tool.tool_func)()
 
     @override_settings(
         MCP_ENABLE_MONTHLY_LIMITS=True,
@@ -341,7 +357,7 @@ class TestMCPTool:
 
         # Tool with uses_transformer_calls=False should NOT raise exception
         tool = self.MockTool(user_identifier=user_id)
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
         assert result == {"result": "success"}
 
     @override_settings(MCP_ENABLE_MONTHLY_LIMITS=False)
@@ -358,11 +374,11 @@ class TestMCPTool:
 
         # Should still work
         tool = self.MockToolWithTokens(user_identifier=user_id)
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
         assert result == {"result": "success"}
 
         tool = self.MockToolWithTransformer(user_identifier=user_id)
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
         assert result == {"result": "success"}
 
     def test_different_users_have_separate_usage(self):
@@ -371,26 +387,23 @@ class TestMCPTool:
         user2 = "user2@example.com"
 
         tool1 = self.MockToolWithTokens(user_identifier=user1)
-        tool1.tool_func()
+        async_to_sync(tool1.tool_func)()
 
         tool2 = self.MockToolWithTokens(user_identifier=user2)
-        tool2.tool_func()
-        tool2.tool_func()
+        async_to_sync(tool2.tool_func)()
+        async_to_sync(tool2.tool_func)()
 
         usage1 = TokenUsage.objects.get_monthly_usage(user1)
         usage2 = TokenUsage.objects.get_monthly_usage(user2)
-
         assert usage1["total_tokens"] == 100
         assert usage2["total_tokens"] == 200
 
     def test_tool_func_core_not_implemented(self):
         """Test that tool_func_core must be implemented in subclasses."""
-        # Since MCPTool is now an abstract class, trying to instantiate it
-        # directly will raise TypeError at instantiation time
         with pytest.raises(TypeError, match="abstract"):
             MCPTool(user_identifier="test@example.com")
 
-    @mock.patch("baseapp_mcp.tools.base_mcp_tool.logger")
+    @mock.patch("baseapp_mcp.tools.mcp_tool.logger")
     def test_save_token_usage_handles_errors(self, mock_logger):
         """Test that errors in saving token usage are logged but don't crash."""
         tool = self.MockToolWithTokens(user_identifier="test@example.com")
@@ -400,14 +413,14 @@ class TestMCPTool:
             side_effect=Exception("DB error"),
         ):
             # Should not raise exception
-            result = tool.tool_func()
+            result = async_to_sync(tool.tool_func)()
             assert result == {"result": "success"}
 
             # Should log error
             mock_logger.error.assert_called_once()
             assert "Failed to save token usage" in str(mock_logger.error.call_args)
 
-    @mock.patch("baseapp_mcp.tools.base_mcp_tool.logger")
+    @mock.patch("baseapp_mcp.tools.mcp_tool.logger")
     @override_settings(MCP_ENABLE_MONTHLY_LIMITS=True)
     def test_enforce_monthly_limit_handles_errors(self, mock_logger):
         """Test that errors in checking monthly limits are logged but don't crash."""
@@ -418,7 +431,7 @@ class TestMCPTool:
             side_effect=Exception("DB error"),
         ):
             # Should not raise exception
-            result = tool.tool_func()
+            result = async_to_sync(tool.tool_func)()
             assert result == {"result": "success"}
 
             # Should log error
@@ -428,7 +441,7 @@ class TestMCPTool:
     def test_log_response_creates_mcp_log(self):
         """Test that tool execution creates an MCPLog entry."""
         tool = self.MockTool(user_identifier="test@example.com")
-        tool.tool_func(test_arg="test_value")
+        async_to_sync(tool.tool_func)(test_arg="test_value")
 
         # Check log was created
         log = MCPLog.objects.get(tool_name="mock_tool")
@@ -439,7 +452,7 @@ class TestMCPTool:
     def test_log_response_with_tokens(self):
         """Test that token usage is logged in MCPLog."""
         tool = self.MockToolWithTokens(user_identifier="test@example.com")
-        tool.tool_func()
+        async_to_sync(tool.tool_func)()
 
         log = MCPLog.objects.get(tool_name="mock_tool_with_tokens")
         assert log.total_tokens == 100
@@ -449,7 +462,7 @@ class TestMCPTool:
     def test_log_response_with_transformer_calls(self):
         """Test that transformer calls are logged in MCPLog."""
         tool = self.MockToolWithTransformer(user_identifier="test@example.com")
-        tool.tool_func()
+        async_to_sync(tool.tool_func)()
 
         log = MCPLog.objects.get(tool_name="mock_tool_with_transformer")
         assert log.transformer_calls == 1
@@ -457,7 +470,7 @@ class TestMCPTool:
     def test_log_response_with_simplified_response(self):
         """Test that simplified response is logged when tool returns tuple."""
         tool = self.MockToolWithSimplifiedResponse(user_identifier="test@example.com")
-        full_response = tool.tool_func(query="test query", top_k=3)
+        full_response = async_to_sync(tool.tool_func)(query="test query", top_k=3)
 
         # Full response is returned
         assert "results" in full_response
@@ -471,7 +484,7 @@ class TestMCPTool:
     def test_combine_arguments_with_positional_args_only(self):
         """Test that positional arguments are correctly combined."""
         tool = self.MockToolWithSimplifiedResponse(user_identifier="test@example.com")
-        tool.tool_func("query_value", 2, {})
+        async_to_sync(tool.tool_func)("query_value", 2, {})
 
         log = MCPLog.objects.get(tool_name="mock_tool_simplified")
         # Arguments should be combined with parameter names from tool_func_core signature
@@ -480,7 +493,7 @@ class TestMCPTool:
     def test_combine_arguments_with_positional_and_keyword_args(self):
         """Test that positional arguments are correctly combined."""
         tool = self.MockToolWithSimplifiedResponse(user_identifier="test@example.com")
-        tool.tool_func("query_value", top_k=5, options={})
+        async_to_sync(tool.tool_func)("query_value", top_k=5, options={})
 
         log = MCPLog.objects.get(tool_name="mock_tool_simplified")
         # Arguments should be combined with parameter names from tool_func_core signature
@@ -489,32 +502,32 @@ class TestMCPTool:
     def test_combine_arguments_with_kwargs_only(self):
         """Test that keyword arguments are correctly logged."""
         tool = self.MockToolWithSimplifiedResponse(user_identifier="test@example.com")
-        tool.tool_func(query="query_value", top_k=1)
+        async_to_sync(tool.tool_func)(query="query_value", top_k=1)
 
         log = MCPLog.objects.get(tool_name="mock_tool_simplified")
         assert log.tool_arguments == {"query": "query_value", "top_k": 1}
 
-    @mock.patch("baseapp_mcp.tools.base_mcp_tool.logger")
+    @mock.patch("baseapp_mcp.tools.mcp_tool.logger")
     def test_log_response_handles_errors(self, mock_logger):
         """Test that logging errors don't crash tool execution."""
         tool = self.MockTool(user_identifier="test@example.com")
 
         with mock.patch("baseapp_mcp.logs.models.MCPLog.save", side_effect=Exception("DB error")):
             # Should not raise exception
-            result = tool.tool_func()
+            result = async_to_sync(tool.tool_func)()
             assert result == {"result": "success"}
 
             # Should log error
             assert mock_logger.error.called
             assert "Failed to log response" in str(mock_logger.error.call_args)
 
-    @mock.patch("baseapp_mcp.tools.base_mcp_tool.logger")
+    @mock.patch("baseapp_mcp.tools.mcp_tool.logger")
     def test_validation_error_is_logged_and_reraised(self, mock_logger):
         """Test that validation errors are logged and re-raised."""
         tool = self.MockToolThatRaisesValidationError(user_identifier="test@example.com")
 
         with pytest.raises(MCPValidationError, match="Value cannot be empty"):
-            tool.tool_func(value="")
+            async_to_sync(tool.tool_func)(value="")
 
         # Should log error
         mock_logger.error.assert_called_once()
@@ -522,19 +535,19 @@ class TestMCPTool:
             mock_logger.error.call_args
         )
 
-    @mock.patch("baseapp_mcp.tools.base_mcp_tool.logger")
+    @mock.patch("baseapp_mcp.tools.mcp_tool.logger")
     def test_data_error_is_logged_and_reraised(self, mock_logger):
         """Test that data errors are logged and re-raised."""
         tool = self.MockToolThatRaisesDataError(user_identifier="test@example.com")
 
         with pytest.raises(MCPDataError, match="Document with ID 123 not found"):
-            tool.tool_func(id="123")
+            async_to_sync(tool.tool_func)(id="123")
 
         # Should log error
         mock_logger.error.assert_called_once()
         assert "Data error in tool 'mock_data_error'" in str(mock_logger.error.call_args)
 
-    @mock.patch("baseapp_mcp.tools.base_mcp_tool.logger")
+    @mock.patch("baseapp_mcp.tools.mcp_tool.logger")
     def test_unexpected_error_is_logged_and_reraised(self, mock_logger):
         """Test that unexpected errors are logged and re-raised."""
 
@@ -548,7 +561,7 @@ class TestMCPTool:
         tool = MockToolWithUnexpectedError(user_identifier="test@example.com")
 
         with pytest.raises(ValueError, match="Unexpected error"):
-            tool.tool_func()
+            async_to_sync(tool.tool_func)()
 
         # Should log error
         mock_logger.error.assert_called_once()
@@ -561,7 +574,7 @@ class TestMCPTool:
         tool = self.MockToolThatRaisesValidationError(user_identifier="test@example.com")
 
         with pytest.raises(MCPValidationError):
-            tool.tool_func(value="")
+            async_to_sync(tool.tool_func)(value="")
 
         # No log should be created
         assert MCPLog.objects.filter(tool_name="mock_validation_error").count() == 0
@@ -571,32 +584,19 @@ class TestMCPTool:
         tool = self.MockToolWithTokens(user_identifier="test@example.com")
 
         with mock.patch("baseapp_mcp.logs.models.MCPLog.save", side_effect=Exception("DB error")):
-            result = tool.tool_func()
+            result = async_to_sync(tool.tool_func)()
             assert result == {"result": "success"}
 
         # Token usage should still be saved
         usage = TokenUsage.objects.get_monthly_usage("test@example.com")
         assert usage["total_tokens"] == 100
 
-    class MockToolWithBadChars(MCPTool):
-        """Mock tool that returns responses with problematic characters."""
-
-        name = "mock_bad_chars"
-        description = "A mock tool that returns bad unicode characters"
-
-        def __init__(self, user_identifier: str, response_data):
-            super().__init__(user_identifier)
-            self.response_data = response_data
-
-        def tool_func_core(self, *args, **kwargs):
-            return self.response_data
-
     def test_clean_response_with_string(self):
         """Test cleaning a string response with problematic unicode characters."""
         response = "Hello\u2028World\u2029!"
         tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
 
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
 
         assert result == "Hello\nWorld\n!"
         assert "\u2028" not in result
@@ -607,7 +607,7 @@ class TestMCPTool:
         response = {"text": "Hello\u2028World", "description": "Line\u2029Break"}
         tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
 
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
 
         assert result == {"text": "Hello\nWorld", "description": "Line\nBreak"}
         assert "\u2028" not in result["text"]
@@ -618,7 +618,7 @@ class TestMCPTool:
         response = ["First\u2028Item", "Second\u2029Item", "Third Item"]
         tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
 
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
 
         assert result == ["First\nItem", "Second\nItem", "Third Item"]
         assert "\u2028" not in result[0]
@@ -635,7 +635,7 @@ class TestMCPTool:
         }
         tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
 
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
 
         assert result["items"][0]["name"] == "Item\n1"
         assert result["items"][0]["desc"] == "Description\nA"
@@ -654,7 +654,7 @@ class TestMCPTool:
         }
         tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
 
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
 
         assert result["text"] == "Hello\nWorld"
         assert result["number"] == 42
@@ -667,7 +667,7 @@ class TestMCPTool:
         response = ""
         tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
 
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
 
         assert result == ""
 
@@ -676,7 +676,7 @@ class TestMCPTool:
         response = "Hello World! This is normal text."
         tool = self.MockToolWithBadChars(user_identifier="test@example.com", response_data=response)
 
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
 
         assert result == "Hello World! This is normal text."
 
@@ -689,9 +689,6 @@ class TestMCPTool:
             name = "custom_clean"
             description = "Custom cleaning tool"
 
-            def __init__(self, user_identifier: str):
-                super().__init__(user_identifier)
-
             def tool_func_core(self):
                 return "Hello\u2028World"
 
@@ -700,6 +697,6 @@ class TestMCPTool:
                 return text.replace("\u2028", "").replace("\u2029", "")
 
         tool = CustomCleaningTool(user_identifier="test@example.com")
-        result = tool.tool_func()
+        result = async_to_sync(tool.tool_func)()
 
         assert result == "HelloWorld"  # Characters removed, not replaced

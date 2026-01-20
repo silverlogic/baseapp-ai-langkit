@@ -50,6 +50,9 @@ INSTALLED_APPS = [
     "baseapp_ai_langkit.vector_stores",
     "baseapp_ai_langkit.slack",
     "baseapp_ai_langkit.embeddings",
+    "baseapp_mcp",
+    "baseapp_mcp.logs",
+    "baseapp_mcp.rate_limits",
     "testproject.apps.example",
 ]
 
@@ -194,3 +197,13 @@ BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS = [
 BASEAPP_AI_LANGKIT_EMBEDDINGS_EMBEDDING_MODEL_DIMENSIONS = 1024
 BASEAPP_AI_LANGKIT_EMBEDDINGS_CHUNK_SIZE = 512
 BASEAPP_AI_LANGKIT_EMBEDDINGS_CHUNK_OVERLAP = 64
+
+# MCP Tools only, limit per user
+MCP_ENABLE_TOOL_RATE_LIMITING = True
+MCP_TOOL_RATE_LIMIT_PERIOD = 60  # seconds
+MCP_TOOL_RATE_LIMIT_CALLS = 30  # max calls per period
+
+# MCP Token Limits
+MCP_ENABLE_MONTHLY_LIMITS = True
+MCP_MONTHLY_TOKEN_LIMIT = 1000000
+MCP_MONTHLY_TRANSFORMER_CALL_LIMIT = 1000000
