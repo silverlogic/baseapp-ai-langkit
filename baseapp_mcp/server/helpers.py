@@ -68,7 +68,9 @@ def register_health_check_route(mcp_server: "DjangoFastMCP", route_path: str | N
         return JSONResponse(dict(status="Running"), status_code=200)
 
 
-def get_application(mcp_server: "DjangoFastMCP") -> StarletteWithLifespan:
+def get_application(
+    mcp_server: "DjangoFastMCP", stateless_http: bool = True
+) -> StarletteWithLifespan:
     """
     Get the MCP application instance with middleware configured.
 
@@ -99,6 +101,6 @@ def get_application(mcp_server: "DjangoFastMCP") -> StarletteWithLifespan:
     mcp_route_path = get_mcp_route_path()
     return mcp_server.streamable_http_app(
         path=f"/{mcp_route_path}",
-        stateless_http=True,
+        stateless_http=stateless_http,
         middleware=middleware,
     )
