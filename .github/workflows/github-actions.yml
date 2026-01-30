@@ -59,11 +59,11 @@ jobs:
       
       - name: Install pip-audit
         if: steps.requirements_installation.outcome == 'success' && startsWith(matrix.django-version, '5.2')
-        run: docker compose exec backend pip install --upgrade pip pip-audit
+        run: docker compose exec web pip install --upgrade pip pip-audit
 
       - name: Run pip-audit (installed dependencies)
         if: steps.requirements_installation.outcome == 'success' && startsWith(matrix.django-version, '5.2')
-        run: docker compose exec backend pip-audit --skip-editable
+        run: docker compose exec web pip-audit --skip-editable
 
       # - name: SonarCloud Scan
       #   uses: SonarSource/sonarqube-scan-action@master
