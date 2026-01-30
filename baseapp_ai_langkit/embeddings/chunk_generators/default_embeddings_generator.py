@@ -3,7 +3,7 @@ import logging
 import typing
 
 from django.db import transaction
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from baseapp_ai_langkit.embeddings.chunk_generators import BaseChunkGenerator
 from baseapp_ai_langkit.embeddings.conf import app_settings

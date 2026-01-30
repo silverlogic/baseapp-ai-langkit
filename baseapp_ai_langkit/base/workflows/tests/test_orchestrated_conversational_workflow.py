@@ -46,7 +46,7 @@ class MockNode(MagicMock):
 class TestOrchestratedConversationalWorkflow(TestCase):
     def setUp(self):
         self.llm = MockLLM(spec=FakeChatModel)
-        self.checkpointer = MagicMock()
+        self.checkpointer = None
         self.orchestrator = MockOrchestratorAgent(spec=OrchestratorWorker)
         self.synthesizer = MockSynthesizerWorker(spec=SynthesizerWorker)
         self.config = {}

@@ -26,7 +26,7 @@ class MockNode(MagicMock):
 class TestGeneralChatWorkflow(TestCase):
     def setUp(self):
         self.llm = MockLLM(spec=FakeChatModel)
-        self.checkpointer = MagicMock()
+        self.checkpointer = None
         self.config = {}
         self.nodes = {
             "node1": MockNode(spec=LLMNodeInterface),

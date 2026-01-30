@@ -2,10 +2,9 @@ import logging
 from typing import List, Optional, Type
 
 from django.utils.translation import gettext_lazy as _
-from langchain.schema import AIMessage
-from langchain.tools import Tool
-from langchain_core.messages import AnyMessage, SystemMessage
-from langgraph.prebuilt import create_react_agent
+from langchain.agents import create_agent
+from langchain_core.messages import AIMessage, AnyMessage, SystemMessage
+from langchain_core.tools import Tool
 
 from baseapp_ai_langkit.base.agents.base_agent import BaseAgent
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
@@ -75,11 +74,11 @@ class LangGraphAgent(LLMNodeInterface, BaseAgent):
         return tool_class()
 
     def update_agent(self, state_modifier: Optional[SystemMessage]):
-        self.agent_executor = create_react_agent(
+        self.agent_executor = create_agent(
             model=self.llm,
             tools=self.tools,
             debug=self.debug,
-            prompt=state_modifier,
+            system_prompt=state_modifier,
             checkpointer=self.checkpointer,
         )
 

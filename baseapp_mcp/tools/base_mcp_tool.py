@@ -2,7 +2,7 @@ import inspect
 from abc import ABC, abstractmethod
 from typing import Any
 
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 from baseapp_mcp.utils import get_user_identifier
 

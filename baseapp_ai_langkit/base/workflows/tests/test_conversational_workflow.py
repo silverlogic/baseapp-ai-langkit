@@ -39,7 +39,7 @@ class MockLLM(MagicMock):
 class TestConversationalWorkflow(TestCase):
     def setUp(self):
         self.llm = MockLLM(spec=FakeChatModel)
-        self.checkpointer = MagicMock()
+        self.checkpointer = None
         self.config = {}
 
         self.workflow = MockConversationalWorkflow(

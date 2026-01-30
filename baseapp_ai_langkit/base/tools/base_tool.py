@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Type
 
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 from openai import BaseModel
 
 

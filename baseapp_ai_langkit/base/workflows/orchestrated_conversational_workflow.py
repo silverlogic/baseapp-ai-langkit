@@ -3,8 +3,8 @@ import operator
 from typing import Annotated, TypedDict, Union
 
 from langchain_core.messages import AIMessage, HumanMessage
-from langgraph.constants import Send
 from langgraph.graph import END, START
+from langgraph.types import Send
 
 from baseapp_ai_langkit.base.agents.langgraph_agent import LangGraphAgent
 from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker

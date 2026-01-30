@@ -1,4 +1,4 @@
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 
 from baseapp_ai_langkit.base.tools.base_tool import AbstractBaseTool
 from baseapp_ai_langkit.vector_stores.models import AbstractBaseVectorStore

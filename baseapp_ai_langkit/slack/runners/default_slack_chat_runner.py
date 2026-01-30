@@ -30,7 +30,7 @@ class DefaultSlackChatRunner(BaseSlackChatInterface):
         return response
 
     def initialize_llm(self) -> ChatOpenAI:
-        return ChatOpenAI(model="gpt-3.5-turbo", temperature=0)
+        return ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     def create_checkpointer(self) -> PostgresSaver:
         checkpointer_wrapper = LangGraphCheckpointer()
