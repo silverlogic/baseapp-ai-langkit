@@ -2,9 +2,8 @@ import copy
 from abc import ABC, abstractmethod
 from typing import List, Optional, Union
 
-from langchain.base_language import BaseLanguageModel
-from langchain.schema import AIMessage, SystemMessage
-from langchain_core.messages import AnyMessage
+from langchain_core.language_models import BaseLanguageModel
+from langchain_core.messages import AIMessage, AnyMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig
 
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema

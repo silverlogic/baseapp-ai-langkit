@@ -1,5 +1,5 @@
 import factory
-from langchain.tools import Tool
+from langchain_core.tools import Tool
 
 
 class ToolFactory(factory.Factory):

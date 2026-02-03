@@ -1,4 +1,4 @@
-from langchain.tools import StructuredTool
+from langchain_core.tools import StructuredTool
 
 from baseapp_ai_langkit.base.tools.base_tool import AbstractBaseTool
 

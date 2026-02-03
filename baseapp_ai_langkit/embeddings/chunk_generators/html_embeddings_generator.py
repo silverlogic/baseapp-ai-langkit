@@ -4,7 +4,7 @@ import typing
 
 from bs4 import BeautifulSoup
 from django.db import transaction
-from langchain.text_splitter import Language, RecursiveCharacterTextSplitter
+from langchain_text_splitters import Language, RecursiveCharacterTextSplitter
 
 from baseapp_ai_langkit.embeddings.chunk_generators import BaseChunkGenerator
 from baseapp_ai_langkit.embeddings.conf import app_settings

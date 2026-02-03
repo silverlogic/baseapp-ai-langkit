@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
-from langchain.tools import BaseTool
 from langchain_core.messages import AIMessage
+from langchain_core.tools import BaseTool
 
 from baseapp_ai_langkit.base.agents.tests.factories import LangGraphAgentFactory
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
@@ -23,11 +23,11 @@ class TestLangGraphAgent(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.create_react_agent_patcher = patch(
-            "baseapp_ai_langkit.base.agents.langgraph_agent.create_react_agent"
+        cls.create_agent_patcher = patch(
+            "baseapp_ai_langkit.base.agents.langgraph_agent.create_agent"
         )
-        cls.mock_create_react_agent = cls.create_react_agent_patcher.start()
-        cls.mock_create_react_agent.return_value = MockReactAgent()
+        cls.mock_create_agent = cls.create_agent_patcher.start()
+        cls.mock_create_agent.return_value = MockReactAgent()
 
     def setUp(self):
         self.tools = [MockInlineTool]
@@ -65,7 +65,7 @@ class TestLangGraphAgent(TestCase):
     def test_langgraph_agent_invoke_raises_exception(self):
         mock_agent = MagicMock()
         mock_agent.invoke.side_effect = Exception("Test error")
-        self.mock_create_react_agent.return_value = mock_agent
+        self.mock_create_agent.return_value = mock_agent
 
         agent = LangGraphAgentFactory(tools_list=self.tools)
         messages = [MagicMock()]

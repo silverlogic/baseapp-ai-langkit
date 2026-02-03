@@ -43,11 +43,28 @@ jobs:
         if: steps.isort.outcome == 'success'
         run: docker compose exec web black --check ./
 
+      - name: Install tests requirements with Django ${{ matrix.django-version }}
+        if: steps.black.outcome == 'success'
+        id: requirements_installation
+        run: |
+          docker compose exec web pip install "Django~=${{ matrix.django-version }}"
+
       - name: pytest
         if: steps.requirements_installation.outcome == 'success'
+        # Right now the coverage is below 70%, so we can't run the coverage command.
+        # After we cover more than 75%, we can run the coverage command.
+        # docker compose exec web pytest --cov=./ --cov-report=xml --cov-branch .
         run: |
-          docker compose exec web pytest --cov=./ --cov-report=xml --cov-branch .
+          docker compose exec web pytest .
       
+      - name: Install pip-audit
+        if: steps.requirements_installation.outcome == 'success' && startsWith(matrix.django-version, '5.2')
+        run: docker compose exec web pip install --upgrade pip pip-audit
+
+      - name: Run pip-audit (installed dependencies)
+        if: steps.requirements_installation.outcome == 'success' && startsWith(matrix.django-version, '5.2')
+        run: docker compose exec web pip-audit --skip-editable
+
       # - name: SonarCloud Scan
       #   uses: SonarSource/sonarqube-scan-action@master
       #   env:
