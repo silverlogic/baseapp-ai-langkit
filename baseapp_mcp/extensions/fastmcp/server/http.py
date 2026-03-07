@@ -46,6 +46,7 @@ def create_streamable_http_app(
     server: FastMCP[LifespanResultT],
     streamable_http_path: str,
     event_store: EventStore | None = None,
+    retry_interval: int | None = None,
     auth: AuthProvider | None = None,
     json_response: bool = False,
     stateless_http: bool = False,
@@ -53,12 +54,16 @@ def create_streamable_http_app(
     routes: list[BaseRoute] | None = None,
     middleware: list[Middleware] | None = None,
 ) -> StarletteWithLifespan:
-    """Return an instance of the StreamableHTTP server app with APIKey Authentication middleware enabled
+    """Return an instance of the StreamableHTTP server app.
 
     Args:
         server: The FastMCP server instance
         streamable_http_path: Path for StreamableHTTP connections
-        event_store: Optional event store for session management
+        event_store: Optional event store for SSE polling/resumability
+        retry_interval: Optional retry interval in milliseconds for SSE polling.
+            Controls how quickly clients should reconnect after server-initiated
+            disconnections. Requires event_store to be set. Defaults to SDK default.
+        auth: Optional authentication provider (AuthProvider)
         json_response: Whether to use JSON response format
         stateless_http: Whether to use stateless mode (new transport per request)
         debug: Whether to enable debug mode
@@ -75,6 +80,7 @@ def create_streamable_http_app(
     session_manager = StreamableHTTPSessionManager(
         app=server._mcp_server,
         event_store=event_store,
+        retry_interval=retry_interval,
         json_response=json_response,
         stateless=stateless_http,
     )
@@ -160,7 +166,7 @@ def create_streamable_http_app(
     )
     # Store the FastMCP server instance on the Starlette app state
     app.state.fastmcp_server = server
-
     app.state.path = streamable_http_path
+    app.state.transport_type = "streamable-http"
 
     return app
