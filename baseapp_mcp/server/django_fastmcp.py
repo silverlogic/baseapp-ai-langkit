@@ -4,10 +4,12 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import anyio
+import fastmcp
 import uvicorn
 from django.conf import settings
 from fastmcp import FastMCP
 from fastmcp.server.auth import AuthProvider
+from fastmcp.server.event_store import EventStore
 from fastmcp.server.http import StarletteWithLifespan
 from fastmcp.utilities.cli import log_server_banner
 from starlette.middleware import Middleware as ASGIMiddleware
@@ -56,6 +58,8 @@ class DjangoFastMCP(FastMCP):
         middleware: list[ASGIMiddleware] | None = None,
         json_response: bool | None = None,
         stateless_http: bool | None = None,
+        event_store: EventStore | None = None,
+        retry_interval: int | None = None,
     ) -> StarletteWithLifespan:
         """
         Custom app initializer with APIKey Authentication middleware enabled.
@@ -69,22 +73,20 @@ class DjangoFastMCP(FastMCP):
         Returns:
             Starlette application with MCP server configured
         """
+
         return create_streamable_http_app(
             server=self,
-            streamable_http_path=path or self._deprecated_settings.streamable_http_path,
-            event_store=None,
+            streamable_http_path=path or fastmcp.settings.streamable_http_path,
+            event_store=event_store,
+            retry_interval=retry_interval,
             auth=self.auth,
             json_response=(
-                json_response
-                if json_response is not None
-                else self._deprecated_settings.json_response
+                json_response if json_response is not None else fastmcp.settings.json_response
             ),
             stateless_http=(
-                stateless_http
-                if stateless_http is not None
-                else self._deprecated_settings.stateless_http
+                stateless_http if stateless_http is not None else fastmcp.settings.stateless_http
             ),
-            debug=self._deprecated_settings.debug,
+            debug=fastmcp.settings.debug,
             middleware=middleware,
         )
 
@@ -110,9 +112,9 @@ class DjangoFastMCP(FastMCP):
             uvicorn_config: Additional configuration for the Uvicorn server
             middleware: A list of middleware to apply to the app
         """
-        host = host or self._deprecated_settings.host
-        port = port or self._deprecated_settings.port
-        default_log_level_to_use = (log_level or self._deprecated_settings.log_level).lower()
+        host = host or fastmcp.settings.host
+        port = port or fastmcp.settings.port
+        default_log_level_to_use = (log_level or fastmcp.settings.log_level).lower()
         transport = "streamable-http"
 
         mcp_route_path = get_mcp_route_path()
@@ -195,7 +197,6 @@ class DjangoFastMCP(FastMCP):
         instructions: str | None = None,
         lifespan: typ.Callable | None = None,
         auth: AuthProvider | None = None,
-        debug: bool | None = None,
     ) -> "DjangoFastMCP":
         """
         Create and configure an MCP server instance.
@@ -205,7 +206,6 @@ class DjangoFastMCP(FastMCP):
             instructions: Server instructions (defaults to get_server_instructions())
             lifespan: Custom lifespan function (defaults to default_lifespan)
             auth: Auth provider (defaults to cls.get_auth() which can be customized)
-            debug: Debug mode (defaults to settings.DEBUG)
 
         Returns:
             Configured DjangoFastMCP instance
@@ -215,16 +215,9 @@ class DjangoFastMCP(FastMCP):
         if instructions is None:
             instructions = get_server_instructions()
         lifespan = lifespan or default_lifespan
-        debug = debug if debug is not None else settings.DEBUG
 
         # Use provided auth, or get from get_auth() method (which can be overridden)
         if auth is None:
             auth = cls.get_auth()
 
-        return cls(
-            name=name,
-            lifespan=lifespan,
-            instructions=instructions,
-            auth=auth,
-            debug=debug,
-        )
+        return cls(name=name, instructions=instructions, auth=auth, lifespan=lifespan)

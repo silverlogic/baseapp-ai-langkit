@@ -18,6 +18,7 @@ SECRET_KEY = "secret-for-test-app"
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+FASTMCP_DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 

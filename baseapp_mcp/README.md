@@ -162,13 +162,13 @@ Add the following service to your `docker-compose.yml`:
 services:
   # ... other services
 
-  web-mcp:
+  mcp:
     build:
       context: .
       dockerfile: Dockerfile
-      target: dev-web-mcp
+      target: dev-mcp
     image: ${COMPOSE_PROJECT_NAME}-web
-    container_name: ${COMPOSE_PROJECT_NAME}_web_mcp
+    container_name: ${COMPOSE_PROJECT_NAME}_mcp
     env_file:
       - .env
     command:
@@ -190,10 +190,10 @@ services:
 
 ### Configure Dockerfile
 
-Make sure your `Dockerfile` has the `dev-web-mcp` target:
+Make sure your `Dockerfile` has the `dev-mcp` target:
 
 ```dockerfile
-FROM dev-requirements AS dev-web-mcp
+FROM dev-requirements AS dev-mcp
 ENV DEBUG on
 EXPOSE 8000
 WORKDIR /usr/src/app
