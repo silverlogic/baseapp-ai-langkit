@@ -12,7 +12,7 @@ urllib3==2.6.3
 factory-boy==3.3.0
 
 # lint
-black==25.11.0
+black==26.3.1
 flake8==7.0.0
 isort==5.13.2
 
