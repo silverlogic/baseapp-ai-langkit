@@ -72,12 +72,9 @@ class TestSlackAIChatController(SlackTestCase):
         )
 
     def test_get_formatted_message_chunks_long_text(self):
-        long_text = (
-            """
+        long_text = """
 This is a long sentence! Another sentence here? And one more sentence.
-"""
-            * 500
-        )
+""" * 500
 
         formatted_chunks = self.controller.get_formatted_message_chunks(long_text)
 

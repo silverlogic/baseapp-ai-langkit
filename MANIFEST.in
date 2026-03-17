@@ -1,6 +1,5 @@
 include README.md
 include LICENSE
-include requirements.txt
 include *.py
 
 recursive-include baseapp_ai_langkit *.py
