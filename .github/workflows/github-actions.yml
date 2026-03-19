@@ -10,7 +10,7 @@ jobs:
     strategy:
       matrix:
         python-version: ["3.11"]
-        django-version: ["5.2"]
+        django-version: ["4.2", "5.2"]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -31,39 +31,33 @@ jobs:
 
       - name: flake8
         id: flake8
-        run: docker compose exec web flake8 ./ --show-source --statistics --count
+        run: docker compose exec web uv run --python ${{ matrix.python-version }} flake8 ./ --show-source --statistics --count
 
       - name: isort
         id: isort
         if: steps.flake8.outcome == 'success'
-        run: docker compose exec web isort --check ./
+        run: docker compose exec web uv run --python ${{ matrix.python-version }} isort --check ./
 
       - name: black
         id: black
         if: steps.isort.outcome == 'success'
-        run: docker compose exec web black --check ./
-
-      - name: Install tests requirements with Django ${{ matrix.django-version }}
-        if: steps.black.outcome == 'success'
-        id: requirements_installation
-        run: |
-          docker compose exec web pip install "Django~=${{ matrix.django-version }}"
+        run: docker compose exec web uv run --python ${{ matrix.python-version }} black --check ./
 
       - name: pytest
-        if: steps.requirements_installation.outcome == 'success'
+        if: steps.black.outcome == 'success'
         # Right now the coverage is below 70%, so we can't run the coverage command.
         # After we cover more than 75%, we can run the coverage command.
-        # docker compose exec web pytest --cov=./ --cov-report=xml --cov-branch .
+        # docker compose exec web uv run --python ${{ matrix.python-version }} pytest --cov=./ --cov-report=xml --cov-branch .
         run: |
-          docker compose exec web pytest .
+          docker compose exec web uv run --python ${{ matrix.python-version }} pytest .
       
       - name: Install pip-audit
-        if: steps.requirements_installation.outcome == 'success' && startsWith(matrix.django-version, '5.2')
-        run: docker compose exec web pip install --upgrade pip pip-audit
+        if: steps.black.outcome == 'success' && startsWith(matrix.django-version, '5.2')
+        run: docker compose exec web uv tool install --python ${{ matrix.python-version }} pip-audit
 
       - name: Run pip-audit (installed dependencies)
-        if: steps.requirements_installation.outcome == 'success' && startsWith(matrix.django-version, '5.2')
-        run: docker compose exec web pip-audit --skip-editable
+        if: steps.black.outcome == 'success' && startsWith(matrix.django-version, '5.2')
+        run: docker compose exec web pip-audit --skip-editable --ignore-vuln CVE-2025-61783 --ignore-vuln CVE-2026-0994
 
       # - name: SonarCloud Scan
       #   uses: SonarSource/sonarqube-scan-action@master

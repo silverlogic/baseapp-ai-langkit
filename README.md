@@ -9,7 +9,7 @@ This document provides a comprehensive overview of the architecture and main fun
 1. **Install the Package**:
     Run the following command to install the `baseapp-ai-langkit` package:
     ```sh
-    pip install baseapp-ai-langkit
+    uv add baseapp-ai-langkit
     ```
 
 2. **Set Up PostgreSQL**:
@@ -58,13 +58,18 @@ This section provides guidance on maintaining the `baseapp-ai-langkit` package.
     cd baseapp-ai-langkit
     ```
 
-2. **Run docker**:
+2. **Install dependencies** (requires [uv](https://docs.astral.sh/uv/)):
+    ```sh
+    uv sync --all-extras
+    ```
+
+3. **Run docker**:
     You will need to sign in to the TSL harbor account or change the postgres Docker image to another image with the pgvector extension activated.
     ```sh
     docker compose up
     ```
 
-3. **Environment Configuration**:
+4. **Environment Configuration**:
     Initialize the `.env` file with the necessary environment variables, including `OPENAI_API_KEY` (if you want to run the dummy bot).
 
     ```sh

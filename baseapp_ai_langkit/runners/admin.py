@@ -42,8 +42,7 @@ class PromptDescriptionMixin:
         else:
             required_placeholders_description = ""
 
-        return mark_safe(
-            f"""
+        return mark_safe(f"""
             <div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 15px; overflow-wrap: break-word;">
                 <b style="word-wrap: break-word;">Prompt objective:</b>
                 <p style="white-space: pre-wrap; word-wrap: break-word;">{prompt_schema.description}</p>
@@ -51,8 +50,7 @@ class PromptDescriptionMixin:
                 <b style="word-wrap: break-word;">Default prompt:</b>
                 <p style="white-space: pre-wrap; word-wrap: break-word;">{prompt_schema.prompt}</p>
             </div>
-            """
-        )
+            """)
 
 
 class LLMRunnerNodeUsagePromptInline(
