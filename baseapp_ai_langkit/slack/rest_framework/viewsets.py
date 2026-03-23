@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from dataclasses import field as dcfield
 
 import pydash
-from django.conf import settings
 from django.utils.module_loading import import_string
 from rest_framework import status, viewsets
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from baseapp_ai_langkit import app_settings
 from baseapp_ai_langkit.slack import tasks
 from baseapp_ai_langkit.slack.models import SlackEvent, SlackEventStatus
 from baseapp_ai_langkit.slack.permissions import isSlackRequestSigned
@@ -107,8 +107,8 @@ class SlackInteractiveEndpointViewSet(viewsets.ViewSet):
 
     def create(self, request: Request):
         handler_imports: list[str] = []
-        if isinstance(settings.BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS, list):
-            handler_imports.extend(settings.BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS)
+        if isinstance(app_settings.SLACK_INTERACTIVE_ENDPOINT_HANDLERS, list):
+            handler_imports.extend(app_settings.SLACK_INTERACTIVE_ENDPOINT_HANDLERS)
 
         try:
             request_data = request.data.copy()

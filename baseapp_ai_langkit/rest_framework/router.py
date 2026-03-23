@@ -1,7 +1,7 @@
 from django.apps import apps
-from django.conf import settings
 from rest_framework import routers
 
+from baseapp_ai_langkit import app_settings
 from baseapp_ai_langkit.chats.rest_framework.views import (
     BaseChatViewSet,
     ChatIdentityViewSet,
@@ -40,8 +40,8 @@ if apps.is_installed("baseapp_ai_langkit.slack"):
     )
 
     slash_command_imports: list[str] = []
-    if isinstance(settings.BASEAPP_AI_LANGKIT_SLACK_SLASH_COMMANDS, list):
-        slash_command_imports.extend(settings.BASEAPP_AI_LANGKIT_SLACK_SLASH_COMMANDS)
+    if isinstance(app_settings.SLACK_SLASH_COMMANDS, list):
+        slash_command_imports.extend(app_settings.SLACK_SLASH_COMMANDS)
     for slash_command_import in slash_command_imports:
         SlashCommandViewset = import_string(slash_command_import)
         baseapp_ai_langkit_router.register(

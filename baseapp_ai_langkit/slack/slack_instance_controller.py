@@ -1,9 +1,10 @@
 from typing import Optional, Tuple
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.base_user import AbstractBaseUser
 from slack_sdk import WebClient
+
+from baseapp_ai_langkit import app_settings
 
 User = get_user_model()
 
@@ -15,7 +16,7 @@ class SlackInstanceController:
         self.slack_web_client = self._get_slack_web_client()
 
     def _get_slack_web_client(self) -> WebClient:
-        return WebClient(token=settings.BASEAPP_AI_LANGKIT_SLACK_BOT_USER_OAUTH_TOKEN)
+        return WebClient(token=app_settings.SLACK_BOT_USER_OAUTH_TOKEN)
 
     def get_or_create_user_from_slack_user(
         self, slack_user_id: str

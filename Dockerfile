@@ -31,4 +31,4 @@ WORKDIR /usr/src/app
 # Install uv and sync dependencies (all extras + dev for tests)
 COPY --from=ghcr.io/astral-sh/uv:0.10.9 /uv /uvx /bin/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --python "${PYTHON_VERSION}" --frozen --no-install-project --no-editable --all-extras --group dev
+    uv sync --python "${PYTHON_VERSION}" --frozen --no-install-project --no-editable --all-extras

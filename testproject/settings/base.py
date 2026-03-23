@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "baseapp_mcp.logs",
     "baseapp_mcp.rate_limits",
     "testproject.apps.example",
+    "baseapp_api_key",
 ]
 
 MIDDLEWARE = [
@@ -147,6 +148,8 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+BASEAPP_AUTH_USER_FACTORY = "baseapp_ai_langkit.tests.factories.UserFactory"
+
 ADMIN_TIME_ZONE = "UTC"
 
 # URL Shortening
@@ -194,7 +197,19 @@ BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS = [
     "testproject.extensions.baseapp_ai_langkit.slack.rest_framework.slash_commands.example.viewset.SlackExampleInteractiveEndpointHandler"
 ]
 
-# baseApp-ai-langkit.embeddings Settings
+BASEAPP_AI_LANGKIT_MCP_TOOL_PERMISSION_MODEL = "testproject.apps.example.models.MCPToolPermission"
+BASEAPP_AI_LANGKIT_MCP_TOOLS = [
+    "testproject.apps.example.mcp_tools.ExampleTool1",
+    "testproject.apps.example.mcp_tools.ExampleTool2",
+    "testproject.apps.example.mcp_tools.ExampleTool3",
+]
+BASEAPP_AI_LANGKIT_DEBUG_MCP_TOOLS = []
+
+# API Key
+BA_API_KEY_REQUEST_HEADER = env("BA_API_KEY_REQUEST_HEADER", default="HTTP_API_KEY")
+BA_API_KEY_ENCRYPTION_KEY = env("BA_API_KEY_ENCRYPTION_KEY", default=None)
+
+# baseapp-ai-langkit.embeddings Settings
 BASEAPP_AI_LANGKIT_EMBEDDINGS_EMBEDDING_MODEL_DIMENSIONS = 1024
 BASEAPP_AI_LANGKIT_EMBEDDINGS_CHUNK_SIZE = 512
 BASEAPP_AI_LANGKIT_EMBEDDINGS_CHUNK_OVERLAP = 64

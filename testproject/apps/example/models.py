@@ -10,6 +10,7 @@ from baseapp_ai_langkit.embeddings.chunk_generators import (
     HTMLChunkGenerator,
 )
 from baseapp_ai_langkit.embeddings.models import EmbeddableModelMixin
+from baseapp_mcp.permissions.models import BaseMCPToolPermission
 
 
 class ExampleEmbeddable(EmbeddableModelMixin, TimeStampedModel):
@@ -36,3 +37,8 @@ class ExampleHTMLEmbeddable(EmbeddableModelMixin, TimeStampedModel):
 
     def embeddable_content(self) -> typing.List[str]:
         return [self.html or ""]
+
+
+class MCPToolPermission(BaseMCPToolPermission):
+    class Meta(BaseMCPToolPermission.Meta):
+        pass

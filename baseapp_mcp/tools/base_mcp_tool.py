@@ -1,6 +1,6 @@
 import inspect
+import typing as typ
 from abc import ABC, abstractmethod
-from typing import Any
 
 from langchain_core.tools import StructuredTool
 
@@ -49,7 +49,7 @@ class BaseMCPTool(ABC):
         self.user_identifier = user_identifier
 
     @abstractmethod
-    async def tool_func(self, *args, **kwargs) -> Any:
+    async def tool_func(self, *args, **kwargs) -> typ.Any:
         """
         The core function of the tool. Must be implemented by subclasses.
 
@@ -81,7 +81,7 @@ class BaseMCPTool(ABC):
         return cls.description
 
     @classmethod
-    def adjust_signature(cls, func: Any) -> Any:
+    def adjust_signature(cls, func: typ.Any) -> typ.Any:
         """
         Copy the signature of `method_for_inferring_args_schema` to the given function,
         excluding the `self` parameter.
@@ -97,7 +97,7 @@ class BaseMCPTool(ABC):
             }
 
     @classmethod
-    def get_fastmcp_tool_func(cls) -> Any:
+    def get_fastmcp_tool_func(cls) -> typ.Any:
         """
         Convert the tool to a typed function that can be registered on a fastmcp server.
 
@@ -153,3 +153,12 @@ class BaseMCPTool(ABC):
             args_schema=args_schema,
             func=tool_func,
         )
+
+    @classmethod
+    def get_auth(cls) -> typ.Callable | None:
+        """
+        Get the authorization function for the tool.
+        """
+        from baseapp_mcp.auth.tool_auth import require_tool_permission
+
+        return require_tool_permission(tool_cls=cls)
