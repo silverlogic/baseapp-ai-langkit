@@ -1,25 +1,19 @@
 import logging
 import typing as typ
-from functools import partial
 from typing import TYPE_CHECKING
 
-import anyio
 import fastmcp
-import uvicorn
 from django.conf import settings
+from django.utils.module_loading import import_string
 from fastmcp import FastMCP
 from fastmcp.server.auth import AuthProvider
 from fastmcp.server.event_store import EventStore
 from fastmcp.server.http import StarletteWithLifespan
-from fastmcp.utilities.cli import log_server_banner
 from starlette.middleware import Middleware as ASGIMiddleware
 
+from baseapp_ai_langkit import app_settings
 from baseapp_mcp.extensions.fastmcp.server.http import create_streamable_http_app
-from baseapp_mcp.server.config import (
-    get_auth_provider,
-    get_mcp_route_path,
-    get_server_instructions,
-)
+from baseapp_mcp.server.config import get_auth_provider, get_server_instructions
 from baseapp_mcp.server.lifespan import default_lifespan
 
 if TYPE_CHECKING:
@@ -90,95 +84,33 @@ class DjangoFastMCP(FastMCP):
             middleware=middleware,
         )
 
-    async def run_streamable_http_async(
-        self,
-        show_banner: bool = True,
-        host: str | None = None,
-        port: int | None = None,
-        log_level: str | None = None,
+    def http_app(
+        self: FastMCP,
         path: str | None = None,
-        uvicorn_config: dict[str, typ.Any] | None = None,
         middleware: list[ASGIMiddleware] | None = None,
-    ) -> None:
-        """
-        Run the server using Streamable-HTTP transport.
-
-        Args:
-            show_banner: Whether to display the server banner
-            host: Host address to bind to (defaults to settings.host)
-            port: Port to bind to (defaults to settings.port)
-            log_level: Log level for the server (defaults to settings.log_level)
-            path: Path for the endpoint (defaults to settings.streamable_http_path or settings.sse_path)
-            uvicorn_config: Additional configuration for the Uvicorn server
-            middleware: A list of middleware to apply to the app
-        """
-        host = host or fastmcp.settings.host
-        port = port or fastmcp.settings.port
-        default_log_level_to_use = (log_level or fastmcp.settings.log_level).lower()
-        transport = "streamable-http"
-
-        mcp_route_path = get_mcp_route_path()
-        app = self.streamable_http_app(
-            path=f"/{mcp_route_path}", stateless_http=True, middleware=middleware
-        )
-
-        # Get the path for the server URL
-        server_path = (
-            app.state.path.lstrip("/")
-            if hasattr(app, "state") and hasattr(app.state, "path")
-            else path or ""
-        )
-
-        # Display server banner
-        if show_banner:
-            log_server_banner(
-                server=self,
-                transport=transport,
-                host=host,
-                port=port,
-                path=server_path,
+        json_response: bool | None = None,
+        stateless_http: bool | None = None,
+        transport: typ.Literal["http", "streamable-http", "sse"] = "http",
+        event_store: EventStore | None = None,
+        retry_interval: int | None = None,
+    ) -> StarletteWithLifespan:
+        if transport in ("streamable-http", "http"):
+            return self.streamable_http_app(
+                path=path,
+                middleware=middleware,
+                json_response=json_response,
+                stateless_http=stateless_http,
+                event_store=event_store,
+                retry_interval=retry_interval,
             )
-
-        _uvicorn_config_from_user = uvicorn_config or {}
-
-        config_kwargs: dict[str, typ.Any] = {
-            "timeout_graceful_shutdown": 0,
-            "lifespan": "on",
-        }
-        config_kwargs.update(_uvicorn_config_from_user)
-
-        if "log_config" not in config_kwargs and "log_level" not in config_kwargs:
-            config_kwargs["log_level"] = default_log_level_to_use
-
-        config = uvicorn.Config(app, host=host, port=port, **config_kwargs)
-        server = uvicorn.Server(config)
-        path = app.state.path.lstrip("/")  # type: ignore
-        logger.info(
-            f"Starting MCP server {self.name!r} with transport {transport!r} on http://{host}:{port}/{path}"
-        )
-
-        await server.serve()
-
-    def run_streamable_http(
-        self,
-        show_banner: bool = True,
-        **transport_kwargs: typ.Any,
-    ) -> None:
-        """
-        Run the FastMCP server synchronously.
-
-        This is a convenience wrapper around run_streamable_http_async that uses anyio.run().
-
-        Args:
-            show_banner: Whether to display the server banner
-            **transport_kwargs: Additional arguments passed to run_streamable_http_async
-        """
-        anyio.run(
-            partial(
-                self.run_streamable_http_async,
-                show_banner=show_banner,
-                **transport_kwargs,
-            )
+        return super().http_app(
+            path=path,
+            middleware=middleware,
+            json_response=json_response,
+            stateless_http=stateless_http,
+            transport=transport,
+            event_store=event_store,
+            retry_interval=retry_interval,
         )
 
     def register_tool(self, mcp_tool: type["BaseMCPTool"]) -> None:
@@ -188,7 +120,11 @@ class DjangoFastMCP(FastMCP):
         Args:
             mcp_tool: The MCP tool class to register (subclass of BaseMCPTool)
         """
-        self.tool(mcp_tool.get_fastmcp_tool_func(), annotations=mcp_tool.annotations)
+        self.tool(
+            mcp_tool.get_fastmcp_tool_func(),
+            annotations=mcp_tool.annotations,
+            auth=mcp_tool.get_auth(),
+        )
 
     @classmethod
     def create(
@@ -220,4 +156,23 @@ class DjangoFastMCP(FastMCP):
         if auth is None:
             auth = cls.get_auth()
 
-        return cls(name=name, instructions=instructions, auth=auth, lifespan=lifespan)
+        mcp = cls(name=name, instructions=instructions, auth=auth, lifespan=lifespan)
+        mcp.register_tools_from_django_settings()
+        return mcp
+
+    def register_tools_from_django_settings(self):
+        logger.info("Registering MCP tools from Django settings...")
+
+        tool_import_strings = app_settings.MCP_TOOLS
+        debug_tool_import_strings = app_settings.DEBUG_MCP_TOOLS
+
+        if settings.DEBUG:
+            tool_import_strings = [
+                *tool_import_strings,
+                *debug_tool_import_strings,
+            ]
+
+        for tool_import_string in tool_import_strings:
+            ToolClass = import_string(tool_import_string)
+            self.register_tool(ToolClass)
+            logger.info(f"\tRegistered tool: {tool_import_string}")

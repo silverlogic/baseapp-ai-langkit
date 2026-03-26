@@ -3,7 +3,7 @@ MCP server components.
 
 This package provides:
 - DjangoFastMCP: FastMCP subclass with Django integration
-- Helper functions: register_debug_tool(), register_health_check_route(), get_application()
+- Helper functions: register_health_check_route(), get_application()
 - Lifespan functions: default_lifespan() for server startup/shutdown
 - Constants: MCP_ROUTE_PATH, DEFAULT_SERVER_INSTRUCTIONS
 """
@@ -18,17 +18,12 @@ from baseapp_mcp.server.constants import (
     DEFAULT_SERVER_INSTRUCTIONS,
 )
 from baseapp_mcp.server.django_fastmcp import DjangoFastMCP
-from baseapp_mcp.server.helpers import (
-    get_application,
-    register_debug_tool,
-    register_health_check_route,
-)
+from baseapp_mcp.server.helpers import get_application, register_health_check_route
 from baseapp_mcp.server.lifespan import default_lifespan
 
 __all__ = [
     "DjangoFastMCP",
     "default_lifespan",
-    "register_debug_tool",
     "register_health_check_route",
     "get_application",
     "DEFAULT_MCP_ROUTE_PATH",

@@ -68,6 +68,28 @@ GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
 ```
 
+#### MCP tool registration (import paths)
+
+Register tools via Django settings: each entry is a dotted path to a tool class (subclass of `MCPTool`). In `DEBUG`, entries in `BASEAPP_AI_LANGKIT_DEBUG_MCP_TOOLS` are prepended so local-only tools load first.
+
+```python
+# settings/base.py
+
+# Must inherit from baseapp_mcp.permissions.models.BaseMCPToolPermission to correctly generate migrations
+BASEAPP_AI_LANGKIT_MCP_TOOL_PERMISSION_MODEL = "..."
+
+BASEAPP_AI_LANGKIT_MCP_TOOLS = [
+    "myapp.mcp.tools.search_tool.SearchTool",
+    "myapp.mcp.tools.fetch_tool.FetchTool",
+]
+
+BASEAPP_AI_LANGKIT_DEBUG_MCP_TOOLS = [
+    "myapp.mcp.tools.debug_user_tool.DebugUserTool",
+]
+```
+
+`baseapp_mcp` permissions also union these lists when seeding tool metadata—keep them in sync with what `register_tools_and_routes` loads.
+
 ### Optional Settings
 
 #### Custom Server Instructions
@@ -244,11 +266,12 @@ This file creates your own MCP server instance and registers your tools:
 import logging
 
 import django
+from django.conf import settings
+from django.utils.module_loading import import_string
 
 from baseapp_mcp import (
     DjangoFastMCP,
     get_application,
-    register_debug_tool,
     register_health_check_route,
 )
 
@@ -264,19 +287,24 @@ Your custom server instructions here.
 
 mcp = DjangoFastMCP.create(instructions=server_instructions)
 
-def register_tools():
+def register_tools_and_routes():
     logger.info("Registering MCP tools and routes...")
 
-    register_debug_tool(mcp)
     register_health_check_route(mcp)
 
-    # Register project-specific tools 
-    # Any imports relying on django setup need to come below django.setup(...), so cannot be at the top
-    from somewhere import YourTool, AnotherTool
-    mcp.register_tool(YourTool)
-    mcp.register_tool(AnotherTool)
+    # Tool classes are referenced by import string so django.setup() runs before import.
+    tool_import_strings = list(settings.BASEAPP_AI_LANGKIT_MCP_TOOLS)
+    if settings.DEBUG:
+        tool_import_strings = [
+            *settings.BASEAPP_AI_LANGKIT_DEBUG_MCP_TOOLS,
+            *tool_import_strings,
+        ]
 
-register_tools()
+    for tool_import_string in tool_import_strings:
+        ToolClass = import_string(tool_import_string)
+        mcp.register_tool(ToolClass)
+
+register_tools_and_routes()
 
 # Export the application for use with gunicorn/uvicorn
 application = get_application(mcp)

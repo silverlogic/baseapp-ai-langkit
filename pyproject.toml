@@ -68,6 +68,7 @@ mcp = [
     "anyio>=3.0.0",
     "uvicorn>=0.35",
     "langchain>=1.2.7,<2.0",
+    "baseapp-backend[api-key]>=0.0.52"
 ]
 
 [tool.setuptools.packages.find]
@@ -86,6 +87,15 @@ required-version = "0.10.9"
 [tool.black]
 line-length = 100
 target-version = ['py38']
+extend-exclude = '''
+/(
+    \.git
+  | \.venv
+  | venv
+  | baseapp-backend
+)/
+'''
 
 [tool.isort]
 profile = "black"
+skip=['baseapp-backend', '.venv']

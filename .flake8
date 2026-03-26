@@ -18,3 +18,4 @@ exclude =
     .tox,
     testproject/public,
     testproject/static,
+    baseapp-backend

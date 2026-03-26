@@ -1,6 +1,6 @@
-from django.conf import settings
 from django.contrib.auth.models import AbstractBaseUser
 
+from baseapp_ai_langkit import app_settings
 from baseapp_ai_langkit.chats.models import ChatSession
 from baseapp_ai_langkit.slack.event_callback_handlers.base_event_callback_handler import (
     BaseSlackAIChatEvent,
@@ -18,14 +18,14 @@ class BaseSlackAIChatEventCallbackHandler(BaseSlackAIChatEvent):
         is_bot = "bot_id" in self.event_data
         bot_app_id = self.event_data.get("app_id", None)
         if is_bot and bot_app_id:
-            if bot_app_id == settings.BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID:
+            if bot_app_id == app_settings.SLACK_BOT_APP_ID:
                 raise BaseSlackEventCallback.WarningException(
                     f"Skipping event_type: {self.event_type}. Reason: is slack chat bot"
                 )
 
     def verify_incoming_app(self):
         incoming_app_id = self.data.get("api_app_id", "")
-        bot_app_id = settings.BASEAPP_AI_LANGKIT_SLACK_BOT_APP_ID
+        bot_app_id = app_settings.SLACK_BOT_APP_ID
         if incoming_app_id != bot_app_id:
             raise BaseSlackEventCallback.WarningException(
                 f"Skipping event_type: {self.event_type}. Reason: incoming_app_id != {bot_app_id}"

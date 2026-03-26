@@ -13,43 +13,9 @@ from starlette.responses import JSONResponse
 
 from baseapp_mcp.middleware.rate_limiting import UserRateLimitMiddleware
 from baseapp_mcp.server.config import get_mcp_route_path
-from baseapp_mcp.utils import sanitize_sensitive_dict
 
 if TYPE_CHECKING:
     from baseapp_mcp.server.django_fastmcp import DjangoFastMCP
-
-
-def register_debug_tool(mcp_server: "DjangoFastMCP") -> None:
-    """
-    Register a debug tool that returns user info (only useful in DEBUG mode).
-
-    Args:
-        mcp_server: The MCP server instance to register the tool on
-    """
-    if not settings.DEBUG:
-        return
-
-    @mcp_server.tool
-    async def get_user_info() -> dict:
-        """Returns information about the authenticated Google user."""
-        from fastmcp.server.dependencies import get_access_token
-
-        sensitive_keys = {
-            "access_token",
-            "refresh_token",
-            "id_token",
-            "token",
-            "secret",
-            "password",
-            "private_key",
-            "api_key",
-            "client_secret",
-            "auth_token",
-            "session_token",
-            "bearer_token",
-        }
-        token = get_access_token()
-        return sanitize_sensitive_dict(data=token.claims, sensitive_keys=sensitive_keys)
 
 
 def register_health_check_route(mcp_server: "DjangoFastMCP", route_path: str | None = None) -> None:
