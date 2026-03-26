@@ -383,7 +383,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", marker = "extra == 'mcp'", specifier = ">=3.0.0" },
-    { name = "baseapp-backend", extras = ["api-key"], marker = "extra == 'mcp'", specifier = ">=0.0.51" },
+    { name = "baseapp-backend", extras = ["api-key"], marker = "extra == 'mcp'", specifier = ">=0.0.52" },
     { name = "beautifulsoup4", marker = "extra == 'langkit'", specifier = ">=4.14.3" },
     { name = "celery", specifier = ">=5.2" },
     { name = "django", specifier = ">=4.2" },
@@ -436,7 +436,7 @@ dev = [
 
 [[package]]
 name = "baseapp-backend"
-version = "0.0.51"
+version = "0.0.52"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "celery" },
@@ -464,9 +464,9 @@ dependencies = [
     { name = "requests" },
     { name = "swapper" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/28/87/fbcb1781bf586792f82c0951df4513bf96cc018aee33f18b3fcb65b6444a/baseapp_backend-0.0.51.tar.gz", hash = "sha256:9f70f61c75e021fef55c0b514f5f4176d9b124dcc939f2f9ac038a0c11e78bf9", size = 778050, upload-time = "2026-03-26T13:30:32.9Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ef/82/a54c360695831a9c382421795a6f25b4347434ede62547835ff1009de288/baseapp_backend-0.0.52.tar.gz", hash = "sha256:7fe8cb4a9c263c400edb9131c7dbdc880f51ae7e14edab5e25e269767e6f41d7", size = 778013, upload-time = "2026-03-26T13:47:24.048Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/36/95/3b63c54731c07729fb3a5c522b4a41c2cb53e9e6238dd8f9e73c592aadc8/baseapp_backend-0.0.51-py3-none-any.whl", hash = "sha256:012d5fd8fa69481444fd1730808f2ca82c0cc9229902ab69dffdecbcd7713570", size = 834630, upload-time = "2026-03-26T13:30:31.337Z" },
+    { url = "https://files.pythonhosted.org/packages/49/7f/14889f6aca3ec73a4242d81620294555e86dac82eeb07b6353be3db77917/baseapp_backend-0.0.52-py3-none-any.whl", hash = "sha256:2d68003dd4717110d6edd6021ae6b66f3a5736bb14db72bcac5b9fd8e0778cae", size = 834630, upload-time = "2026-03-26T13:47:22.304Z" },
 ]
 
 [[package]]

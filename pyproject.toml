@@ -68,7 +68,7 @@ mcp = [
     "anyio>=3.0.0",
     "uvicorn>=0.35",
     "langchain>=1.2.7,<2.0",
-    "baseapp-backend[api_key]>=0.0.51"
+    "baseapp-backend[api-key]>=0.0.52"
 ]
 
 [tool.setuptools.packages.find]
