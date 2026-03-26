@@ -30,7 +30,7 @@ def require_tool_permission(tool_cls: typ.Type["BaseMCPTool"]) -> typ.Callable:
                 permission_codename = f"{tool_cls.__module__}.{tool_cls.__qualname__}"
                 permission_slug = f"{permission_app_label}.{permission_codename}"
 
-                user = await database_sync_to_async(User.objects.get)(email=email)
+                user = await User.objects.aget(email=email)
                 has_permission = await database_sync_to_async(user.has_perm)(permission_slug, None)
                 if has_permission:
                     return True

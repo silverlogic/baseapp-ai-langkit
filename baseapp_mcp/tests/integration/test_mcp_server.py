@@ -196,7 +196,7 @@ class MCPServerTestCase_ToolsList(MCPServerBaseTestCase):
     async def test_tools_list_for_user_with_example_tool_2_permission(self):
         user = await database_sync_to_async(UserFactory)(email=f"{uuid4()}@tsl.io")
         api_key = await database_sync_to_async(APIKeyFactory)(user=user)
-        permission = await database_sync_to_async(Permission.objects.get)(
+        permission = await Permission.objects.aget(
             content_type__app_label=PermissionModel._meta.app_label,
             codename=f"{ExampleTool2.__module__}.{ExampleTool2.__qualname__}",
         )

@@ -68,12 +68,8 @@ mcp = [
     "anyio>=3.0.0",
     "uvicorn>=0.35",
     "langchain>=1.2.7,<2.0",
-    "baseapp-backend[api_key]"
+    "baseapp-backend[api_key]>=0.0.51"
 ]
-
-# TODO: Uncomment for local development
-# [tool.uv.sources]
-# baseapp-backend = { path = "../baseapp-backend" }
 
 [tool.setuptools.packages.find]
 include = ["baseapp_ai_langkit*", "baseapp_mcp*"]

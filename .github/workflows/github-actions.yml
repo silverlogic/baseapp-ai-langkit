@@ -23,9 +23,6 @@ jobs:
           username: ${{ vars.HARBOR_USERNAME }}
           password: ${{ secrets.HARBOR_TOKEN }}
 
-      - name: git submodule update
-        run: git submodule update --init --recursive
-
       - name: docker compose build
         run: docker compose build --build-arg "PYTHON_VERSION=${{ matrix.python-version }}"
 
