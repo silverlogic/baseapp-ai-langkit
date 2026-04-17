@@ -1,3 +1,7 @@
+from key_value.aio.stores.redis import RedisStore
+from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
+from cryptography.fernet import Fernet
+
 from .constants import DEFAULT_MCP_ROUTE_PATH, DEFAULT_SERVER_INSTRUCTIONS
 
 
@@ -52,4 +56,22 @@ def get_auth_provider():
             "openid",
             "https://www.googleapis.com/auth/userinfo.email",
         ],
+        jwt_signing_key=settings.MCP_JWT_SIGNING_KEY,
+        client_storage=FernetEncryptionWrapper(
+            key_value=_get_redis_store(),
+            fernet=Fernet(settings.MCP_STORAGE_ENCRYPTION_KEY)
+        )
     )
+
+def _get_redis_store() -> RedisStore:
+    """Creates a RedisStore. Uses REDIS_URL if provided, otherwise falls back to individual settings."""
+    from django.conf import settings
+
+    redis_url = getattr(settings, "REDIS_URL", None)
+    if redis_url:
+        return RedisStore(url=redis_url)
+
+    redis_host = getattr(settings, "REDIS_HOST", "redis")
+    redis_port = getattr(settings, "REDIS_PORT", 6379)
+    redis_password = getattr(settings, "REDIS_PASSWORD", None)
+    return RedisStore(host=redis_host, port=redis_port, password=redis_password)

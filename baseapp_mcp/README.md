@@ -66,6 +66,10 @@ MCP_URL = env("MCP_URL", default="http://localhost:8001")
 # Google OAuth credentials
 GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", default="")
 GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", default="")
+
+# MCP Token Storage
+MCP_JWT_SIGNING_KEY = env("MCP_JWT_SIGNING_KEY")
+MCP_STORAGE_ENCRYPTION_KEY = env("MCP_STORAGE_ENCRYPTION_KEY")
 ```
 
 #### MCP tool registration (import paths)
@@ -233,6 +237,13 @@ MCP_URL=http://localhost:8001
 # Google OAuth (required for OAuth authentication)
 GOOGLE_OAUTH_CLIENT_ID=your-client-id
 GOOGLE_OAUTH_CLIENT_SECRET=your-client-secret
+
+# MCP OAuth Token Storage
+# Dummy key for local development - generate real key with 'openssl rand -base64 32'
+MCP_JWT_SIGNING_KEY='abcdefghijklmnopqrstuvwxyz0123456789+++++++=' 
+# Dummy key for local development - generate real key with 
+# python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+MCP_STORAGE_ENCRYPTION_KEY='abcdefghijklmnopqrstuvwxyz0123456789-------='
 ```
 
 ## Creating an MCP App in Your Project
