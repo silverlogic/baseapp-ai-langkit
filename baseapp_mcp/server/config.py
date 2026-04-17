@@ -1,6 +1,6 @@
+from cryptography.fernet import Fernet
 from key_value.aio.stores.redis import RedisStore
 from key_value.aio.wrappers.encryption import FernetEncryptionWrapper
-from cryptography.fernet import Fernet
 
 from .constants import DEFAULT_MCP_ROUTE_PATH, DEFAULT_SERVER_INSTRUCTIONS
 
@@ -58,9 +58,8 @@ def get_auth_provider():
         ],
         jwt_signing_key=settings.MCP_JWT_SIGNING_KEY,
         client_storage=FernetEncryptionWrapper(
-            key_value=_get_redis_store(),
-            fernet=Fernet(settings.MCP_STORAGE_ENCRYPTION_KEY)
-        )
+            key_value=_get_redis_store(), fernet=Fernet(settings.MCP_STORAGE_ENCRYPTION_KEY)
+        ),
     )
 
 
