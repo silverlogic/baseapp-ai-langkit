@@ -63,6 +63,7 @@ def get_auth_provider():
         )
     )
 
+
 def _get_redis_store() -> RedisStore:
     """Creates a RedisStore. Uses REDIS_URL if provided, otherwise falls back to individual settings."""
     from django.conf import settings
