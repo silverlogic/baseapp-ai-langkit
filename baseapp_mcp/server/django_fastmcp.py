@@ -11,7 +11,7 @@ from fastmcp.server.event_store import EventStore
 from fastmcp.server.http import StarletteWithLifespan
 from starlette.middleware import Middleware as ASGIMiddleware
 
-from baseapp_ai_langkit import app_settings
+from baseapp_mcp.app_settings import app_settings
 from baseapp_mcp.extensions.fastmcp.server.http import create_streamable_http_app
 from baseapp_mcp.server.config import get_auth_provider, get_server_instructions
 from baseapp_mcp.server.lifespan import default_lifespan
@@ -163,14 +163,17 @@ class DjangoFastMCP(FastMCP):
     def register_tools_from_django_settings(self):
         logger.info("Registering MCP tools from Django settings...")
 
-        tool_import_strings = app_settings.MCP_TOOLS
+        standard_tool_import_strings = app_settings.MCP_TOOLS
         debug_tool_import_strings = app_settings.DEBUG_MCP_TOOLS
+        experimental_tool_import_strings = app_settings.EXPERIMENTAL_MCP_TOOLS
+
+        tool_import_strings = [
+            *standard_tool_import_strings,
+            *experimental_tool_import_strings,
+        ]
 
         if settings.DEBUG:
-            tool_import_strings = [
-                *tool_import_strings,
-                *debug_tool_import_strings,
-            ]
+            tool_import_strings += debug_tool_import_strings
 
         for tool_import_string in tool_import_strings:
             ToolClass = import_string(tool_import_string)

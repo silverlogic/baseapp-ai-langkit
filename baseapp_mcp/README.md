@@ -79,9 +79,6 @@ Register tools via Django settings: each entry is a dotted path to a tool class 
 ```python
 # settings/base.py
 
-# Must inherit from baseapp_mcp.permissions.models.BaseMCPToolPermission to correctly generate migrations
-BASEAPP_AI_LANGKIT_MCP_TOOL_PERMISSION_MODEL = "..."
-
 BASEAPP_AI_LANGKIT_MCP_TOOLS = [
     "myapp.mcp.tools.search_tool.SearchTool",
     "myapp.mcp.tools.fetch_tool.FetchTool",
