@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "baseapp_mcp",
     "baseapp_mcp.logs",
     "baseapp_mcp.rate_limits",
+    "baseapp_mcp.permissions",
     "testproject.apps.example",
     "baseapp_api_key",
 ]
@@ -197,13 +198,16 @@ BASEAPP_AI_LANGKIT_SLACK_INTERACTIVE_ENDPOINT_HANDLERS = [
     "testproject.extensions.baseapp_ai_langkit.slack.rest_framework.slash_commands.example.viewset.SlackExampleInteractiveEndpointHandler"
 ]
 
-BASEAPP_AI_LANGKIT_MCP_TOOL_PERMISSION_MODEL = "testproject.apps.example.models.MCPToolPermission"
 BASEAPP_AI_LANGKIT_MCP_TOOLS = [
     "testproject.apps.example.mcp_tools.ExampleTool1",
     "testproject.apps.example.mcp_tools.ExampleTool2",
+]
+BASEAPP_AI_LANGKIT_DEBUG_MCP_TOOLS = [
     "testproject.apps.example.mcp_tools.ExampleTool3",
 ]
-BASEAPP_AI_LANGKIT_DEBUG_MCP_TOOLS = []
+BASEAPP_AI_LANGKIT_EXPERIMENTAL_MCP_TOOLS = [
+    "testproject.apps.example.mcp_tools.ExampleTool4",
+]
 
 # API Key
 BA_API_KEY_REQUEST_HEADER = env("BA_API_KEY_REQUEST_HEADER", default="HTTP_API_KEY")

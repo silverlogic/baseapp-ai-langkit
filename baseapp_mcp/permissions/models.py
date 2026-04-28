@@ -1,22 +1,23 @@
 from django.db import models
 
-from baseapp_ai_langkit import app_settings
+MCP_TOOL_PERMISSION_GROUPS = [
+    ("Standard MCP Tool Access", "access_standard_mcp_tools", "Can access standard MCP tools"),
+    ("Debug MCP Tools", "access_debug_mcp_tools", "Can access debug MCP tools"),
+    (
+        "Experimental MCP Tools",
+        "access_experimental_mcp_tools",
+        "Can access experimental MCP tools",
+    ),
+]
 
 
-class BaseMCPToolPermission(models.Model):
+class MCPToolPermission(models.Model):
+    """
+    Exists solely to register the three MCP tool permissions with Django.
+    Has no table and should never be instantiated or queried.
+    """
+
     class Meta:
-        abstract = True
         managed = False
-
-        tool_import_strings = [
-            *app_settings.DEBUG_MCP_TOOLS,
-            *app_settings.MCP_TOOLS,
-        ]
-
         default_permissions = ()
-        permissions = [
-            (tool_import_string, "MCP Tool Access %s" % tool_import_string)
-            for tool_import_string in tool_import_strings
-        ]
-
-        del tool_import_strings
+        permissions = [(codename, name) for _, codename, name in MCP_TOOL_PERMISSION_GROUPS]

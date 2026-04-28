@@ -16,23 +16,19 @@ import pytest
 from baseapp_api_key.tests.factories import APIKeyFactory
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import Permission
-from django.test import TransactionTestCase
+from django.test import TransactionTestCase, override_settings
 from django.utils import timezone
-from django.utils.module_loading import import_string
 from fastmcp import Client
 from fastmcp.client.transports import StreamableHttpTransport
 from fastmcp.utilities.tests import run_server_in_process
 from freezegun import freeze_time
 
-from baseapp_ai_langkit import app_settings
 from baseapp_ai_langkit.tests.factories import UserFactory
 from baseapp_mcp.extensions.fastmcp.client.auth.api_key import APIKeyAuth
+from baseapp_mcp.permissions.models import MCPToolPermission
 from baseapp_mcp.server.django_fastmcp import DjangoFastMCP
-from testproject.apps.example.mcp_tools import ExampleTool2
 
 pytestmark = pytest.mark.django_db
-
-PermissionModel = import_string(app_settings.MCP_TOOL_PERMISSION_MODEL)
 
 
 class MCPServerBaseTestCase(TransactionTestCase, ABC):
@@ -175,6 +171,8 @@ class MCPServerTestCase_ToolsList(MCPServerBaseTestCase):
 
     @pytest.mark.asyncio
     async def test_tools_list_for_user_with_no_permissions(self):
+        from baseapp_mcp.app_settings import app_settings
+
         user = await database_sync_to_async(UserFactory)(email=f"{uuid4()}@tsl.io")
         api_key = await database_sync_to_async(APIKeyFactory)(user=user)
 
@@ -190,15 +188,42 @@ class MCPServerTestCase_ToolsList(MCPServerBaseTestCase):
             async with Client(transport=transport) as client:
                 await self.on_client_connected(client=client)
                 tools = await client.list_tools()
-                assert len(tools) == 1
+                # All users are assigned the Standard MCP Tool Access group on creation
+                assert len(tools) == len(app_settings.MCP_TOOLS)
 
     @pytest.mark.asyncio
-    async def test_tools_list_for_user_with_example_tool_2_permission(self):
+    @override_settings(DEBUG=True)
+    async def test_tools_list_for_user_with_access_standard_mcp_tools_permission(self):
+        from baseapp_mcp.app_settings import app_settings
+
+        user = await database_sync_to_async(UserFactory)(email=f"{uuid4()}@tsl.io")
+        api_key = await database_sync_to_async(APIKeyFactory)(user=user)
+
+        with self.run_mcp_server() as mcp_url:
+            transport = StreamableHttpTransport(
+                url=mcp_url,
+                headers={
+                    "Accept": "text/event-stream, application/json",
+                },
+                auth=APIKeyAuth(api_key=api_key),
+            )
+
+            async with Client(transport=transport) as client:
+                await self.on_client_connected(client=client)
+                tools = await client.list_tools()
+                # All users have access to standard mcp tools
+                assert len(tools) == len(app_settings.MCP_TOOLS)
+
+    @pytest.mark.asyncio
+    @override_settings(DEBUG=True)
+    async def test_tools_list_for_user_with_access_debug_mcp_tools_permission(self):
+        from baseapp_mcp.app_settings import app_settings
+
         user = await database_sync_to_async(UserFactory)(email=f"{uuid4()}@tsl.io")
         api_key = await database_sync_to_async(APIKeyFactory)(user=user)
         permission = await Permission.objects.aget(
-            content_type__app_label=PermissionModel._meta.app_label,
-            codename=f"{ExampleTool2.__module__}.{ExampleTool2.__qualname__}",
+            content_type__app_label=MCPToolPermission._meta.app_label,
+            codename="access_debug_mcp_tools",
         )
 
         await database_sync_to_async(user.user_permissions.add)(permission)
@@ -215,4 +240,75 @@ class MCPServerTestCase_ToolsList(MCPServerBaseTestCase):
             async with Client(transport=transport) as client:
                 await self.on_client_connected(client=client)
                 tools = await client.list_tools()
-                assert len(tools) == 2
+                # All users have access to standard mcp tools
+                assert len(tools) == (
+                    len(app_settings.MCP_TOOLS) + len(app_settings.DEBUG_MCP_TOOLS)
+                )
+
+    @pytest.mark.asyncio
+    @override_settings(DEBUG=True)
+    async def test_tools_list_for_user_with_access_experimental_tools_permission(self):
+        from baseapp_mcp.app_settings import app_settings
+
+        user = await database_sync_to_async(UserFactory)(email=f"{uuid4()}@tsl.io")
+        api_key = await database_sync_to_async(APIKeyFactory)(user=user)
+        permission = await Permission.objects.aget(
+            content_type__app_label=MCPToolPermission._meta.app_label,
+            codename="access_experimental_mcp_tools",
+        )
+
+        await database_sync_to_async(user.user_permissions.add)(permission)
+
+        with self.run_mcp_server() as mcp_url:
+            transport = StreamableHttpTransport(
+                url=mcp_url,
+                headers={
+                    "Accept": "text/event-stream, application/json",
+                },
+                auth=APIKeyAuth(api_key=api_key),
+            )
+
+            async with Client(transport=transport) as client:
+                await self.on_client_connected(client=client)
+                tools = await client.list_tools()
+                # All users have access to standard mcp tools
+                assert len(tools) == (
+                    len(app_settings.MCP_TOOLS) + len(app_settings.EXPERIMENTAL_MCP_TOOLS)
+                )
+
+    @pytest.mark.asyncio
+    @override_settings(DEBUG=True)
+    async def test_tools_list_for_user_with_all_permissions(self):
+        from baseapp_mcp.app_settings import app_settings
+
+        user = await database_sync_to_async(UserFactory)(email=f"{uuid4()}@tsl.io")
+        api_key = await database_sync_to_async(APIKeyFactory)(user=user)
+        permissions = await database_sync_to_async(list)(
+            Permission.objects.filter(
+                content_type__app_label=MCPToolPermission._meta.app_label,
+                codename__in=[
+                    "access_debug_mcp_tools",
+                    "access_experimental_mcp_tools",
+                ],
+            )
+        )
+        await database_sync_to_async(user.user_permissions.add)(*permissions)
+
+        with self.run_mcp_server() as mcp_url:
+            transport = StreamableHttpTransport(
+                url=mcp_url,
+                headers={
+                    "Accept": "text/event-stream, application/json",
+                },
+                auth=APIKeyAuth(api_key=api_key),
+            )
+
+            async with Client(transport=transport) as client:
+                await self.on_client_connected(client=client)
+                tools = await client.list_tools()
+                # All users have access to standard mcp tools
+                assert len(tools) == (
+                    len(app_settings.MCP_TOOLS)
+                    + len(app_settings.DEBUG_MCP_TOOLS)
+                    + len(app_settings.EXPERIMENTAL_MCP_TOOLS)
+                )
