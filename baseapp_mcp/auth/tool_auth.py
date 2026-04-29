@@ -29,6 +29,15 @@ def _get_permission_for_tool(tool_cls: typ.Type[BaseMCPTool]) -> typ.Optional[st
     return None
 
 
+@database_sync_to_async
+def _email_has_permission(email: str, permission: str) -> bool:
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        return False
+    return user.has_perm(permission)
+
+
 def require_tool_permission(tool_cls: typ.Type[BaseMCPTool]) -> typ.Callable:
     async def _check(ctx: AuthContext) -> bool:
         if ctx.token is None:
@@ -36,13 +45,8 @@ def require_tool_permission(tool_cls: typ.Type[BaseMCPTool]) -> typ.Callable:
         if (email := ctx.token.claims.get("email")) and (
             permission := _get_permission_for_tool(tool_cls)
         ):
-            try:
-                user = await User.objects.aget(email=email)
-                has_permission = await database_sync_to_async(user.has_perm)(permission)
-                if has_permission:
-                    return True
-            except User.DoesNotExist:
-                pass
+            if await _email_has_permission(email, permission):
+                return True
         raise AuthorizationError(_("You do not have permission to perform this action."))
 
     return _check
