@@ -13,3 +13,12 @@ repos:
     rev: 5.0.4
     hooks:
     - id: flake8
+-   repo: local
+    hooks:
+    -   id: pytest
+        name: pytest
+        entry: docker compose exec -T web pytest .
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
