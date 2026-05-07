@@ -1,11 +1,18 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Tuple, Type, Union
+from typing import TYPE_CHECKING, Tuple, Type, Union
+
+from langchain_core.language_models import BaseLanguageModel
+from langchain_core.runnables import RunnableConfig
+from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from baseapp_ai_langkit.base.interfaces.exceptions import LLMChatInterfaceException
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.chats.models import ChatSession
+
+if TYPE_CHECKING:
+    from baseapp_ai_langkit.base.workflows.base_workflow import BaseWorkflow
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +28,74 @@ class BaseRunnerInterface(ABC):
         The LLM interface logic should be implemented here.
         """
         pass
+
+    @classmethod
+    @abstractmethod
+    def get_workflow_class(cls) -> Type["BaseWorkflow"]:
+        """Return the BaseWorkflow subclass this runner uses.
+
+        This is the single source of truth for the runner's workflow class —
+        called by the runtime `run()` path AND by `build_topology_workflow()`
+        for topology introspection. Subclasses that don't have a workflow class
+        (e.g. CLI debugging surfaces) raise `NotImplementedError`; the topology
+        endpoint surfaces that as `topology_builder_not_declared`.
+        """
+        raise NotImplementedError(f"{cls.__name__} did not implement get_workflow_class().")
+
+    @classmethod
+    def instantiate_node_for_topology(
+        cls,
+        node_class: Type[LLMNodeInterface],
+        *,
+        llm: BaseLanguageModel,
+        config: RunnableConfig,
+    ) -> LLMNodeInterface:
+        """Construct a node for topology extraction. Override if your node class
+        needs additional kwargs at __init__ time (e.g. `slack_context=...`).
+
+        Receives stub `llm` / `config` from `topology_extraction_context()`; the
+        node MUST be safe to construct from these (no real LLM calls, no DB writes).
+        """
+        return node_class(llm=llm, config=config)
+
+    @classmethod
+    def build_topology_workflow(
+        cls,
+        *,
+        llm: BaseLanguageModel,
+        config: RunnableConfig,
+        checkpointer: BaseCheckpointSaver,
+    ) -> "BaseWorkflow":
+        """Build a workflow instance suitable for topology introspection only.
+
+        Default implementation:
+            1. Construct each node from `cls.get_available_nodes()` (merged
+               `edge_nodes` + `nodes`) via `instantiate_node_for_topology`.
+            2. Instantiate `cls.get_workflow_class()` with the supplied stubs
+               and the constructed nodes.
+
+        Subclasses whose workflow constructor takes additional kwargs
+        (orchestrator, synthesizer, custom state_schema, ...) MUST override this
+        method to wire those through. The supplied inputs are guaranteed to be
+        safe for shadow compile:
+            * llm: a no-op stub that raises if called
+            * config: a stub RunnableConfig with no real thread/session
+            * checkpointer: an in-memory MemorySaver (never Postgres)
+
+        Runners that don't declare a workflow class raise NotImplementedError
+        from `get_workflow_class()`; the topology endpoint surfaces this as
+        `topology_builder_not_declared`.
+        """
+        nodes = {
+            key: cls.instantiate_node_for_topology(node_class, llm=llm, config=config)
+            for key, node_class in cls.get_available_nodes().items()
+        }
+        return cls.get_workflow_class()(
+            llm=llm,
+            config=config,
+            checkpointer=checkpointer,
+            nodes=nodes,
+        )
 
     def safe_run(self):
         try:

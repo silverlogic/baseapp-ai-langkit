@@ -42,10 +42,11 @@ class SlackAIChatController:
         self.slack_chat = slack_chat
         self.user_message_slack_event = user_message_slack_event
         self.user_message_text = self.user_message_slack_event.data["event"]["text"]
-        self.user_message_user, created = (
-            self.slack_instance_controller.get_or_create_user_from_slack_user(
-                self.user_message_slack_event.data["event"]["user"]
-            )
+        (
+            self.user_message_user,
+            created,
+        ) = self.slack_instance_controller.get_or_create_user_from_slack_user(
+            self.user_message_slack_event.data["event"]["user"]
         )
 
         self.kwargs = kwargs

@@ -8,6 +8,13 @@ class ConsoleInterface(BaseRunnerInterface):
     def __init__(self, workflow: BaseWorkflow):
         self.workflow = workflow
 
+    @classmethod
+    def get_workflow_class(cls):
+        raise NotImplementedError(
+            "ConsoleInterface is a CLI debugging surface; the workflow is supplied at "
+            "instantiation, not declared on the class."
+        )
+
     def get_user_input(self):
         return input("You: ")
 

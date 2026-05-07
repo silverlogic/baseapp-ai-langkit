@@ -1,12 +1,17 @@
+from typing import Type
+
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from baseapp_ai_langkit.base.interfaces.base_runner import BaseChatInterface
 from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
+from baseapp_ai_langkit.base.workflows.base_workflow import BaseWorkflow
 from baseapp_ai_langkit.base.workflows.general_chat_workflow import GeneralChatWorkflow
 from baseapp_ai_langkit.chats.checkpointer import LangGraphCheckpointer
+from baseapp_ai_langkit.runners.registry import register_runner
 
 
+@register_runner
 class DefaultChatRunner(BaseChatInterface):
     nodes = {
         "general_llm": MessagesWorker,
@@ -15,6 +20,10 @@ class DefaultChatRunner(BaseChatInterface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.config = {"configurable": {"thread_id": str(self.session.id)}}
+
+    @classmethod
+    def get_workflow_class(cls) -> Type[BaseWorkflow]:
+        return GeneralChatWorkflow
 
     def run(self) -> str:
         self.llm = self.initialize_llm()
@@ -32,7 +41,7 @@ class DefaultChatRunner(BaseChatInterface):
         return checkpointer_wrapper.get_checkpointer()
 
     def process_workflow(self):
-        workflow = GeneralChatWorkflow(
+        workflow = self.get_workflow_class()(
             llm=self.llm,
             config=self.config,
             checkpointer=self.checkpointer,

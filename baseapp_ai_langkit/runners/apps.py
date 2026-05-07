@@ -1,5 +1,6 @@
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
+from django.utils.module_loading import autodiscover_modules
 
 
 class BaseappAILangkitRunnersConfig(AppConfig):
@@ -8,6 +9,7 @@ class BaseappAILangkitRunnersConfig(AppConfig):
     label = "baseapp_ai_langkit_runners"
 
     def ready(self):
+        autodiscover_modules("runners")
         post_migrate.connect(self.sync_registry, sender=self)
 
     def sync_registry(self, **kwargs):

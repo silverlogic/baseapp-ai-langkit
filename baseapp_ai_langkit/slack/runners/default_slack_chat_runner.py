@@ -1,8 +1,12 @@
+from typing import Type
+
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres import PostgresSaver
 
+from baseapp_ai_langkit.base.workflows.base_workflow import BaseWorkflow
 from baseapp_ai_langkit.base.workflows.general_chat_workflow import GeneralChatWorkflow
 from baseapp_ai_langkit.chats.checkpointer import LangGraphCheckpointer
+from baseapp_ai_langkit.runners.registry import register_runner
 from baseapp_ai_langkit.slack.base.interfaces.slack_chat_runner import (
     BaseSlackChatInterface,
 )
@@ -11,6 +15,7 @@ from baseapp_ai_langkit.slack.base.workers.default_slack_worker import (
 )
 
 
+@register_runner
 class DefaultSlackChatRunner(BaseSlackChatInterface):
     nodes = {
         "slack_worker": DefaultSlackWorker,
@@ -19,6 +24,14 @@ class DefaultSlackChatRunner(BaseSlackChatInterface):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.config = {"configurable": {"thread_id": str(self.session.id)}}
+
+    @classmethod
+    def get_workflow_class(cls) -> Type[BaseWorkflow]:
+        return GeneralChatWorkflow
+
+    @classmethod
+    def instantiate_node_for_topology(cls, node_class, *, llm, config):
+        return node_class(slack_context={}, llm=llm, config=config)
 
     def run(self) -> str:
         self.llm = self.initialize_llm()
@@ -38,7 +51,7 @@ class DefaultSlackChatRunner(BaseSlackChatInterface):
         return checkpointer_wrapper.get_checkpointer()
 
     def process_workflow(self):
-        workflow = GeneralChatWorkflow(
+        workflow = self.get_workflow_class()(
             llm=self.llm,
             config=self.config,
             nodes=self.nodes,

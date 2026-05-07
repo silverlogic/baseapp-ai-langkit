@@ -44,10 +44,11 @@ class BaseSlackAIChatEventCallbackHandler(BaseSlackAIChatEvent):
         if bot_id := self.event_data.get("bot_id", None):
             if event_subtype := self.event_data.get("subtype", None):
                 if event_subtype == "bot_message":
-                    user, created = (
-                        self.slack_instance_controller.get_or_create_user_from_slack_bot(
-                            bot_id=bot_id
-                        )
+                    (
+                        user,
+                        created,
+                    ) = self.slack_instance_controller.get_or_create_user_from_slack_bot(
+                        bot_id=bot_id
                     )
                     return user
             raise BaseSlackEventCallback.WarningException(

@@ -32,7 +32,7 @@ def generate_vector_embeddings(
         # In this case, the saved object will only be available after the whole transaction is committed.
         if delay < 1000:
             logger.warning(
-                f"Embeddable object with ID {embeddable_id} not found. Will retry in {12*delay} seconds."
+                f"Embeddable object with ID {embeddable_id} not found. Will retry in {12 * delay} seconds."
             )
             # Retry after 5 minutes, then 1 hour
             generate_vector_embeddings.apply_async(

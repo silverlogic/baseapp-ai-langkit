@@ -2,6 +2,7 @@ from typing import Type, Union
 
 import nested_admin
 from django.contrib import admin
+from django.urls import path
 from django.utils.safestring import mark_safe
 
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
@@ -13,6 +14,7 @@ from baseapp_ai_langkit.runners.models import (
     LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
 )
+from baseapp_ai_langkit.runners.topology.views import topology_view
 
 
 class AddAndDeleteBlockerMixin:
@@ -42,7 +44,8 @@ class PromptDescriptionMixin:
         else:
             required_placeholders_description = ""
 
-        return mark_safe(f"""
+        return mark_safe(
+            f"""
             <div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 15px; overflow-wrap: break-word;">
                 <b style="word-wrap: break-word;">Prompt objective:</b>
                 <p style="white-space: pre-wrap; word-wrap: break-word;">{prompt_schema.description}</p>
@@ -50,7 +53,8 @@ class PromptDescriptionMixin:
                 <b style="word-wrap: break-word;">Default prompt:</b>
                 <p style="white-space: pre-wrap; word-wrap: break-word;">{prompt_schema.prompt}</p>
             </div>
-            """)
+            """
+        )
 
 
 class LLMRunnerNodeUsagePromptInline(
@@ -136,3 +140,14 @@ class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
     ordering = ("name",)
     readonly_fields = ("name",)
     inlines = [LLMRunnerNodeInline]
+
+    def get_urls(self):
+        urls = super().get_urls()
+        custom_urls = [
+            path(
+                "<int:pk>/topology/",
+                self.admin_site.admin_view(topology_view),
+                name="baseapp_ai_langkit_runners_llmrunner_topology",
+            ),
+        ]
+        return custom_urls + urls

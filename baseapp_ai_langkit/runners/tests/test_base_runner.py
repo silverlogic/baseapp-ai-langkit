@@ -20,6 +20,10 @@ class MockedRunner(BaseRunnerInterface):
     def run(self) -> str:
         pass
 
+    @classmethod
+    def get_workflow_class(cls):
+        raise NotImplementedError("MockedRunner is a unit-test stub; no workflow class.")
+
 
 class TestBaseRunnerInterface(TestCase):
     def test_base_runner_get_nodes_without_db_records(self):

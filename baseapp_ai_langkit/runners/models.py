@@ -67,22 +67,24 @@ class LLMRunner(models.Model):
                 if created:
                     logger.info(f"Runner node {node_name} created.")
                 if hasattr(node_class, "usage_prompt_schema") and node_class.usage_prompt_schema:
-                    llm_runner_node_usage_prompt, created = (
-                        LLMRunnerNodeUsagePrompt.objects.get_or_create(
-                            runner_node=llm_runner_node, defaults={"usage_prompt": ""}
-                        )
+                    (
+                        llm_runner_node_usage_prompt,
+                        created,
+                    ) = LLMRunnerNodeUsagePrompt.objects.get_or_create(
+                        runner_node=llm_runner_node, defaults={"usage_prompt": ""}
                     )
                     existing_usage_prompts.add(llm_runner_node_usage_prompt.id)
                     if created:
                         logger.info(f"Usage prompt {node_name} created.")
                 state_modifier_list = node_class.get_static_state_modifier_list()
                 for i, state_modifier in enumerate(state_modifier_list):
-                    llm_runner_node_state_modifier, created = (
-                        LLMRunnerNodeStateModifier.objects.get_or_create(
-                            runner_node=llm_runner_node,
-                            index=i,
-                            defaults={"state_modifier": ""},
-                        )
+                    (
+                        llm_runner_node_state_modifier,
+                        created,
+                    ) = LLMRunnerNodeStateModifier.objects.get_or_create(
+                        runner_node=llm_runner_node,
+                        index=i,
+                        defaults={"state_modifier": ""},
                     )
                     existing_state_modifiers.add(llm_runner_node_state_modifier.id)
                     if created:
