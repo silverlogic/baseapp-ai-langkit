@@ -131,9 +131,9 @@ class TestUsagePromptPayload(TestCase):
         nodes, _ = _walk_graph(graph, runner_class, runner_record)
 
         usage = nodes[0]["usage_prompt"]
-        self.assertEqual(usage["default"]["description"], "Worker that does X.")
-        self.assertEqual(usage["default"]["placeholders"], ["placeholder"])
-        self.assertEqual(usage["default"]["text"], "Use {placeholder} for X.")
+        self.assertEqual(usage["description"], "Worker that does X.")
+        self.assertEqual(usage["required_placeholders"], ["placeholder"])
+        self.assertEqual(usage["default_text"], "Use {placeholder} for X.")
         self.assertIsNone(usage["override"])
 
     def test_node_without_schema_omits_usage_prompt(self):
@@ -164,7 +164,7 @@ class TestUsagePromptPayload(TestCase):
         self.assertEqual(override["text"], "Custom override using {placeholder}")
         self.assertIsNotNone(override["saved_at"])
         # default is unchanged
-        self.assertEqual(nodes[0]["usage_prompt"]["default"]["text"], "Use {placeholder} for X.")
+        self.assertEqual(nodes[0]["usage_prompt"]["default_text"], "Use {placeholder} for X.")
 
 
 class TestExtractTopologyErrorCodes(TestCase):

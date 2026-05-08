@@ -42,6 +42,21 @@ This document provides a comprehensive overview of the architecture and main fun
         ```
         *Note*: For collecting the credentials above, please follow this guide: // TODO: add Slack keys guide.
 
+6. **Required `INSTALLED_APPS` and `TEMPLATES` settings**:
+    Add `nested_admin` to your project's `INSTALLED_APPS` so the runner-admin's nested-inline editor (used by the legacy change-view URL) can locate its templates:
+    ```python
+    INSTALLED_APPS = [
+        # ...
+        "nested_admin",
+        "baseapp_ai_langkit",
+        # ...
+    ]
+    ```
+    Keep `APP_DIRS=True` in your `TEMPLATES` setting (Django default). The `LLMRunner` admin change view ships an app-scoped template override at `runners/templates/admin/baseapp_ai_langkit_runners/llmrunner/graph.html`; if `APP_DIRS=False`, the override is not discovered and the change view falls back to the unstyled default.
+
+7. **Static asset cache busting (informational)**:
+    The runner-topology React Flow widget bundle (`runner_topology_widget.js` / `.css`) is referenced from the admin template with a `?v={{ baseapp_ai_langkit.__version__ }}` query string, so each package release busts the browser cache automatically. If your project also uses `ManifestStaticFilesStorage`, the resulting double cache-busting is harmless.
+
 ## Get Started
 
 // TODO: create a get started guide.

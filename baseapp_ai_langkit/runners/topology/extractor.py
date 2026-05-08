@@ -103,10 +103,10 @@ def _node_payload(
 ) -> Dict[str, Any]:
     return {
         "key": key,
-        "class": f"{node_class.__module__}.{node_class.__name__}",
+        "class_name": f"{node_class.__module__}.{node_class.__name__}",
         "kind": _classify_kind(node_class),
         "usage_prompt": _usage_prompt_payload(key, node_class, runner_record),
-        "state_modifier": _state_modifier_payload(node_class),
+        "state_modifier_prompts": _state_modifier_prompts_payload(node_class),
         "model": _model_payload(node_class),
     }
 
@@ -128,9 +128,10 @@ def _usage_prompt_payload(
     if not schema:
         return None
 
-    default = _serialize_prompt_schema(schema)
-    override = _read_usage_prompt_override(key, runner_record)
-    return {"default": default, "override": override}
+    return {
+        **_serialize_prompt_schema(schema),
+        "override": _read_usage_prompt_override(key, runner_record),
+    }
 
 
 def _read_usage_prompt_override(key: str, runner_record: LLMRunner) -> Optional[Dict[str, Any]]:
@@ -151,15 +152,21 @@ def _read_usage_prompt_override(key: str, runner_record: LLMRunner) -> Optional[
     }
 
 
-def _state_modifier_payload(
+def _state_modifier_prompts_payload(
     node_class: Type[LLMNodeInterface],
-) -> Optional[Dict[str, Any]]:
+) -> List[Dict[str, Any]]:
     schema = getattr(node_class, "state_modifier_schema", None)
     if not schema:
-        return None
-    if isinstance(schema, list):
-        return {"items": [_serialize_prompt_schema(s) for s in schema]}
-    return _serialize_prompt_schema(schema)
+        return []
+    schemas = schema if isinstance(schema, list) else [schema]
+    return [
+        {
+            "key": str(idx),
+            **_serialize_prompt_schema(s),
+            "override": None,
+        }
+        for idx, s in enumerate(schemas)
+    ]
 
 
 def _model_payload(node_class: Type[LLMNodeInterface]) -> Optional[Dict[str, Any]]:
@@ -171,6 +178,6 @@ def _model_payload(node_class: Type[LLMNodeInterface]) -> Optional[Dict[str, Any
 def _serialize_prompt_schema(schema: BasePromptSchema) -> Dict[str, Any]:
     return {
         "description": getattr(schema, "description", "") or "",
-        "placeholders": list(getattr(schema, "required_placeholders", []) or []),
-        "text": getattr(schema, "prompt", "") or "",
+        "required_placeholders": list(getattr(schema, "required_placeholders", []) or []),
+        "default_text": getattr(schema, "prompt", "") or "",
     }

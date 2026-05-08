@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "constance",
     "constance.backends.database",
     "adminsortable2",
+    "nested_admin",
     "baseapp_ai_langkit",
     "baseapp_ai_langkit.base",
     "baseapp_ai_langkit.chats",

@@ -2,9 +2,14 @@ from typing import Type, Union
 
 import nested_admin
 from django.contrib import admin
-from django.urls import path
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponseNotAllowed
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
+from django.utils.http import unquote
 from django.utils.safestring import mark_safe
 
+from baseapp_ai_langkit import __version__
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin
@@ -149,5 +154,51 @@ class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
                 self.admin_site.admin_view(topology_view),
                 name="baseapp_ai_langkit_runners_llmrunner_topology",
             ),
+            path(
+                "<int:pk>/change/legacy/",
+                self.admin_site.admin_view(self.legacy_change_view),
+                name="baseapp_ai_langkit_runners_llmrunner_change_legacy",
+            ),
         ]
         return custom_urls + urls
+
+    def legacy_change_view(self, request, pk):
+        return super(LLMRunnerAdmin, self).change_view(request, str(pk))
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        if request.method != "GET":
+            return HttpResponseNotAllowed(["GET"])
+
+        obj = self.get_object(request, unquote(object_id))
+        if obj is None:
+            return self._get_obj_does_not_exist_redirect(request, self.opts, object_id)
+        if not self.has_view_permission(request, obj):
+            raise PermissionDenied
+
+        topology_url = reverse("admin:baseapp_ai_langkit_runners_llmrunner_topology", args=[obj.pk])
+        legacy_admin_url = reverse(
+            "admin:baseapp_ai_langkit_runners_llmrunner_change_legacy", args=[obj.pk]
+        )
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": str(obj),
+            "subtitle": None,
+            "opts": self.opts,
+            "original": obj,
+            "object_id": object_id,
+            "is_popup": False,
+            "media": self.media,
+            "preserved_filters": self.get_preserved_filters(request),
+            "topology_url": topology_url,
+            "legacy_admin_url": legacy_admin_url,
+            "pkg_version": __version__,
+        }
+        if extra_context:
+            context.update(extra_context)
+
+        return TemplateResponse(
+            request,
+            "admin/baseapp_ai_langkit_runners/llmrunner/graph.html",
+            context,
+        )
