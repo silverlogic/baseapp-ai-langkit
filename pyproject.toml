@@ -79,6 +79,7 @@ include = ["baseapp_ai_langkit*", "baseapp_mcp*"]
 
 [tool.setuptools.package-data]
 baseapp_ai_langkit = ["*.py", "templates/*.html", "static/*.css", "static/*.js", "migrations/*.py"]
+"baseapp_ai_langkit.runners" = ["static/*.css", "static/*.js", "static/**/*.css", "static/**/*.js"]
 baseapp_mcp = ["*.py", "migrations/*.py"]
 
 [tool.uv]

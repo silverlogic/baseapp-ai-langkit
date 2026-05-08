@@ -1,0 +1,29 @@
+{
+  "name": "@baseapp-ai-langkit/runner-topology-widget",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Pre-built React Flow widget bundle that renders a registered LLMRunner's workflow topology in the Django admin (E01-F01-S02).",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "dagre": "0.8.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "reactflow": "11.11.4"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "6.6.3",
+    "@testing-library/react": "16.1.0",
+    "@types/dagre": "0.7.52",
+    "@types/react": "18.3.12",
+    "@types/react-dom": "18.3.1",
+    "@vitest/coverage-v8": "2.1.8",
+    "esbuild": "0.24.0",
+    "happy-dom": "15.11.7",
+    "typescript": "5.6.3",
+    "vitest": "2.1.8"
+  }
+}
