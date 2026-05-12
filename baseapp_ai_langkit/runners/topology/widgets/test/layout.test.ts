@@ -3,6 +3,8 @@ import {
   applyDagreLayout,
   buildSidebarPrompts,
   layoutTopology,
+  NODE_DRAG_HANDLE_SELECTOR,
+  payloadHasPersistedPositions,
   topologyToGraph,
 } from '../src/layout';
 import type { TopologyResponse } from '../src/types';
@@ -120,6 +122,177 @@ describe('topologyToGraph', () => {
     expect(edges).toHaveLength(0);
   });
 
+  it('sets a dragHandle selector on each node so drag only fires from the grip', () => {
+    const { nodes } = topologyToGraph(linearChain);
+    expect(nodes).toHaveLength(3);
+    for (const n of nodes) {
+      expect(n.dragHandle).toBe(NODE_DRAG_HANDLE_SELECTOR);
+    }
+    expect(NODE_DRAG_HANDLE_SELECTOR).toMatch(/grip/);
+  });
+
+  it('flags has_override=true when the usage_prompt carries a non-empty override', () => {
+    const payload: TopologyResponse = {
+      nodes: [
+        {
+          key: 'X',
+          class_name: 'X',
+          kind: 'agent',
+          usage_prompt: {
+            description: 'd',
+            required_placeholders: [],
+            default_text: 'def',
+            override: { text: 'over', saved_at: '2026-05-11' },
+          },
+        },
+      ],
+      edges: [],
+    };
+    expect(topologyToGraph(payload).nodes[0].data.has_override).toBe(true);
+  });
+
+  it('flags has_override=true when any state_modifier carries a non-empty override', () => {
+    const payload: TopologyResponse = {
+      nodes: [
+        {
+          key: 'X',
+          class_name: 'X',
+          kind: 'worker',
+          state_modifier_prompts: [
+            {
+              key: '0',
+              description: 'd',
+              required_placeholders: [],
+              default_text: 'def',
+              override: null,
+            },
+            {
+              key: '1',
+              description: 'd',
+              required_placeholders: [],
+              default_text: 'def',
+              override: { text: 'over', saved_at: '2026-05-11' },
+            },
+          ],
+        },
+      ],
+      edges: [],
+    };
+    expect(topologyToGraph(payload).nodes[0].data.has_override).toBe(true);
+  });
+
+  it('flags has_override=false when override.text is empty (logically restored)', () => {
+    const payload: TopologyResponse = {
+      nodes: [
+        {
+          key: 'X',
+          class_name: 'X',
+          kind: 'agent',
+          usage_prompt: {
+            description: 'd',
+            required_placeholders: [],
+            default_text: 'def',
+            override: { text: '', saved_at: '2026-05-11' },
+          },
+        },
+      ],
+      edges: [],
+    };
+    expect(topologyToGraph(payload).nodes[0].data.has_override).toBe(false);
+  });
+
+  it('balances asymmetric fan-out children so they sit symmetrically around the parent', () => {
+    // Orchestrator with two children plus a skip-rank edge to the grandchild
+    // is the case where dagre's barycenter ordering puts the dummy adjacent
+    // to one child, pulling the layout off-center. The balancer should
+    // restore symmetry by recentering the two children around O.x.
+    const payload: TopologyResponse = {
+      nodes: [
+        { key: 'O', class_name: 'O', kind: 'worker' },
+        { key: 'L', class_name: 'L', kind: 'worker' },
+        { key: 'R', class_name: 'R', kind: 'worker' },
+        { key: 'S', class_name: 'S', kind: 'worker' },
+      ],
+      edges: [
+        { source: 'O', target: 'L', kind: 'normal' },
+        { source: 'O', target: 'R', kind: 'normal' },
+        { source: 'L', target: 'S', kind: 'normal' },
+        { source: 'R', target: 'S', kind: 'normal' },
+        { source: 'O', target: 'S', kind: 'normal' }, // skip-rank
+      ],
+    };
+    const { nodes } = layoutTopology(payload);
+    const o = nodes.find((n) => n.id === 'O')!;
+    const l = nodes.find((n) => n.id === 'L')!;
+    const r = nodes.find((n) => n.id === 'R')!;
+    // Center-X of each: position.x is top-left, so center = position.x + 110.
+    const oCenter = o.position.x + 110;
+    const lCenter = l.position.x + 110;
+    const rCenter = r.position.x + 110;
+    // After balancing, L and R should sit symmetrically: their mean equals O.
+    const childrenMean = (lCenter + rCenter) / 2;
+    expect(Math.abs(childrenMean - oCenter)).toBeLessThan(6);
+  });
+
+  it('nudges a middle node off a skip-rank edge that would pass through it', () => {
+    // A → B (rank 1) → C, plus A → C (rank-skipping). Dagre's default layout
+    // centers B between A and C, putting it directly on the A→C path. The
+    // post-processor should detect that and move B sideways.
+    const payload: TopologyResponse = {
+      nodes: [
+        { key: 'A', class_name: 'A', kind: 'agent' },
+        { key: 'B', class_name: 'B', kind: 'worker' },
+        { key: 'C', class_name: 'C', kind: 'worker' },
+      ],
+      edges: [
+        { source: 'A', target: 'B', kind: 'normal' },
+        { source: 'B', target: 'C', kind: 'normal' },
+        { source: 'A', target: 'C', kind: 'normal' },
+      ],
+    };
+    const { nodes } = layoutTopology(payload);
+    const a = nodes.find((n) => n.id === 'A')!;
+    const b = nodes.find((n) => n.id === 'B')!;
+    const c = nodes.find((n) => n.id === 'C')!;
+    // The straight A→C path at B's Y.
+    const t = (b.position.y - a.position.y) / (c.position.y - a.position.y);
+    const lineX = a.position.x + t * (c.position.x - a.position.x);
+    // B's center must clear that line by more than half a node width.
+    const halfNode = 110; // NODE_WIDTH / 2
+    expect(Math.abs(b.position.x + halfNode - (lineX + halfNode))).toBeGreaterThan(
+      halfNode * 0.9,
+    );
+  });
+
+  it('flags has_override=false when no overrides exist anywhere', () => {
+    const payload: TopologyResponse = {
+      nodes: [
+        {
+          key: 'X',
+          class_name: 'X',
+          kind: 'agent',
+          usage_prompt: {
+            description: 'd',
+            required_placeholders: [],
+            default_text: 'def',
+            override: null,
+          },
+          state_modifier_prompts: [
+            {
+              key: '0',
+              description: 'd',
+              required_placeholders: [],
+              default_text: 'def',
+              override: null,
+            },
+          ],
+        },
+      ],
+      edges: [],
+    };
+    expect(topologyToGraph(payload).nodes[0].data.has_override).toBe(false);
+  });
+
   it('still maps when the payload carries an error (caller branches separately)', () => {
     const payload: TopologyResponse = {
       nodes: [],
@@ -195,5 +368,56 @@ describe('layoutTopology', () => {
     expect(out.nodes).toHaveLength(3);
     expect(out.edges).toHaveLength(2);
     expect(out.nodes.every((n) => Number.isFinite(n.position.y))).toBe(true);
+  });
+
+  it('uses persisted positions verbatim when every node carries one', () => {
+    const payload: TopologyResponse = {
+      nodes: [
+        { key: 'A', class_name: 'A', kind: 'agent', position: { x: 500, y: 10 } },
+        { key: 'B', class_name: 'B', kind: 'worker', position: { x: 200, y: 250 } },
+        { key: 'C', class_name: 'C', kind: 'worker', position: { x: 700, y: 600 } },
+      ],
+      edges: [{ source: 'A', target: 'B', kind: 'normal' }],
+    };
+    const { nodes } = layoutTopology(payload);
+    expect(nodes.find((n) => n.id === 'A')!.position).toEqual({ x: 500, y: 10 });
+    expect(nodes.find((n) => n.id === 'B')!.position).toEqual({ x: 200, y: 250 });
+    expect(nodes.find((n) => n.id === 'C')!.position).toEqual({ x: 700, y: 600 });
+  });
+
+  it('falls back to auto-layout when persistence is partial (only some nodes have positions)', () => {
+    const payload: TopologyResponse = {
+      nodes: [
+        { key: 'A', class_name: 'A', kind: 'agent', position: { x: 500, y: 10 } },
+        { key: 'B', class_name: 'B', kind: 'worker' }, // missing position
+      ],
+      edges: [{ source: 'A', target: 'B', kind: 'normal' }],
+    };
+    const { nodes } = layoutTopology(payload);
+    // The persisted A position should not be honored because the layout
+    // covered only one of the two nodes — dagre runs over everything to
+    // keep the algorithm predictable.
+    expect(nodes.find((n) => n.id === 'A')!.position).not.toEqual({ x: 500, y: 10 });
+  });
+});
+
+describe('payloadHasPersistedPositions', () => {
+  it('returns true when at least one node has a persisted position', () => {
+    const payload: TopologyResponse = {
+      nodes: [
+        { key: 'A', class_name: 'A', kind: 'agent', position: { x: 10, y: 20 } },
+        { key: 'B', class_name: 'B', kind: 'worker' },
+      ],
+      edges: [],
+    };
+    expect(payloadHasPersistedPositions(payload)).toBe(true);
+  });
+
+  it('returns false when no node has a persisted position', () => {
+    const payload: TopologyResponse = {
+      nodes: [{ key: 'A', class_name: 'A', kind: 'agent' }],
+      edges: [],
+    };
+    expect(payloadHasPersistedPositions(payload)).toBe(false);
   });
 });

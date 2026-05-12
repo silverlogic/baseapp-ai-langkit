@@ -9,6 +9,7 @@ const baseNode: GraphNodeData = {
   kind: 'agent',
   model: { identifier: 'gpt-4o' },
   prompts: [],
+  has_override: false,
 };
 
 const nodeWithBothPrompts: GraphNodeData = {

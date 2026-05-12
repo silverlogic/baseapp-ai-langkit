@@ -205,3 +205,34 @@ class LLMRunnerNodeStateModifier(TimeStampedModel):
         verbose_name = "State modifier"
         verbose_name_plural = "State modifiers"
         ordering = ["index"]
+
+
+class LLMRunnerTopologyLayout(TimeStampedModel):
+    """Admin-curated node positions for the topology graph view.
+
+    The widget falls back to auto-layout when this row is absent OR when any
+    declared node lacks a persisted position (so newly-added nodes don't land
+    at 0,0; admin re-saves to capture them). Layout is per-runner, shared
+    across admins — last save wins.
+    """
+
+    runner = models.OneToOneField(
+        LLMRunner,
+        on_delete=models.CASCADE,
+        related_name="topology_layout",
+    )
+    node_positions = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "JSON map: { node_key: { x: number, y: number } } persisting "
+            "per-node positions in the topology graph view."
+        ),
+    )
+
+    def __str__(self):
+        return f"{self.runner.name} layout ({len(self.node_positions)} nodes)"
+
+    class Meta:
+        verbose_name = "Topology layout"
+        verbose_name_plural = "Topology layouts"

@@ -19,6 +19,11 @@ from baseapp_ai_langkit.runners.models import (
     LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
 )
+from baseapp_ai_langkit.runners.topology.save_views import (
+    save_state_modifier,
+    save_topology_layout,
+    save_usage_prompt,
+)
 from baseapp_ai_langkit.runners.topology.views import topology_view
 
 
@@ -158,6 +163,21 @@ class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
                 "<int:pk>/change/legacy/",
                 self.admin_site.admin_view(self.legacy_change_view),
                 name="baseapp_ai_langkit_runners_llmrunner_change_legacy",
+            ),
+            path(
+                "<int:pk>/topology/nodes/<str:node_key>/usage-prompt/",
+                self.admin_site.admin_view(save_usage_prompt),
+                name="baseapp_ai_langkit_runners_llmrunner_save_usage_prompt",
+            ),
+            path(
+                "<int:pk>/topology/nodes/<str:node_key>/state-modifiers/<int:state_modifier_index>/",
+                self.admin_site.admin_view(save_state_modifier),
+                name="baseapp_ai_langkit_runners_llmrunner_save_state_modifier",
+            ),
+            path(
+                "<int:pk>/topology/layout/",
+                self.admin_site.admin_view(save_topology_layout),
+                name="baseapp_ai_langkit_runners_llmrunner_save_topology_layout",
             ),
         ]
         return custom_urls + urls

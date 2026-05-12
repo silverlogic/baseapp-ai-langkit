@@ -47,7 +47,14 @@ describe('PromptSection', () => {
     expect(screen.getByTestId('rtw-default-usage')).toBeInTheDocument();
     expect(screen.getByTestId('rtw-override-usage')).toBeInTheDocument();
     expect(screen.getByText('Custom override text')).toBeInTheDocument();
-    expect(screen.getByText(/2026-05-08/)).toBeInTheDocument();
+    // Saved-at is formatted (locale-aware via Intl.DateTimeFormat); the
+    // exact string varies per environment locale, so we assert the year is
+    // present and the full ISO is available on hover via the `title` attr.
+    expect(screen.getByText(/Saved.*2026/)).toBeInTheDocument();
+    expect(screen.getByText(/Saved.*2026/).closest('div')).toHaveAttribute(
+      'title',
+      '2026-05-08T12:00:00Z',
+    );
   });
 
   it('renders required placeholders as chips', () => {

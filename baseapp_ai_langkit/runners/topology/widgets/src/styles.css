@@ -1,0 +1,695 @@
+/* -----------------------------------------------------------------------
+   Theme variables
+   --------------------------------------------------------------------- */
+/* Light defaults are scoped to `.rtw-root` so they don't leak. The modal is
+   rendered inside `.rtw-root` (via portal-free render in Root.tsx), so the
+   same variables apply.
+
+   Dark mode follows three signals, in priority order:
+     1. `prefers-color-scheme: dark` (system)
+     2. `html[data-theme="dark"]` (Django admin's explicit toggle)
+     3. `html.dark` or `.dark *` (Unfold's Tailwind-style toggle)
+   Explicit toggles win over the media query when both apply. */
+
+.rtw-root {
+  --rtw-bg: #ffffff;
+  --rtw-bg-elevated: #ffffff;
+  --rtw-bg-muted: #f9fafb;
+  --rtw-bg-chip: #f3f4f6;
+  --rtw-bg-hover: #f3f4f6;
+  --rtw-bg-pane: #f9fafb;
+  --rtw-bg-pane-override: #eef2ff;
+  --rtw-fg: #111827;
+  --rtw-fg-muted: #6b7280;
+  --rtw-fg-strong: #1f2937;
+  --rtw-border: #e5e7eb;
+  --rtw-border-strong: #d1d5db;
+  --rtw-accent-bg: #1f2937;
+  --rtw-accent-fg: #ffffff;
+  --rtw-accent-bg-hover: #111827;
+  --rtw-danger-bg: #fef2f2;
+  --rtw-danger-fg: #b91c1c;
+  --rtw-warning-bg: #fef3c7;
+  --rtw-warning-fg: #b45309;
+  --rtw-warning-border: #f59e0b;
+  --rtw-overlay: rgba(15, 23, 42, 0.5);
+  --rtw-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --rtw-shadow-sidebar: -8px 0 24px rgba(0, 0, 0, 0.08);
+  --rtw-node-agent-bg: #eef2ff;
+  --rtw-node-agent-border: #6366f1;
+  --rtw-node-agent-fg: #1e1b4b;
+  --rtw-node-worker-bg: #ecfeff;
+  --rtw-node-worker-border: #06b6d4;
+  --rtw-node-worker-fg: #083344;
+}
+
+@media (prefers-color-scheme: dark) {
+  .rtw-root {
+    --rtw-bg: #0f172a;
+    --rtw-bg-elevated: #111827;
+    --rtw-bg-muted: #1f2937;
+    --rtw-bg-chip: #374151;
+    --rtw-bg-hover: #374151;
+    --rtw-bg-pane: #1f2937;
+    --rtw-bg-pane-override: #1e1b4b;
+    --rtw-fg: #f3f4f6;
+    --rtw-fg-muted: #9ca3af;
+    --rtw-fg-strong: #e5e7eb;
+    --rtw-border: #374151;
+    --rtw-border-strong: #4b5563;
+    --rtw-accent-bg: #6366f1;
+    --rtw-accent-fg: #ffffff;
+    --rtw-accent-bg-hover: #4f46e5;
+    --rtw-danger-bg: #3f1d1d;
+    --rtw-danger-fg: #fca5a5;
+    --rtw-warning-bg: #3b2e10;
+    --rtw-warning-fg: #fbbf24;
+    --rtw-warning-border: #b45309;
+    --rtw-overlay: rgba(0, 0, 0, 0.6);
+    --rtw-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    --rtw-shadow-sidebar: -8px 0 24px rgba(0, 0, 0, 0.5);
+    --rtw-node-agent-bg: #312e81;
+    --rtw-node-agent-border: #818cf8;
+    --rtw-node-agent-fg: #e0e7ff;
+    --rtw-node-worker-bg: #164e63;
+    --rtw-node-worker-border: #22d3ee;
+    --rtw-node-worker-fg: #cffafe;
+  }
+}
+
+/* Explicit dark toggles — apply the same overrides regardless of system pref. */
+html[data-theme="dark"] .rtw-root,
+[data-theme="dark"] .rtw-root,
+html.dark .rtw-root,
+.dark .rtw-root {
+  --rtw-bg: #0f172a;
+  --rtw-bg-elevated: #111827;
+  --rtw-bg-muted: #1f2937;
+  --rtw-bg-chip: #374151;
+  --rtw-bg-hover: #374151;
+  --rtw-bg-pane: #1f2937;
+  --rtw-bg-pane-override: #1e1b4b;
+  --rtw-fg: #f3f4f6;
+  --rtw-fg-muted: #9ca3af;
+  --rtw-fg-strong: #e5e7eb;
+  --rtw-border: #374151;
+  --rtw-border-strong: #4b5563;
+  --rtw-accent-bg: #6366f1;
+  --rtw-accent-fg: #ffffff;
+  --rtw-accent-bg-hover: #4f46e5;
+  --rtw-danger-bg: #3f1d1d;
+  --rtw-danger-fg: #fca5a5;
+  --rtw-warning-bg: #3b2e10;
+  --rtw-warning-fg: #fbbf24;
+  --rtw-warning-border: #b45309;
+  --rtw-overlay: rgba(0, 0, 0, 0.6);
+  --rtw-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --rtw-shadow-sidebar: -8px 0 24px rgba(0, 0, 0, 0.5);
+  --rtw-node-agent-bg: #312e81;
+  --rtw-node-agent-border: #818cf8;
+  --rtw-node-agent-fg: #e0e7ff;
+  --rtw-node-worker-bg: #164e63;
+  --rtw-node-worker-border: #22d3ee;
+  --rtw-node-worker-fg: #cffafe;
+}
+
+/* Django admin's `data-theme="light"` opt-out: re-pin light vars if the user
+   explicitly chose light, regardless of system pref. */
+html[data-theme="light"] .rtw-root,
+[data-theme="light"] .rtw-root {
+  --rtw-bg: #ffffff;
+  --rtw-bg-elevated: #ffffff;
+  --rtw-bg-muted: #f9fafb;
+  --rtw-bg-chip: #f3f4f6;
+  --rtw-bg-hover: #f3f4f6;
+  --rtw-bg-pane: #f9fafb;
+  --rtw-bg-pane-override: #eef2ff;
+  --rtw-fg: #111827;
+  --rtw-fg-muted: #6b7280;
+  --rtw-fg-strong: #1f2937;
+  --rtw-border: #e5e7eb;
+  --rtw-border-strong: #d1d5db;
+  --rtw-accent-bg: #1f2937;
+  --rtw-accent-fg: #ffffff;
+  --rtw-accent-bg-hover: #111827;
+  --rtw-danger-bg: #fef2f2;
+  --rtw-danger-fg: #b91c1c;
+  --rtw-warning-bg: #fef3c7;
+  --rtw-warning-fg: #b45309;
+  --rtw-warning-border: #f59e0b;
+  --rtw-overlay: rgba(15, 23, 42, 0.5);
+  --rtw-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  --rtw-shadow-sidebar: -8px 0 24px rgba(0, 0, 0, 0.08);
+  --rtw-node-agent-bg: #eef2ff;
+  --rtw-node-agent-border: #6366f1;
+  --rtw-node-agent-fg: #1e1b4b;
+  --rtw-node-worker-bg: #ecfeff;
+  --rtw-node-worker-border: #06b6d4;
+  --rtw-node-worker-fg: #083344;
+}
+
+/* Modal lives at the document root via fixed positioning — the variables
+   still cascade because the modal is rendered inside `.rtw-root`. But if a
+   future portal moves it out, mirror the dark-mode hooks at backdrop level. */
+.rtw-modal-backdrop {
+  color: var(--rtw-fg);
+}
+
+/* -----------------------------------------------------------------------
+   Root host element
+   --------------------------------------------------------------------- */
+
+.rtw-root {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: var(--rtw-fg);
+  background: var(--rtw-bg);
+}
+
+.rtw-canvas {
+  width: 100%;
+  height: 100%;
+  min-height: 480px;
+}
+
+.rtw-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--rtw-fg-muted);
+  font-size: 14px;
+  pointer-events: none;
+}
+
+/* -----------------------------------------------------------------------
+   Error banner
+   --------------------------------------------------------------------- */
+
+.rtw-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--rtw-warning-bg);
+  color: var(--rtw-warning-fg);
+  border-bottom: 1px solid var(--rtw-warning-border);
+  font-size: 14px;
+}
+.rtw-banner__msg { flex: 1; }
+.rtw-banner__cta {
+  display: inline-block;
+  padding: 6px 12px;
+  background: var(--rtw-accent-bg);
+  color: var(--rtw-accent-fg);
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 13px;
+}
+.rtw-banner__cta:hover {
+  background: var(--rtw-accent-bg-hover);
+  color: var(--rtw-accent-fg);
+}
+
+/* -----------------------------------------------------------------------
+   Nodes / edges
+   --------------------------------------------------------------------- */
+
+.rtw-node {
+  position: relative;
+  border-radius: 6px;
+  padding: 10px 14px;
+  padding-left: 32px; /* room for the left-side grip */
+  width: 220px;
+  box-sizing: border-box;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--rtw-bg-elevated);
+}
+.rtw-node__body {
+  min-width: 0;
+}
+.rtw-node--agent {
+  background: var(--rtw-node-agent-bg);
+  border-color: var(--rtw-node-agent-border);
+  color: var(--rtw-node-agent-fg);
+}
+.rtw-node--worker {
+  background: var(--rtw-node-worker-bg);
+  border-color: var(--rtw-node-worker-border);
+  border-radius: 24px;
+  color: var(--rtw-node-worker-fg);
+}
+.rtw-node__head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.rtw-node--overridden {
+  box-shadow: 0 0 0 2px var(--rtw-accent-bg) inset;
+}
+.rtw-node__override-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--rtw-accent-bg);
+  color: var(--rtw-accent-fg);
+  flex-shrink: 0;
+}
+.rtw-node__override-badge svg {
+  display: block;
+}
+.rtw-node__kind {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.18);
+  color: inherit;
+}
+.rtw-node__grip {
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: grab;
+  color: currentColor;
+  opacity: 0.5;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 3px;
+}
+.rtw-node__grip:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+.rtw-node__grip:active {
+  cursor: grabbing;
+}
+.rtw-node__grip svg {
+  display: block;
+  fill: currentColor;
+}
+.rtw-node__title {
+  font-weight: 600;
+  font-size: 13px;
+  word-break: break-all;
+}
+
+/* Conditional edges share the same bezier geometry as normal edges; only
+   the stroke is dashed. */
+.rtw-edge--conditional {
+  stroke-dasharray: 6 4;
+}
+
+/* Save / Reset layout panel — sits over the top-right of the canvas via
+   ReactFlow's <Panel> component. */
+.rtw-layout-panel {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  background: var(--rtw-bg-elevated);
+  border: 1px solid var(--rtw-border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+.rtw-layout-panel__btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--rtw-border-strong);
+  background: var(--rtw-bg-elevated);
+  color: var(--rtw-fg);
+  cursor: pointer;
+}
+.rtw-layout-panel__btn:hover:not(:disabled) {
+  background: var(--rtw-bg-hover);
+}
+.rtw-layout-panel__btn--primary {
+  background: var(--rtw-accent-bg);
+  color: var(--rtw-accent-fg);
+  border-color: var(--rtw-accent-bg);
+}
+.rtw-layout-panel__btn--primary:hover:not(:disabled) {
+  background: var(--rtw-accent-bg-hover);
+  border-color: var(--rtw-accent-bg-hover);
+}
+.rtw-layout-panel__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rtw-layout-panel__error {
+  font-size: 12px;
+  color: var(--rtw-danger-fg);
+  padding-left: 8px;
+}
+
+/* -----------------------------------------------------------------------
+   Sidebar
+   --------------------------------------------------------------------- */
+
+.rtw-sidebar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 380px;
+  height: 100%;
+  background: var(--rtw-bg-elevated);
+  color: var(--rtw-fg);
+  border-left: 1px solid var(--rtw-border);
+  box-shadow: var(--rtw-shadow-sidebar);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+.rtw-sidebar__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--rtw-border);
+  background: var(--rtw-bg-muted);
+}
+.rtw-sidebar__close {
+  background: none;
+  border: none;
+  color: var(--rtw-fg-muted);
+  cursor: pointer;
+  font-size: 18px;
+  padding: 4px 8px;
+  line-height: 1;
+}
+.rtw-sidebar__close:hover { color: var(--rtw-fg); }
+.rtw-sidebar__title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  word-break: break-all;
+  color: var(--rtw-fg);
+}
+.rtw-sidebar__meta {
+  font-size: 12px;
+  color: var(--rtw-fg-muted);
+  margin-top: 4px;
+  word-break: break-all;
+}
+.rtw-sidebar__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: var(--rtw-bg-elevated);
+}
+
+/* -----------------------------------------------------------------------
+   Prompt sections
+   --------------------------------------------------------------------- */
+
+.rtw-prompt-section { margin-bottom: 24px; }
+.rtw-prompt-section__role {
+  display: inline-block;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--rtw-bg-chip);
+  color: var(--rtw-fg-strong);
+  margin-bottom: 6px;
+}
+.rtw-prompt-section__label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--rtw-fg);
+}
+.rtw-prompt-section__description {
+  font-size: 12px;
+  color: var(--rtw-fg-strong);
+  white-space: pre-wrap;
+  margin-bottom: 8px;
+}
+
+.rtw-placeholders {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+.rtw-placeholder {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  background: var(--rtw-bg-chip);
+  border: 1px solid var(--rtw-border-strong);
+  border-radius: 3px;
+  padding: 1px 6px;
+  color: var(--rtw-fg-strong);
+}
+
+/* Stacked layout: override on top (primary), collapsible default beneath. */
+.rtw-prompt-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rtw-prompt-pane {
+  border: 1px solid var(--rtw-border);
+  border-radius: 4px;
+  padding: 8px;
+  background: var(--rtw-bg-pane);
+  position: relative;
+  color: var(--rtw-fg);
+}
+.rtw-prompt-pane--override {
+  background: var(--rtw-bg-pane-override);
+  border-color: var(--rtw-node-agent-border);
+}
+.rtw-prompt-pane--interactive {
+  cursor: pointer;
+}
+.rtw-prompt-pane--interactive:hover,
+.rtw-prompt-pane--interactive:focus-visible {
+  background: var(--rtw-bg-hover);
+  outline: none;
+}
+.rtw-prompt-pane__head {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--rtw-fg-muted);
+  margin-bottom: 4px;
+}
+.rtw-prompt-pane__text {
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--rtw-fg);
+  display: -webkit-box;
+  -webkit-line-clamp: 10;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rtw-prompt-pane__saved-at {
+  font-size: 10px;
+  color: var(--rtw-fg-muted);
+  margin-top: 4px;
+}
+.rtw-prompt-pane__view-edit {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid var(--rtw-border-strong);
+  background: var(--rtw-bg-elevated);
+  color: var(--rtw-fg-strong);
+  cursor: pointer;
+}
+.rtw-prompt-pane__view-edit:hover { background: var(--rtw-bg-hover); }
+
+/* Collapsible default pane */
+.rtw-collapsible {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rtw-collapsible__toggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: var(--rtw-fg-muted);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 6px;
+  border-radius: 3px;
+}
+.rtw-collapsible__toggle:hover {
+  background: var(--rtw-bg-hover);
+  color: var(--rtw-fg);
+}
+.rtw-collapsible__chevron {
+  font-size: 10px;
+  line-height: 1;
+}
+.rtw-collapsible__body[hidden] {
+  display: none;
+}
+
+/* -----------------------------------------------------------------------
+   Edit modal shell + body (F02-S01)
+   --------------------------------------------------------------------- */
+
+.rtw-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--rtw-overlay);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+.rtw-modal {
+  width: 95vw;
+  max-width: 95vw;
+  height: 85vh;
+  background: var(--rtw-bg-elevated);
+  color: var(--rtw-fg);
+  border: 1px solid var(--rtw-border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--rtw-shadow);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+.rtw-modal__header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--rtw-border);
+  background: var(--rtw-bg-muted);
+  border-radius: 8px 8px 0 0;
+}
+.rtw-modal__title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  color: var(--rtw-fg);
+}
+.rtw-modal__description {
+  font-size: 13px;
+  color: var(--rtw-fg-strong);
+  white-space: pre-wrap;
+  margin: 0 0 8px 0;
+}
+.rtw-modal__body {
+  flex: 1;
+  padding: 16px 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--rtw-bg-elevated);
+}
+.rtw-modal__textarea {
+  flex: 1;
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+  border: 1px solid var(--rtw-border-strong);
+  border-radius: 4px;
+  padding: 8px;
+  resize: none;
+  box-sizing: border-box;
+  background: var(--rtw-bg);
+  color: var(--rtw-fg);
+}
+.rtw-modal__textarea:focus {
+  outline: 2px solid var(--rtw-accent-bg);
+  outline-offset: -1px;
+}
+.rtw-modal__textarea--readonly {
+  background: var(--rtw-bg-muted);
+  color: var(--rtw-fg-strong);
+  cursor: default;
+}
+.rtw-modal__notice {
+  font-size: 12px;
+  color: var(--rtw-fg-muted);
+  background: var(--rtw-bg-muted);
+  border: 1px solid var(--rtw-border);
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-top: 8px;
+}
+.rtw-modal__hint {
+  font-size: 12px;
+  color: var(--rtw-warning-fg);
+  margin-top: 6px;
+}
+.rtw-modal__error {
+  font-size: 12px;
+  color: var(--rtw-danger-fg);
+  background: var(--rtw-danger-bg);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-top: 8px;
+  white-space: pre-wrap;
+}
+.rtw-modal__footer {
+  padding: 12px 24px;
+  border-top: 1px solid var(--rtw-border);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: var(--rtw-bg-muted);
+  border-radius: 0 0 8px 8px;
+}
+.rtw-modal__btn {
+  font-size: 13px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  border: 1px solid var(--rtw-border-strong);
+  background: var(--rtw-bg-elevated);
+  color: var(--rtw-fg);
+  cursor: pointer;
+}
+.rtw-modal__btn:hover:not(:disabled) {
+  background: var(--rtw-bg-hover);
+}
+.rtw-modal__btn--primary {
+  background: var(--rtw-accent-bg);
+  color: var(--rtw-accent-fg);
+  border-color: var(--rtw-accent-bg);
+}
+.rtw-modal__btn--primary:hover:not(:disabled) {
+  background: var(--rtw-accent-bg-hover);
+  border-color: var(--rtw-accent-bg-hover);
+}
+.rtw-modal__btn--danger {
+  background: var(--rtw-bg-elevated);
+  color: var(--rtw-danger-fg);
+  border-color: var(--rtw-danger-fg);
+}
+.rtw-modal__btn--danger:hover:not(:disabled) {
+  background: var(--rtw-danger-bg);
+  color: var(--rtw-danger-fg);
+}
+.rtw-modal__btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

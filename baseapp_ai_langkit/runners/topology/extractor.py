@@ -7,7 +7,9 @@ from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePrompt
 from baseapp_ai_langkit.runners.models import (
     LLMRunner,
     LLMRunnerNode,
+    LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
+    LLMRunnerTopologyLayout,
 )
 from baseapp_ai_langkit.runners.topology.extraction_context import (
     topology_extraction_context,
@@ -106,9 +108,25 @@ def _node_payload(
         "class_name": f"{node_class.__module__}.{node_class.__name__}",
         "kind": _classify_kind(node_class),
         "usage_prompt": _usage_prompt_payload(key, node_class, runner_record),
-        "state_modifier_prompts": _state_modifier_prompts_payload(node_class),
+        "state_modifier_prompts": _state_modifier_prompts_payload(key, node_class, runner_record),
         "model": _model_payload(node_class),
+        "position": _read_persisted_position(key, runner_record),
     }
+
+
+def _read_persisted_position(key: str, runner_record: LLMRunner) -> Optional[Dict[str, float]]:
+    try:
+        layout = runner_record.topology_layout
+    except LLMRunnerTopologyLayout.DoesNotExist:
+        return None
+    pos = layout.node_positions.get(key)
+    if not isinstance(pos, dict):
+        return None
+    x = pos.get("x")
+    y = pos.get("y")
+    if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
+        return None
+    return {"x": float(x), "y": float(y)}
 
 
 def _classify_kind(node_class: Type[LLMNodeInterface]) -> str:
@@ -153,7 +171,9 @@ def _read_usage_prompt_override(key: str, runner_record: LLMRunner) -> Optional[
 
 
 def _state_modifier_prompts_payload(
+    key: str,
     node_class: Type[LLMNodeInterface],
+    runner_record: LLMRunner,
 ) -> List[Dict[str, Any]]:
     schema = getattr(node_class, "state_modifier_schema", None)
     if not schema:
@@ -163,10 +183,30 @@ def _state_modifier_prompts_payload(
         {
             "key": str(idx),
             **_serialize_prompt_schema(s),
-            "override": None,
+            "override": _read_state_modifier_override(key, idx, runner_record),
         }
         for idx, s in enumerate(schemas)
     ]
+
+
+def _read_state_modifier_override(
+    key: str, index: int, runner_record: LLMRunner
+) -> Optional[Dict[str, Any]]:
+    try:
+        node_record = runner_record.nodes.get(node=key)
+    except LLMRunnerNode.DoesNotExist:
+        return None
+    try:
+        state_modifier_record = node_record.state_modifiers.get(index=index)
+    except LLMRunnerNodeStateModifier.DoesNotExist:
+        return None
+    if not state_modifier_record.state_modifier:
+        return None
+    saved_at = getattr(state_modifier_record, "modified", None)
+    return {
+        "text": state_modifier_record.state_modifier,
+        "saved_at": saved_at.isoformat() if saved_at else None,
+    }
 
 
 def _model_payload(node_class: Type[LLMNodeInterface]) -> Optional[Dict[str, Any]]:

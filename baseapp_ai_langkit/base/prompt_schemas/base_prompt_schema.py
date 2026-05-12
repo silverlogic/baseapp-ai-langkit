@@ -44,9 +44,17 @@ class BasePromptSchema:
         self.conditional_rule = conditional_rule
 
     def validate(self, custom_prompt: str = None) -> bool:
-        """Validates that all required placeholders are present in the prompt."""
+        """Validates that all required placeholders are present in the prompt.
+
+        Checks for the format-string token (`{name}`) rather than the bare
+        name — `name` alone is not sufficient because it can match
+        partial/malformed occurrences like `{nameXYZ` or text that just
+        happens to contain the word. By the time the prompt is rendered with
+        `.format(**placeholders_data)`, only `{name}` (or `{name:spec}`)
+        receives the substitution; everything else stays literal.
+        """
         prompt = custom_prompt or self.prompt
-        return all([ph in prompt for ph in self.required_placeholders])
+        return all("{" + ph + "}" in prompt for ph in self.required_placeholders)
 
     def format(self) -> str:
         """Formats the prompt using the placeholders data."""

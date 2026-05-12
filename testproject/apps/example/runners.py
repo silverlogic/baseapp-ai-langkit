@@ -73,11 +73,35 @@ class MovieExpertWorker(MessagesWorker):
     )
 
 
+class MusicExpertWorker(MessagesWorker):
+    usage_prompt_schema = BasePromptSchema(
+        description=(
+            "Music-expert usage prompt. Sent as the human-facing instruction when "
+            "the orchestrator routes a query to this worker."
+        ),
+        prompt=(
+            "Please answer the following user question about music, artists, "
+            "composers, albums, or genres. Stay focused on the musical medium; "
+            "defer book, film, or TV questions to the relevant expert."
+        ),
+    )
+    state_modifier_schema = BasePromptSchema(
+        description=("Music-expert system prompt. Shapes the worker's voice and scope."),
+        prompt=(
+            "You are a knowledgeable music expert. Answer questions about songs, "
+            "artists, composers, albums, genres, and music history. Be concise. Only "
+            "respond about music — if asked about another medium such as books, "
+            "films, or TV, say so and let the synthesizer route the rest."
+        ),
+    )
+
+
 _NODE_DESCRIPTIONS = {
     "book_expert": (
         "Answers questions about books — literature, novels, authors, plots, characters."
     ),
     "movie_expert": ("Answers questions about films — directors, actors, plots, cinema history."),
+    "music_expert": ("Answers questions about music — songs, artists, composers, albums, genres."),
 }
 
 
@@ -115,6 +139,7 @@ class BookMovieExpertChatRunner(BaseChatInterface):
     nodes = {
         "book_expert": BookExpertWorker,
         "movie_expert": MovieExpertWorker,
+        "music_expert": MusicExpertWorker,
     }
 
     def __init__(self, *args, **kwargs):
