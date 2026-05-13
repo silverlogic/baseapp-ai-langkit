@@ -1,15 +1,32 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Tuple, Type, Union
+from dataclasses import dataclass
+from typing import TYPE_CHECKING, ClassVar, List, Optional, Tuple, Type, Union
 
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from baseapp_ai_langkit.base.interfaces.exceptions import LLMChatInterfaceException
+from baseapp_ai_langkit.base.interfaces.llm_model_metadata import LLMModelMetadata
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.chats.models import ChatSession
+
+
+@dataclass
+class NodeConfig:
+    """Resolved per-node config returned by `BaseRunnerInterface.get_dynamic_node_config`.
+
+    `llm` is None when there is no admin override or when the override was orphaned
+    (catalog row missing / initializer unregistered) — callers SHALL substitute the
+    runner's default `llm` in that case.
+    """
+
+    llm: Optional[BaseLanguageModel]
+    usage_prompt_schema: Optional[BasePromptSchema]
+    state_modifier_schema: Union[BasePromptSchema, List[BasePromptSchema], None]
+
 
 if TYPE_CHECKING:
     from baseapp_ai_langkit.base.workflows.base_workflow import BaseWorkflow
@@ -21,6 +38,41 @@ class BaseRunnerInterface(ABC):
     # TODO: change to OrderedDict.
     edge_nodes: dict[str, Type[LLMNodeInterface]] = {}
     nodes: dict[str, Type[LLMNodeInterface]] = {}
+
+    # Single source of truth for the runner's default LLM. The base `initialize_llm`
+    # builds the runtime chat model from this via the matching registered initializer
+    # (see `LLMModelInitializerRegistry`); the topology extractor reads it declaratively
+    # without instantiating any LLM. Subclasses without this declared trigger a Django
+    # system check warning (see `runners.checks`).
+    default_model_metadata: ClassVar[Optional[LLMModelMetadata]] = None
+
+    def initialize_llm(self) -> BaseLanguageModel:
+        """Build the runner's default LLM from `default_model_metadata`.
+
+        Resolves the initializer via `LLMModelInitializerRegistry` and calls
+        `initializer.initialize(model_id, **params)`. Subclasses MAY override
+        this method to build the LLM imperatively (legacy pattern); the
+        recommended approach is to declare `default_model_metadata` and let
+        this base implementation build the chat model.
+        """
+        from baseapp_ai_langkit.runners.model_initializers.registry import (
+            LLMModelInitializerRegistry,
+        )
+
+        metadata = self.default_model_metadata
+        if metadata is None:
+            raise NotImplementedError(
+                f"{type(self).__name__} must declare `default_model_metadata` "
+                "or override `initialize_llm()` to build the runner's default LLM."
+            )
+        initializer = LLMModelInitializerRegistry.get(metadata.initializer_key)
+        if initializer is None:
+            raise ValueError(
+                f"{type(self).__name__}.default_model_metadata references "
+                f"unregistered initializer_key={metadata.initializer_key!r}. "
+                "Register it via @register_llm_initializer or pick a built-in."
+            )
+        return initializer.initialize(metadata.model_id, **(metadata.params or {}))
 
     @abstractmethod
     def run(self) -> str:
@@ -110,12 +162,12 @@ class BaseRunnerInterface(ABC):
 
     def instantiate_edge_node(self, node_key: str, *args, **kwargs):
         node_class = self.edge_nodes[node_key]
-        usage_prompt_schema, state_modifier_schema = self.get_dynamic_prompt_schemas(
-            node_key, node_class
-        )
+        cfg = self.get_dynamic_node_config(node_key, node_class)
+        if cfg.llm is not None:
+            kwargs = {**kwargs, "llm": cfg.llm}
         return node_class(
-            usage_prompt_schema=usage_prompt_schema,
-            state_modifier_schema=state_modifier_schema,
+            usage_prompt_schema=cfg.usage_prompt_schema,
+            state_modifier_schema=cfg.state_modifier_schema,
             *args,
             **kwargs,
         )
@@ -124,20 +176,97 @@ class BaseRunnerInterface(ABC):
         nodes = {}
         for node_key, node_class in self.nodes.items():
             try:
-                usage_prompt_schema, state_modifier_schema = self.get_dynamic_prompt_schemas(
-                    node_key, node_class
-                )
+                cfg = self.get_dynamic_node_config(node_key, node_class)
             except Exception as e:
-                usage_prompt_schema, state_modifier_schema = None, None
-                logger.exception(f"Error in _maybe_override_prompt_schemas for {node_key}: {e}")
+                logger.exception(f"Error in get_dynamic_node_config for {node_key}: {e}")
+                cfg = NodeConfig(llm=None, usage_prompt_schema=None, state_modifier_schema=None)
+            node_kwargs = kwargs
+            if cfg.llm is not None:
+                node_kwargs = {**kwargs, "llm": cfg.llm}
             nodes[node_key] = self.instantiate_node(
                 node_class,
-                usage_prompt_schema=usage_prompt_schema,
-                state_modifier_schema=state_modifier_schema,
+                usage_prompt_schema=cfg.usage_prompt_schema,
+                state_modifier_schema=cfg.state_modifier_schema,
                 *args,
-                **kwargs,
+                **node_kwargs,
             )
         return nodes
+
+    def get_dynamic_node_config(
+        self, node_key: str, node_class: Type[LLMNodeInterface]
+    ) -> NodeConfig:
+        """Resolve per-node config — prompt schemas + override-built llm (if any).
+
+        Returns prompts via the existing `get_dynamic_prompt_schemas` path; computes
+        `llm` from a `LLMRunnerNodeModelOverride` row crosschecked against the
+        catalog and the initializer registry. When the override exists but its
+        catalog row is missing or its initializer is unregistered, logs a warning
+        and returns `llm=None` (caller substitutes the runner's default `llm`).
+        """
+        usage_prompt_schema, state_modifier_schema = self.get_dynamic_prompt_schemas(
+            node_key, node_class
+        )
+        override_llm = self._build_override_llm(node_key)
+        return NodeConfig(
+            llm=override_llm,
+            usage_prompt_schema=usage_prompt_schema,
+            state_modifier_schema=state_modifier_schema,
+        )
+
+    def _build_override_llm(self, node_key: str) -> Optional[BaseLanguageModel]:
+        from baseapp_ai_langkit.runners.model_initializers.registry import (
+            LLMModelInitializerRegistry,
+        )
+        from baseapp_ai_langkit.runners.models import (
+            AvailableLLMModel,
+            LLMRunner,
+            LLMRunnerNode,
+            LLMRunnerNodeModelOverride,
+        )
+
+        runner_record = LLMRunner.get_runner_instance_from_runner_class(self.__class__)
+        if runner_record is None:
+            return None
+        try:
+            node_record = runner_record.nodes.get(node=node_key)
+        except LLMRunnerNode.DoesNotExist:
+            return None
+        try:
+            override = node_record.model_override
+        except LLMRunnerNodeModelOverride.DoesNotExist:
+            return None
+
+        initializer = LLMModelInitializerRegistry.get(override.initializer_key)
+        if initializer is None:
+            logger.warning(
+                "LLMRunnerNodeModelOverride for runner=%s node=%s references "
+                "unregistered initializer_key=%r; falling back to runner default llm",
+                runner_record.name,
+                node_key,
+                override.initializer_key,
+            )
+            return None
+
+        catalog_row = AvailableLLMModel.objects.filter(
+            initializer_key=override.initializer_key,
+            model_id=override.model_id,
+        ).first()
+        if catalog_row is None:
+            logger.warning(
+                "LLMRunnerNodeModelOverride for runner=%s node=%s references missing "
+                "catalog entry %s:%s; falling back to runner default llm",
+                runner_record.name,
+                node_key,
+                override.initializer_key,
+                override.model_id,
+            )
+            return None
+
+        merged_params = {
+            **(catalog_row.default_params or {}),
+            **(override.params or {}),
+        }
+        return initializer.initialize(override.model_id, **merged_params)
 
     def get_dynamic_prompt_schemas(
         self, node_key: str, node_class: Type[LLMNodeInterface]

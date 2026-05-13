@@ -205,3 +205,99 @@ class LLMRunnerNodeStateModifier(TimeStampedModel):
         verbose_name = "State modifier"
         verbose_name_plural = "State modifiers"
         ordering = ["index"]
+
+
+class LLMRunnerTopologyLayout(TimeStampedModel):
+    """Admin-curated node positions for the topology graph view.
+
+    The widget falls back to auto-layout when this row is absent OR when any
+    declared node lacks a persisted position (so newly-added nodes don't land
+    at 0,0; admin re-saves to capture them). Layout is per-runner, shared
+    across admins — last save wins.
+    """
+
+    runner = models.OneToOneField(
+        LLMRunner,
+        on_delete=models.CASCADE,
+        related_name="topology_layout",
+    )
+    node_positions = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "JSON map: { node_key: { x: number, y: number } } persisting "
+            "per-node positions in the topology graph view."
+        ),
+    )
+
+    def __str__(self):
+        return f"{self.runner.name} layout ({len(self.node_positions)} nodes)"
+
+    class Meta:
+        verbose_name = "Topology layout"
+        verbose_name_plural = "Topology layouts"
+
+
+class AvailableLLMModel(TimeStampedModel):
+    """Project-curated catalog of LLM models admins can pick from in the model edit modal.
+
+    Managed from Django admin. The save endpoint and runtime cross-check against this
+    table; deletion is non-destructive — `LLMRunnerNodeModelOverride` has no FK back
+    here, so orphaned overrides survive (the runtime falls back to the runner default
+    and emits logger.warning).
+    """
+
+    label = models.CharField(max_length=255)
+    initializer_key = models.CharField(
+        max_length=64,
+        help_text=(
+            "Dispatch key matching a registered LLMModelInitializer "
+            "(e.g. 'openai', 'anthropic', 'gemini', 'openrouter', 'generic')."
+        ),
+    )
+    model_id = models.CharField(max_length=255)
+    default_params = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            "Default params merged UNDER override params at runtime (override wins per key). "
+            "Subset of the matched initializer's allowed_params."
+        ),
+    )
+
+    def __str__(self):
+        return f"{self.label} ({self.initializer_key}:{self.model_id})"
+
+    class Meta:
+        unique_together = ("initializer_key", "model_id")
+        verbose_name = "Available LLM model"
+        verbose_name_plural = "Available LLM models"
+        ordering = ["initializer_key", "model_id"]
+
+
+class LLMRunnerNodeModelOverride(TimeStampedModel):
+    """Per-(runner, node) override of the LLM model used at runtime.
+
+    Flat, denormalized fields (no FK to `AvailableLLMModel`) so catalog deletes don't
+    cascade; orphaned overrides surface as `override.in_catalog: false` in the topology
+    payload and the runtime falls back to the runner default + logs a warning.
+    """
+
+    runner_node = models.OneToOneField(
+        LLMRunnerNode,
+        on_delete=models.CASCADE,
+        related_name="model_override",
+    )
+    initializer_key = models.CharField(max_length=64)
+    model_id = models.CharField(max_length=255)
+    params = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return (
+            f"{self.runner_node.runner.name} - {self.runner_node.node} - "
+            f"{self.initializer_key}:{self.model_id}"
+        )
+
+    class Meta:
+        verbose_name = "Model override"
+        verbose_name_plural = "Model overrides"

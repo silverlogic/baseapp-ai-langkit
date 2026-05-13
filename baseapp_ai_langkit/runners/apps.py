@@ -10,6 +10,9 @@ class BaseappAILangkitRunnersConfig(AppConfig):
 
     def ready(self):
         autodiscover_modules("runners")
+        from baseapp_ai_langkit.runners import checks  # noqa: F401
+        from baseapp_ai_langkit.runners import model_initializers  # noqa: F401
+
         post_migrate.connect(self.sync_registry, sender=self)
 
     def sync_registry(self, **kwargs):

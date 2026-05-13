@@ -16,7 +16,6 @@ __pycache__/
 uml-*.*
 .bash_history
 
-src
 .pytest_cache/
 __pycache__/
 media/
