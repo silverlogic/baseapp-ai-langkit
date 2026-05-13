@@ -8,7 +8,12 @@ const node: GraphNodeData = {
   key: 'general_llm',
   class_name: 'MessagesWorker',
   kind: 'worker',
-  model: { identifier: 'gpt-4o-mini' },
+  model: {
+    initializer_key: 'openai',
+    model_id: 'gpt-4o-mini',
+    params: {},
+    override: null,
+  },
   has_override: false,
   prompts: [
     {
@@ -55,7 +60,26 @@ describe('Sidebar (edit mode) — F02-S01 affordances', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders no Edit affordance on the model pane (model pane has no Edit in S01)', () => {
+  it('renders an Edit affordance on the model pane in edit mode (F02-S02)', () => {
+    render(
+      <Sidebar
+        node={node}
+        onClose={() => {}}
+        promptMode="edit"
+        onEditPrompt={() => {}}
+        onEditModel={() => {}}
+      />,
+    );
+    // Model is rendered as its own section with a default pane carrying an
+    // inline View / Edit affordance (S02 reverses S01's "no edit on model").
+    const modelSection = screen.getByTestId('rtw-model-section');
+    expect(modelSection.textContent).toMatch(/openai:gpt-4o-mini/);
+    expect(
+      screen.getByTestId('rtw-view-edit-model-default'),
+    ).toBeInTheDocument();
+  });
+
+  it('renders no model Edit affordance when onEditModel is not provided (view-only)', () => {
     render(
       <Sidebar
         node={node}
@@ -64,12 +88,24 @@ describe('Sidebar (edit mode) — F02-S01 affordances', () => {
         onEditPrompt={() => {}}
       />,
     );
-    // Model is rendered as a meta line, not as an interactive pane.
-    expect(screen.getByText(/model: gpt-4o-mini/)).toBeInTheDocument();
-    // No header Edit button and no inline pane CTA for the model.
-    expect(screen.queryByTestId('rtw-edit-model')).toBeNull();
+    // Edit prop omitted → the inline CTA does not render even in edit mode.
     expect(screen.queryByTestId('rtw-view-edit-model-default')).toBeNull();
     expect(screen.queryByTestId('rtw-view-edit-model-override')).toBeNull();
+  });
+
+  it('clicking the model pane CTA calls onEditModel', () => {
+    const onEditModel = vi.fn();
+    render(
+      <Sidebar
+        node={node}
+        onClose={() => {}}
+        promptMode="edit"
+        onEditPrompt={() => {}}
+        onEditModel={onEditModel}
+      />,
+    );
+    fireEvent.click(screen.getByTestId('rtw-view-edit-model-default'));
+    expect(onEditModel).toHaveBeenCalledTimes(1);
   });
 
   it('clicking the inline state-modifier CTA calls onEditPrompt with that prompt', () => {

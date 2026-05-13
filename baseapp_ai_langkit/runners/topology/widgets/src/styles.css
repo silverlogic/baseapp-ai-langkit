@@ -654,10 +654,22 @@ html[data-theme="light"] .rtw-root,
   padding: 12px 24px;
   border-top: 1px solid var(--rtw-border);
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  align-items: center;
   gap: 8px;
   background: var(--rtw-bg-muted);
   border-radius: 0 0 8px 8px;
+}
+.rtw-modal__footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rtw-modal__footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 .rtw-modal__btn {
   font-size: 13px;
@@ -692,4 +704,81 @@ html[data-theme="light"] .rtw-root,
 .rtw-modal__btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* F02-S02 — model edit modal */
+.rtw-modal__warning {
+  font-size: 12px;
+  color: var(--rtw-warning-fg);
+  background: var(--rtw-warning-bg, var(--rtw-bg-muted));
+  border: 1px solid var(--rtw-warning-fg);
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+}
+.rtw-modal__empty {
+  font-size: 13px;
+  color: var(--rtw-fg-muted);
+  background: var(--rtw-bg-muted);
+  padding: 16px;
+  border-radius: 4px;
+  text-align: center;
+}
+.rtw-model-modal__label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--rtw-fg-muted);
+  margin-bottom: 16px;
+}
+.rtw-model-modal__select {
+  font-size: 14px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--rtw-border-strong);
+  background: var(--rtw-bg-elevated);
+  color: var(--rtw-fg);
+}
+.rtw-model-modal__params {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rtw-model-modal__param {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.rtw-model-modal__param-label {
+  color: var(--rtw-fg-muted);
+}
+.rtw-model-modal__param-input {
+  font-size: 13px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--rtw-border);
+  background: var(--rtw-bg-elevated);
+  color: var(--rtw-fg);
+}
+.rtw-model-modal__param-error {
+  grid-column: 2 / -1;
+  font-size: 11px;
+  color: var(--rtw-danger-fg);
+}
+
+/* F02-S02 — compact size variant for short edit forms (model picker etc.). */
+.rtw-modal--compact {
+  width: min(600px, 95vw);
+  max-width: min(600px, 95vw);
+  height: auto;
+  max-height: 85vh;
+}
+.rtw-model-modal__param-help {
+  grid-column: 2 / -1;
+  font-size: 11px;
+  color: var(--rtw-fg-muted);
+  margin-top: 2px;
 }

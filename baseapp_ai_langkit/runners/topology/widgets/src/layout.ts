@@ -19,10 +19,10 @@ export interface GraphNodeData {
   key: string;
   class_name: string;
   kind: TopologyNodeKind;
-  model?: TopologyModel | null;
+  model: TopologyModel;
   prompts: SidebarPrompt[];
-  // True iff at least one prompt on this node has a non-empty admin override.
-  // Drives the "overridden" badge on the rendered node.
+  // True iff at least one prompt on this node has a non-empty admin override,
+  // OR the model has an override row. Drives the "overridden" badge.
   has_override: boolean;
 }
 
@@ -53,8 +53,19 @@ export function nodeHasOverride(node: TopologyNode): boolean {
   for (const sm of node.state_modifier_prompts ?? []) {
     if (sm.override?.text) return true;
   }
+  if (node.model?.override) return true;
   return false;
 }
+
+// Fallback used when the topology payload's per-node `model` field is missing
+// (older fixtures pre-S02). The runtime server contract always emits a model
+// object, so this branch only fires in tests.
+const NULL_MODEL: TopologyModel = {
+  initializer_key: null,
+  model_id: null,
+  params: {},
+  override: null,
+};
 
 export function buildSidebarPrompts(node: TopologyNode): SidebarPrompt[] {
   const out: SidebarPrompt[] = [];
@@ -94,7 +105,7 @@ export function topologyToGraph(payload: TopologyResponse): {
       key: n.key,
       class_name: n.class_name,
       kind: n.kind,
-      model: n.model ?? null,
+      model: n.model ?? NULL_MODEL,
       prompts: buildSidebarPrompts(n),
       has_override: nodeHasOverride(n),
     },

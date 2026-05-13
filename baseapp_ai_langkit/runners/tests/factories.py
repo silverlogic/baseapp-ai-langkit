@@ -2,8 +2,10 @@ import factory
 from factory.django import DjangoModelFactory
 
 from baseapp_ai_langkit.runners.models import (
+    AvailableLLMModel,
     LLMRunner,
     LLMRunnerNode,
+    LLMRunnerNodeModelOverride,
     LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
 )
@@ -39,3 +41,24 @@ class LLMRunnerNodeStateModifierFactory(DjangoModelFactory):
     runner_node = factory.SubFactory(LLMRunnerNodeFactory)
     index = factory.Sequence(lambda n: n)
     state_modifier = factory.Faker("text")
+
+
+class AvailableLLMModelFactory(DjangoModelFactory):
+    class Meta:
+        model = AvailableLLMModel
+        django_get_or_create = ("initializer_key", "model_id")
+
+    label = factory.Sequence(lambda n: f"Test model {n}")
+    initializer_key = "openai"
+    model_id = factory.Sequence(lambda n: f"gpt-test-{n}")
+    default_params = factory.LazyFunction(dict)
+
+
+class LLMRunnerNodeModelOverrideFactory(DjangoModelFactory):
+    class Meta:
+        model = LLMRunnerNodeModelOverride
+
+    runner_node = factory.SubFactory(LLMRunnerNodeFactory)
+    initializer_key = "openai"
+    model_id = "gpt-4o-mini"
+    params = factory.LazyFunction(dict)

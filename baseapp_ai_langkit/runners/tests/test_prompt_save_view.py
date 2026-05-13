@@ -28,7 +28,6 @@ from baseapp_ai_langkit.runners.models import (
 )
 from baseapp_ai_langkit.runners.topology.extractor import extract_topology
 
-
 # Bare placeholder names — the codebase convention. `BasePromptSchema.validate`
 # checks for the format-string token `{name}` in the prompt; storing the bare
 # name in `required_placeholders` is what every real schema does
@@ -38,9 +37,7 @@ USAGE_PROMPT_TOKEN = "{" + USAGE_PROMPT_REQUIRED + "}"
 USAGE_PROMPT_DEFAULT = f"Default usage prompt referencing {USAGE_PROMPT_TOKEN}."
 STATE_MODIFIER_REQUIRED = "tone"
 STATE_MODIFIER_TOKEN = "{" + STATE_MODIFIER_REQUIRED + "}"
-STATE_MODIFIER_DEFAULT = (
-    f"Default state modifier referencing {STATE_MODIFIER_TOKEN}."
-)
+STATE_MODIFIER_DEFAULT = f"Default state modifier referencing {STATE_MODIFIER_TOKEN}."
 
 
 def _patched_usage_prompt_schema():
@@ -73,9 +70,7 @@ class _SaveViewBaseTest(TestCase):
     def setUpClass(cls):
         super().setUpClass()
         cls._patches = [
-            patch.object(
-                MessagesWorker, "usage_prompt_schema", new=_patched_usage_prompt_schema()
-            ),
+            patch.object(MessagesWorker, "usage_prompt_schema", new=_patched_usage_prompt_schema()),
             patch.object(
                 MessagesWorker, "state_modifier_schema", new=_patched_state_modifier_schema()
             ),
@@ -223,9 +218,7 @@ class TestValidationErrors(_SaveViewBaseTest):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(response.json()["error"]["code"], "node_unknown")
         # No spurious LLMRunnerNode row for the ghost key.
-        self.assertFalse(
-            LLMRunnerNode.objects.filter(runner=record, node="ghost-node").exists()
-        )
+        self.assertFalse(LLMRunnerNode.objects.filter(runner=record, node="ghost-node").exists())
 
     def test_state_modifier_index_out_of_range_returns_404(self):
         """4.1.6 — index past `get_static_state_modifier_list()` length → 404."""
@@ -342,16 +335,12 @@ class TestTopologyReflectsSavedOverride(_SaveViewBaseTest):
         record = self._runner_record()
         valid_text = f"After-save state-mod {STATE_MODIFIER_TOKEN}."
 
-        self._post(
-            self._staff_client(), self._state_modifier_url(record.pk, index=0), valid_text
-        )
+        self._post(self._staff_client(), self._state_modifier_url(record.pk, index=0), valid_text)
 
         payload = extract_topology(record)
         self.assertIsNone(payload["error"])
         node = next(n for n in payload["nodes"] if n["key"] == self.NODE_KEY)
-        state_modifier_entry = next(
-            sm for sm in node["state_modifier_prompts"] if sm["key"] == "0"
-        )
+        state_modifier_entry = next(sm for sm in node["state_modifier_prompts"] if sm["key"] == "0")
         self.assertEqual(state_modifier_entry["override"]["text"], valid_text)
 
 
@@ -416,9 +405,7 @@ class TestRestoreDefaultViaEmptyText(_SaveViewBaseTest):
 
         payload = extract_topology(record)
         node_payload = next(n for n in payload["nodes"] if n["key"] == self.NODE_KEY)
-        sm_entry = next(
-            sm for sm in node_payload["state_modifier_prompts"] if sm["key"] == "0"
-        )
+        sm_entry = next(sm for sm in node_payload["state_modifier_prompts"] if sm["key"] == "0")
         self.assertIsNone(sm_entry["override"])
 
 

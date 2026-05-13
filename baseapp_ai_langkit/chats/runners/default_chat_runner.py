@@ -1,9 +1,9 @@
 from typing import Type
 
-from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from baseapp_ai_langkit.base.interfaces.base_runner import BaseChatInterface
+from baseapp_ai_langkit.base.interfaces.llm_model_metadata import LLMModelMetadata
 from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
 from baseapp_ai_langkit.base.workflows.base_workflow import BaseWorkflow
 from baseapp_ai_langkit.base.workflows.general_chat_workflow import GeneralChatWorkflow
@@ -16,6 +16,11 @@ class DefaultChatRunner(BaseChatInterface):
     nodes = {
         "general_llm": MessagesWorker,
     }
+    default_model_metadata = LLMModelMetadata(
+        initializer_key="openai",
+        model_id="gpt-4o-mini",
+        params={"temperature": 0},
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -31,9 +36,6 @@ class DefaultChatRunner(BaseChatInterface):
         self.checkpointer = self.create_checkpointer()
         response = self.process_workflow()
         return response
-
-    def initialize_llm(self) -> ChatOpenAI:
-        return ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     def create_checkpointer(self) -> PostgresSaver:
         checkpointer_wrapper = LangGraphCheckpointer()

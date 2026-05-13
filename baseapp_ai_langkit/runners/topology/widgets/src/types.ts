@@ -35,15 +35,46 @@ export interface StateModifierPromptBlock extends PromptBlock {
   key: string;
 }
 
+export interface ModelOverride {
+  initializer_key: string;
+  model_id: string;
+  params: Record<string, unknown>;
+  saved_at: string | null;
+  // `false` when the override's (initializer_key, model_id) no longer matches
+  // any AvailableLLMModel row — the modal shows a warning and disables save
+  // until a valid catalog entry is picked.
+  in_catalog: boolean;
+}
+
+// Per-node `model` field. Defaults come from the runner's
+// `default_model_metadata` classattr; `null` initializer_key / model_id when
+// the runner hasn't declared it.
 export interface TopologyModel {
-  identifier?: string;
+  initializer_key: string | null;
+  model_id: string | null;
+  params: Record<string, unknown>;
+  override: ModelOverride | null;
+}
+
+// Catalog row, shipped at the topology payload root for the model edit modal.
+// `allowed_params` is derived server-side from the matching registered
+// initializer (empty array when the initializer is unregistered).
+export interface AvailableLLMModelRow {
+  label: string;
+  initializer_key: string;
+  model_id: string;
+  default_params: Record<string, unknown>;
+  allowed_params: string[];
 }
 
 export interface TopologyNode {
   key: string;
   class_name: string;
   kind: TopologyNodeKind;
-  model?: TopologyModel | null;
+  // Server-side contract emits this for every node (rule 4 of S02). Marked
+  // optional in TS so older test fixtures (pre-S02) don't need rewriting;
+  // `topologyToGraph` defaults to a null/null/{}/null model when missing.
+  model?: TopologyModel;
   usage_prompt?: PromptBlock | null;
   state_modifier_prompts?: StateModifierPromptBlock[];
   // Persisted admin-curated position. When every node has one the widget
@@ -61,6 +92,9 @@ export interface TopologyEdge {
 export interface TopologyResponse {
   nodes: TopologyNode[];
   edges: TopologyEdge[];
+  // Optional in TS for fixture compatibility — runtime contract emits an array
+  // (possibly empty) per the topology-extraction delta spec.
+  available_models?: AvailableLLMModelRow[];
   error?: TopologyError | null;
 }
 

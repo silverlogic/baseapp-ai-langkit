@@ -44,7 +44,12 @@ describe('topologyToGraph', () => {
           key: 'A',
           class_name: 'AgentA',
           kind: 'agent',
-          model: { identifier: 'gpt-4o' },
+          model: {
+            initializer_key: 'openai',
+            model_id: 'gpt-4o',
+            params: {},
+            override: null,
+          },
           usage_prompt: {
             description: 'do the thing',
             required_placeholders: ['{input}'],
@@ -71,7 +76,8 @@ describe('topologyToGraph', () => {
     expect(n.data.key).toBe('A');
     expect(n.data.class_name).toBe('AgentA');
     expect(n.data.kind).toBe('agent');
-    expect(n.data.model?.identifier).toBe('gpt-4o');
+    expect(n.data.model?.initializer_key).toBe('openai');
+    expect(n.data.model?.model_id).toBe('gpt-4o');
     expect(n.data.prompts).toHaveLength(2);
     expect(n.data.prompts[0].role).toBe('usage');
     expect(n.data.prompts[1].role).toBe('state_modifier');

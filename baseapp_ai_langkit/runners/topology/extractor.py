@@ -4,9 +4,14 @@ from typing import Any, Dict, List, Optional, Type
 from baseapp_ai_langkit.base.agents.langgraph_agent import LangGraphAgent
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
+from baseapp_ai_langkit.runners.model_initializers.registry import (
+    LLMModelInitializerRegistry,
+)
 from baseapp_ai_langkit.runners.models import (
+    AvailableLLMModel,
     LLMRunner,
     LLMRunnerNode,
+    LLMRunnerNodeModelOverride,
     LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
     LLMRunnerTopologyLayout,
@@ -49,14 +54,24 @@ def extract_topology(runner_record: LLMRunner) -> Dict[str, Any]:
 
             graph = workflow.workflow_chain.get_graph()
             nodes_payload, edges_payload = _walk_graph(graph, runner_class, runner_record)
-            return {"nodes": nodes_payload, "edges": edges_payload, "error": None}
+            return {
+                "nodes": nodes_payload,
+                "edges": edges_payload,
+                "available_models": _available_models_payload(),
+                "error": None,
+            }
     except Exception as e:
         logger.exception("Unexpected error during topology extraction")
         return _error_payload("unknown", str(e))
 
 
 def _error_payload(code: str, message: str) -> Dict[str, Any]:
-    return {"nodes": [], "edges": [], "error": {"code": code, "message": message}}
+    return {
+        "nodes": [],
+        "edges": [],
+        "available_models": [],
+        "error": {"code": code, "message": message},
+    }
 
 
 def _walk_graph(graph: Any, runner_class: Type, runner_record: LLMRunner):
@@ -68,7 +83,7 @@ def _walk_graph(graph: Any, runner_class: Type, runner_record: LLMRunner):
         if node_id not in available_keys:
             continue
         node_class = available_nodes[node_id]
-        nodes_payload.append(_node_payload(node_id, node_class, runner_record))
+        nodes_payload.append(_node_payload(node_id, node_class, runner_class, runner_record))
 
     edges_payload: List[Dict[str, Any]] = []
     for edge in _iter_graph_edges(graph):
@@ -101,7 +116,10 @@ def _iter_graph_edges(graph: Any):
 
 
 def _node_payload(
-    key: str, node_class: Type[LLMNodeInterface], runner_record: LLMRunner
+    key: str,
+    node_class: Type[LLMNodeInterface],
+    runner_class: Type,
+    runner_record: LLMRunner,
 ) -> Dict[str, Any]:
     return {
         "key": key,
@@ -109,7 +127,7 @@ def _node_payload(
         "kind": _classify_kind(node_class),
         "usage_prompt": _usage_prompt_payload(key, node_class, runner_record),
         "state_modifier_prompts": _state_modifier_prompts_payload(key, node_class, runner_record),
-        "model": _model_payload(node_class),
+        "model": _model_payload(key, runner_class, runner_record),
         "position": _read_persisted_position(key, runner_record),
     }
 
@@ -209,10 +227,70 @@ def _read_state_modifier_override(
     }
 
 
-def _model_payload(node_class: Type[LLMNodeInterface]) -> Optional[Dict[str, Any]]:
-    """Best-effort model metadata. F02 will turn this into an editable surface;
-    for S01 the topology endpoint does not yet introspect provider/model_id."""
-    return None
+def _model_payload(key: str, runner_class: Type, runner_record: LLMRunner) -> Dict[str, Any]:
+    """Emit per-node model field — defaults from runner's `default_model_metadata`
+    classattr; override (if any) from `LLMRunnerNodeModelOverride` + crosscheck against
+    `AvailableLLMModel` for `in_catalog`. No initializer is invoked here (the F02-S02
+    spec's no-SDK-at-extraction rule)."""
+    default_metadata = getattr(runner_class, "default_model_metadata", None)
+    if default_metadata is not None:
+        default_initializer_key = default_metadata.initializer_key
+        default_model_id = default_metadata.model_id
+        default_params = dict(default_metadata.params)
+    else:
+        default_initializer_key = None
+        default_model_id = None
+        default_params = {}
+
+    return {
+        "initializer_key": default_initializer_key,
+        "model_id": default_model_id,
+        "params": default_params,
+        "override": _read_model_override(key, runner_record),
+    }
+
+
+def _read_model_override(key: str, runner_record: LLMRunner) -> Optional[Dict[str, Any]]:
+    try:
+        node_record = runner_record.nodes.get(node=key)
+    except LLMRunnerNode.DoesNotExist:
+        return None
+    try:
+        override = node_record.model_override
+    except LLMRunnerNodeModelOverride.DoesNotExist:
+        return None
+    in_catalog = AvailableLLMModel.objects.filter(
+        initializer_key=override.initializer_key,
+        model_id=override.model_id,
+    ).exists()
+    saved_at = getattr(override, "modified", None)
+    return {
+        "initializer_key": override.initializer_key,
+        "model_id": override.model_id,
+        "params": dict(override.params or {}),
+        "saved_at": saved_at.isoformat() if saved_at else None,
+        "in_catalog": in_catalog,
+    }
+
+
+def _available_models_payload() -> List[Dict[str, Any]]:
+    """List of catalog rows for the model edit modal. `allowed_params` is derived
+    from the matching registered initializer (or `[]` when unregistered) so the
+    widget can render param controls without a second round-trip."""
+    rows: List[Dict[str, Any]] = []
+    for row in AvailableLLMModel.objects.all().order_by("initializer_key", "model_id"):
+        initializer = LLMModelInitializerRegistry.get(row.initializer_key)
+        allowed_params = list(initializer.allowed_params) if initializer is not None else []
+        rows.append(
+            {
+                "label": row.label,
+                "initializer_key": row.initializer_key,
+                "model_id": row.model_id,
+                "default_params": dict(row.default_params or {}),
+                "allowed_params": allowed_params,
+            }
+        )
+    return rows
 
 
 def _serialize_prompt_schema(schema: BasePromptSchema) -> Dict[str, Any]:

@@ -192,6 +192,22 @@ describe('EditModalShell', () => {
     expect(onCancel).toHaveBeenCalledTimes(1);
   });
 
+  it('renders the footerLeft slot alongside the default Save/Cancel buttons', () => {
+    render(
+      <EditModalShell
+        isOpen
+        onCancel={NOOP}
+        onSave={NOOP}
+        header={null}
+        body={null}
+        footerLeft={<button data-testid="reset-btn">Reset</button>}
+      />,
+    );
+    expect(screen.getByTestId('reset-btn')).toBeInTheDocument();
+    expect(screen.getByTestId('rtw-modal-cancel')).toBeInTheDocument();
+    expect(screen.getByTestId('rtw-modal-save')).toBeInTheDocument();
+  });
+
   it('shows "Saving…" and disables both buttons while saving', () => {
     render(
       <EditModalShell

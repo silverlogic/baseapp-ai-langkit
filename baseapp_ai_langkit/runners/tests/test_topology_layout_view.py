@@ -51,9 +51,7 @@ class _LayoutViewBaseTest(TestCase):
         return c
 
     def _post(self, client, url, payload):
-        return client.post(
-            url, data=json.dumps(payload), content_type="application/json"
-        )
+        return client.post(url, data=json.dumps(payload), content_type="application/json")
 
 
 class TestSaveTopologyLayoutHappyPath(_LayoutViewBaseTest):
@@ -78,22 +76,26 @@ class TestSaveTopologyLayoutHappyPath(_LayoutViewBaseTest):
     def test_repeat_save_overwrites_existing_row(self):
         record = self._runner_record()
         client = self._staff_client()
-        self._post(client, self._layout_url(record.pk), {
-            "node_positions": {"general_llm": {"x": 1, "y": 2}}
-        })
+        self._post(
+            client,
+            self._layout_url(record.pk),
+            {"node_positions": {"general_llm": {"x": 1, "y": 2}}},
+        )
         # New save with different keys replaces the prior content wholesale.
-        self._post(client, self._layout_url(record.pk), {
-            "node_positions": {"other": {"x": 5, "y": 5}}
-        })
+        self._post(
+            client, self._layout_url(record.pk), {"node_positions": {"other": {"x": 5, "y": 5}}}
+        )
         row = LLMRunnerTopologyLayout.objects.get(runner=record)
         self.assertEqual(row.node_positions, {"other": {"x": 5.0, "y": 5.0}})
 
     def test_empty_node_positions_resets_the_layout(self):
         record = self._runner_record()
         client = self._staff_client()
-        self._post(client, self._layout_url(record.pk), {
-            "node_positions": {"general_llm": {"x": 10, "y": 20}}
-        })
+        self._post(
+            client,
+            self._layout_url(record.pk),
+            {"node_positions": {"general_llm": {"x": 10, "y": 20}}},
+        )
         response = self._post(client, self._layout_url(record.pk), {"node_positions": {}})
         self.assertEqual(response.status_code, 200)
         row = LLMRunnerTopologyLayout.objects.get(runner=record)
@@ -181,9 +183,11 @@ class TestTopologyReflectsPersistedLayout(_LayoutViewBaseTest):
     def test_topology_payload_carries_persisted_positions(self):
         record = self._runner_record()
         # Save a position for the only declared node on DefaultChatRunner.
-        self._post(self._staff_client(), self._layout_url(record.pk), {
-            "node_positions": {"general_llm": {"x": 99, "y": 42}}
-        })
+        self._post(
+            self._staff_client(),
+            self._layout_url(record.pk),
+            {"node_positions": {"general_llm": {"x": 99, "y": 42}}},
+        )
         payload = extract_topology(record)
         self.assertIsNone(payload["error"])
         node = next(n for n in payload["nodes"] if n["key"] == "general_llm")
@@ -198,9 +202,11 @@ class TestTopologyReflectsPersistedLayout(_LayoutViewBaseTest):
     def test_topology_payload_position_is_null_for_unsaved_keys(self):
         # Layout row exists but doesn't list this particular node — still None.
         record = self._runner_record()
-        self._post(self._staff_client(), self._layout_url(record.pk), {
-            "node_positions": {"different_node": {"x": 0, "y": 0}}
-        })
+        self._post(
+            self._staff_client(),
+            self._layout_url(record.pk),
+            {"node_positions": {"different_node": {"x": 0, "y": 0}}},
+        )
         payload = extract_topology(record)
         node = next(n for n in payload["nodes"] if n["key"] == "general_llm")
         self.assertIsNone(node["position"])

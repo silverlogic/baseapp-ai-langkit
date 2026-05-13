@@ -7,7 +7,12 @@ const baseNode: GraphNodeData = {
   key: 'agent_a',
   class_name: 'AgentA',
   kind: 'agent',
-  model: { identifier: 'gpt-4o' },
+  model: {
+    initializer_key: 'openai',
+    model_id: 'gpt-4o',
+    params: {},
+    override: null,
+  },
   prompts: [],
   has_override: false,
 };
@@ -37,12 +42,16 @@ const nodeWithBothPrompts: GraphNodeData = {
 };
 
 describe('Sidebar', () => {
-  it('shows identity, kind, and model in the header', () => {
+  it('shows identity, kind, and model section', () => {
     render(<Sidebar node={baseNode} onClose={() => {}} />);
     expect(screen.getByText('agent_a')).toBeInTheDocument();
     expect(screen.getByText('AgentA')).toBeInTheDocument();
     expect(screen.getByText(/kind: agent/)).toBeInTheDocument();
-    expect(screen.getByText(/model: gpt-4o/)).toBeInTheDocument();
+    // F02-S02: model surfaced as its own section with the initializer/model_id
+    // shown in a <code> element inside the default pane.
+    expect(screen.getByTestId('rtw-model-section')).toBeInTheDocument();
+    const modelSection = screen.getByTestId('rtw-model-section');
+    expect(modelSection.textContent).toMatch(/openai:gpt-4o/);
   });
 
   it('renders no prompt sections when the node has no prompts', () => {

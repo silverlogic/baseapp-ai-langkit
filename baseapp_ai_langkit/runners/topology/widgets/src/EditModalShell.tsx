@@ -30,6 +30,13 @@ export interface EditModalShellProps {
   // Cancel button (or whatever the custom footer wires). Use for edit
   // modals where accidental dismissal would discard typed content.
   disableOutsideDismiss?: boolean;
+  // 'wide' (default, 95vw) for multi-paragraph prompt editing; 'compact'
+  // (~600px max) for short forms like the model edit modal.
+  size?: 'wide' | 'compact';
+  // Optional left-anchored footer slot — rendered to the left of the
+  // Cancel/Save buttons. Used by ModelEditModal for the "Reset to default"
+  // affordance. Ignored when `footer` (full custom footer) is provided.
+  footerLeft?: React.ReactNode;
 }
 
 export function EditModalShell({
@@ -45,6 +52,8 @@ export function EditModalShell({
   footer,
   dirty = false,
   disableOutsideDismiss = false,
+  size = 'wide',
+  footerLeft,
 }: EditModalShellProps) {
   const modalRef = useRef<HTMLDivElement | null>(null);
 
@@ -85,7 +94,7 @@ export function EditModalShell({
     >
       <div
         ref={modalRef}
-        className="rtw-modal"
+        className={'rtw-modal' + (size === 'compact' ? ' rtw-modal--compact' : '')}
         role="dialog"
         aria-modal="true"
         data-testid="rtw-modal"
@@ -96,24 +105,27 @@ export function EditModalShell({
         <footer className="rtw-modal__footer">
           {footer ?? (
             <>
-              <button
-                type="button"
-                className="rtw-modal__btn"
-                data-testid="rtw-modal-cancel"
-                onClick={() => _attemptCancel(dirty, onCancel)}
-                disabled={saving}
-              >
-                {cancelLabel}
-              </button>
-              <button
-                type="button"
-                className="rtw-modal__btn rtw-modal__btn--primary"
-                data-testid="rtw-modal-save"
-                onClick={onSave}
-                disabled={saveDisabled || saving || !onSave}
-              >
-                {saving ? 'Saving…' : saveLabel}
-              </button>
+              <div className="rtw-modal__footer-left">{footerLeft}</div>
+              <div className="rtw-modal__footer-right">
+                <button
+                  type="button"
+                  className="rtw-modal__btn"
+                  data-testid="rtw-modal-cancel"
+                  onClick={() => _attemptCancel(dirty, onCancel)}
+                  disabled={saving}
+                >
+                  {cancelLabel}
+                </button>
+                <button
+                  type="button"
+                  className="rtw-modal__btn rtw-modal__btn--primary"
+                  data-testid="rtw-modal-save"
+                  onClick={onSave}
+                  disabled={saveDisabled || saving || !onSave}
+                >
+                  {saving ? 'Saving…' : saveLabel}
+                </button>
+              </div>
             </>
           )}
         </footer>

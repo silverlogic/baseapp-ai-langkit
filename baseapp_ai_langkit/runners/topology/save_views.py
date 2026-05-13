@@ -17,7 +17,7 @@ inspecting prose:
 """
 
 import json
-from typing import Optional, Tuple, Type
+from typing import Any, Dict, List, Optional, Tuple, Type
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -26,16 +26,27 @@ from django.shortcuts import get_object_or_404
 
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
+from baseapp_ai_langkit.runners.model_initializers.registry import (
+    LLMModelInitializerRegistry,
+)
 from baseapp_ai_langkit.runners.models import (
+    AvailableLLMModel,
     LLMRunner,
     LLMRunnerNode,
+    LLMRunnerNodeModelOverride,
     LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
     LLMRunnerTopologyLayout,
 )
 
+# Param validation ranges (global for v1; per-provider quirks surface at runtime).
+_TEMPERATURE_RANGE = (0.0, 2.0)
+_TOP_P_RANGE = (0.0, 1.0)
 
-def _json_error(status: int, code: str, message: str, details: Optional[dict] = None) -> JsonResponse:
+
+def _json_error(
+    status: int, code: str, message: str, details: Optional[dict] = None
+) -> JsonResponse:
     body = {"error": {"code": code, "message": message}}
     if details is not None:
         body["error"]["details"] = details
@@ -74,10 +85,14 @@ def _resolve_node_class(
     except ValueError as exc:
         return None, None, _json_error(404, "runner_unregistered", str(exc))
     if node_key not in nodes_dict:
-        return None, None, _json_error(
-            404,
-            "node_unknown",
-            f"Node '{node_key}' is not declared on runner '{runner.name}'.",
+        return (
+            None,
+            None,
+            _json_error(
+                404,
+                "node_unknown",
+                f"Node '{node_key}' is not declared on runner '{runner.name}'.",
+            ),
         )
     return runner, nodes_dict[node_key], None
 
@@ -200,16 +215,12 @@ def save_topology_layout(request, pk: int):
         return _json_error(400, "validation_error", "Request body must be a JSON object.")
     raw_positions = body.get("node_positions")
     if not isinstance(raw_positions, dict):
-        return _json_error(
-            400, "validation_error", "Field 'node_positions' must be a JSON object."
-        )
+        return _json_error(400, "validation_error", "Field 'node_positions' must be a JSON object.")
 
     cleaned: dict = {}
     for key, pos in raw_positions.items():
         if not isinstance(key, str):
-            return _json_error(
-                400, "validation_error", "node_positions keys must be strings."
-            )
+            return _json_error(400, "validation_error", "node_positions keys must be strings.")
         if not isinstance(pos, dict):
             return _json_error(
                 400,
@@ -237,3 +248,151 @@ def save_topology_layout(request, pk: int):
             }
         }
     )
+
+
+# ---------------------------------------------------------------------------
+# Model override (F02-S02)
+# ---------------------------------------------------------------------------
+
+
+def _validate_param_values(params: Dict[str, Any], allowed_params: List[str]) -> List[str]:
+    """Return a list of param keys whose values are out-of-range or wrong-typed.
+
+    Globals (not per-initializer) for v1:
+        temperature  → float in [0.0, 2.0]
+        top_p        → float in [0.0, 1.0]
+        max_tokens   → positive int
+    """
+    invalid: List[str] = []
+    for key, value in params.items():
+        if key not in allowed_params:
+            continue  # already covered by `param_not_allowed`
+        if key == "temperature":
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                invalid.append(key)
+                continue
+            if not (_TEMPERATURE_RANGE[0] <= value <= _TEMPERATURE_RANGE[1]):
+                invalid.append(key)
+        elif key == "top_p":
+            if not isinstance(value, (int, float)) or isinstance(value, bool):
+                invalid.append(key)
+                continue
+            if not (_TOP_P_RANGE[0] <= value <= _TOP_P_RANGE[1]):
+                invalid.append(key)
+        elif key == "max_tokens":
+            if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
+                invalid.append(key)
+    return invalid
+
+
+def save_model_override(request, pk: int, node_key: str):
+    if request.method == "DELETE":
+        return _reset_model_override(request, pk, node_key)
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST", "DELETE"])
+    try:
+        payload = json.loads(request.body or b"{}")
+    except json.JSONDecodeError:
+        return _json_error(400, "validation_error", "Request body must be valid JSON.")
+    if not isinstance(payload, dict):
+        return _json_error(400, "validation_error", "Request body must be a JSON object.")
+
+    initializer_key = payload.get("initializer_key")
+    model_id = payload.get("model_id")
+    params = payload.get("params", {})
+    if not isinstance(initializer_key, str) or not initializer_key:
+        return _json_error(
+            400,
+            "validation_error",
+            "Field 'initializer_key' is required and must be a non-empty string.",
+        )
+    if not isinstance(model_id, str) or not model_id:
+        return _json_error(
+            400,
+            "validation_error",
+            "Field 'model_id' is required and must be a non-empty string.",
+        )
+    if not isinstance(params, dict):
+        return _json_error(400, "validation_error", "Field 'params' must be a JSON object.")
+
+    runner, _node_class, err = _resolve_node_class(pk, node_key)
+    if err is not None:
+        return err
+
+    initializer = LLMModelInitializerRegistry.get(initializer_key)
+    if initializer is None:
+        return _json_error(
+            400,
+            "initializer_unknown",
+            f"Initializer '{initializer_key}' is not registered.",
+        )
+
+    catalog_exists = AvailableLLMModel.objects.filter(
+        initializer_key=initializer_key, model_id=model_id
+    ).exists()
+    if not catalog_exists:
+        return _json_error(
+            400,
+            "model_not_in_catalog",
+            f"Model {initializer_key}:{model_id} is not in the AvailableLLMModel catalog.",
+        )
+
+    disallowed = [k for k in params.keys() if k not in initializer.allowed_params]
+    if disallowed:
+        return _json_error(
+            400,
+            "param_not_allowed",
+            (
+                f"Params {disallowed} are not allowed by initializer "
+                f"'{initializer_key}' (allowed: {list(initializer.allowed_params)})."
+            ),
+            details={"disallowed": disallowed},
+        )
+
+    invalid = _validate_param_values(params, list(initializer.allowed_params))
+    if invalid:
+        return _json_error(
+            400,
+            "param_invalid",
+            f"Params {invalid} are out of range or wrong-typed.",
+            details={"invalid": invalid},
+        )
+
+    with transaction.atomic():
+        runner_node, _ = LLMRunnerNode.objects.get_or_create(runner=runner, node=node_key)
+        override, _ = LLMRunnerNodeModelOverride.objects.update_or_create(
+            runner_node=runner_node,
+            defaults={
+                "initializer_key": initializer_key,
+                "model_id": model_id,
+                "params": params,
+            },
+        )
+        saved_at = override.modified
+
+    return JsonResponse(
+        {
+            "override": {
+                "initializer_key": initializer_key,
+                "model_id": model_id,
+                "params": params,
+                "saved_at": saved_at.isoformat() if saved_at else None,
+                "in_catalog": True,
+            }
+        }
+    )
+
+
+def _reset_model_override(request, pk: int, node_key: str):
+    """DELETE handler: drop the per-node override and fall back to the runner default.
+
+    Idempotent — if no override exists the request still returns 200 with
+    `{override: null}`. Mirrors the F02-S01 layout reset semantics.
+    """
+    runner, _node_class, err = _resolve_node_class(pk, node_key)
+    if err is not None:
+        return err
+    LLMRunnerNodeModelOverride.objects.filter(
+        runner_node__runner=runner, runner_node__node=node_key
+    ).delete()
+    return JsonResponse({"override": None})

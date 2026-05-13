@@ -1,6 +1,7 @@
 from typing import Type, Union
 
 import nested_admin
+from django import forms
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseNotAllowed
@@ -13,13 +14,19 @@ from baseapp_ai_langkit import __version__
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin
+from baseapp_ai_langkit.runners.model_initializers.registry import (
+    LLMModelInitializerRegistry,
+)
 from baseapp_ai_langkit.runners.models import (
+    AvailableLLMModel,
     LLMRunner,
     LLMRunnerNode,
+    LLMRunnerNodeModelOverride,
     LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
 )
 from baseapp_ai_langkit.runners.topology.save_views import (
+    save_model_override,
     save_state_modifier,
     save_topology_layout,
     save_usage_prompt,
@@ -54,8 +61,7 @@ class PromptDescriptionMixin:
         else:
             required_placeholders_description = ""
 
-        return mark_safe(
-            f"""
+        return mark_safe(f"""
             <div style="background-color: #f9f9f9; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 15px; overflow-wrap: break-word;">
                 <b style="word-wrap: break-word;">Prompt objective:</b>
                 <p style="white-space: pre-wrap; word-wrap: break-word;">{prompt_schema.description}</p>
@@ -63,8 +69,7 @@ class PromptDescriptionMixin:
                 <b style="word-wrap: break-word;">Default prompt:</b>
                 <p style="white-space: pre-wrap; word-wrap: break-word;">{prompt_schema.prompt}</p>
             </div>
-            """
-        )
+            """)
 
 
 class LLMRunnerNodeUsagePromptInline(
@@ -179,6 +184,11 @@ class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
                 self.admin_site.admin_view(save_topology_layout),
                 name="baseapp_ai_langkit_runners_llmrunner_save_topology_layout",
             ),
+            path(
+                "<int:pk>/topology/nodes/<str:node_key>/model/",
+                self.admin_site.admin_view(save_model_override),
+                name="baseapp_ai_langkit_runners_llmrunner_save_model_override",
+            ),
         ]
         return custom_urls + urls
 
@@ -222,3 +232,59 @@ class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
             "admin/baseapp_ai_langkit_runners/llmrunner/graph.html",
             context,
         )
+
+
+class _InitializerKeyChoiceForm(forms.ModelForm):
+    """Renders `initializer_key` as a dropdown sourced from the live registry.
+
+    Choices are computed at form-class instantiation (each admin request) so a
+    project that registers a custom initializer at startup sees it in the
+    dropdown without a restart-induced cache miss.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        choices = [
+            (init.key, f"{init.label} ({init.key})")
+            for init in LLMModelInitializerRegistry.get_all()
+        ]
+        # Keep an existing value addressable even if its initializer was
+        # removed from the registry — operators need to see and correct it
+        # rather than have the form silently swap it.
+        current = self.instance.initializer_key if self.instance else None
+        if current and current not in {key for key, _ in choices}:
+            choices.append((current, f"{current} (not registered)"))
+        self.fields["initializer_key"] = forms.ChoiceField(
+            choices=sorted(choices, key=lambda c: c[1]),
+            help_text=self.fields["initializer_key"].help_text,
+        )
+
+
+class AvailableLLMModelForm(_InitializerKeyChoiceForm):
+    class Meta:
+        model = AvailableLLMModel
+        fields = "__all__"
+
+
+class LLMRunnerNodeModelOverrideForm(_InitializerKeyChoiceForm):
+    class Meta:
+        model = LLMRunnerNodeModelOverride
+        fields = "__all__"
+
+
+@admin.register(AvailableLLMModel)
+class AvailableLLMModelAdmin(admin.ModelAdmin):
+    form = AvailableLLMModelForm
+    list_display = ("label", "initializer_key", "model_id")
+    search_fields = ("label", "model_id")
+    list_filter = ("initializer_key",)
+    ordering = ("initializer_key", "model_id")
+
+
+@admin.register(LLMRunnerNodeModelOverride)
+class LLMRunnerNodeModelOverrideAdmin(admin.ModelAdmin):
+    form = LLMRunnerNodeModelOverrideForm
+    list_display = ("runner_node", "initializer_key", "model_id", "modified")
+    search_fields = ("runner_node__node", "runner_node__runner__name")
+    readonly_fields = ("runner_node",)
+    list_filter = ("initializer_key",)

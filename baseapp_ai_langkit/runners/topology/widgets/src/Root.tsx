@@ -23,12 +23,14 @@ import type {
 } from './types';
 import { PromptEditModal } from './PromptEditModal';
 import { DefaultPromptViewModal } from './DefaultPromptViewModal';
+import { ModelEditModal } from './ModelEditModal';
 import {
   buildSaveLayoutUrl,
   buildSavePromptUrl,
   saveTopologyLayout,
   type PromptSaveTarget,
 } from './savePrompt';
+import { buildSaveModelUrl } from './saveModel';
 
 export interface RootProps {
   topologyUrl: string;
@@ -58,6 +60,7 @@ export function Root({ topologyUrl, legacyAdminUrl, fetchImpl }: RootProps) {
     node: GraphNodeData;
     prompt: SidebarPrompt;
   } | null>(null);
+  const [editingModel, setEditingModel] = useState<GraphNodeData | null>(null);
 
   const refresh = useCallback(async () => {
     setState({ status: 'loading' });
@@ -120,6 +123,7 @@ export function Root({ topologyUrl, legacyAdminUrl, fetchImpl }: RootProps) {
           onViewDefault={(prompt) =>
             setViewingDefault({ node: selected, prompt })
           }
+          onEditModel={() => setEditingModel(selected)}
         />
       )}
       {editing && state.status === 'ready' && (
@@ -150,6 +154,20 @@ export function Root({ topologyUrl, legacyAdminUrl, fetchImpl }: RootProps) {
           onClose={() => setViewingDefault(null)}
           onRestored={async () => {
             setViewingDefault(null);
+            await refresh();
+          }}
+        />
+      )}
+      {editingModel && state.status === 'ready' && (
+        <ModelEditModal
+          nodeKey={editingModel.key}
+          model={editingModel.model}
+          availableModels={state.payload.available_models ?? []}
+          saveUrl={buildSaveModelUrl(topologyUrl, editingModel.key)}
+          fetchImpl={fetchImpl ?? window.fetch}
+          onCancel={() => setEditingModel(null)}
+          onSaved={async () => {
+            setEditingModel(null);
             await refresh();
           }}
         />

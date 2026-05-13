@@ -10,11 +10,11 @@ from typing import Type
 
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.runnables import RunnableConfig
-from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.postgres import PostgresSaver
 
 from baseapp_ai_langkit.base.interfaces.base_runner import BaseChatInterface
+from baseapp_ai_langkit.base.interfaces.llm_model_metadata import LLMModelMetadata
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.base.workers.messages_worker import MessagesWorker
 from baseapp_ai_langkit.base.workers.orchestrator_worker import OrchestratorWorker
@@ -141,6 +141,11 @@ class BookMovieExpertChatRunner(BaseChatInterface):
         "movie_expert": MovieExpertWorker,
         "music_expert": MusicExpertWorker,
     }
+    default_model_metadata = LLMModelMetadata(
+        initializer_key="openai",
+        model_id="gpt-4o-mini",
+        params={"temperature": 0},
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -149,9 +154,6 @@ class BookMovieExpertChatRunner(BaseChatInterface):
     @classmethod
     def get_workflow_class(cls) -> Type[BaseWorkflow]:
         return OrchestratedConversationalWorkflow
-
-    def initialize_llm(self) -> ChatOpenAI:
-        return ChatOpenAI(model="gpt-4o-mini", temperature=0)
 
     def create_checkpointer(self) -> PostgresSaver:
         wrapper = LangGraphCheckpointer()
