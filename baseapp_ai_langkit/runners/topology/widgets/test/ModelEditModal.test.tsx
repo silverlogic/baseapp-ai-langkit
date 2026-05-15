@@ -4,19 +4,23 @@ import { describe, expect, it, vi } from 'vitest';
 import { ModelEditModal } from '../src/ModelEditModal';
 import type { AvailableLLMModelRow, TopologyModel } from '../src/types';
 
+// `default_params` is now the source of truth for which params the modal
+// renders — admins curate this per-row in the AvailableLLMModel admin.
+// `allowed_params` mirrors `Object.keys(default_params)` server-side; the
+// modal iterates over `default_params` entries directly.
 const CATALOG: AvailableLLMModelRow[] = [
   {
     label: 'GPT-4o mini',
     initializer_key: 'openai',
     model_id: 'gpt-4o-mini',
-    default_params: { temperature: 0 },
+    default_params: { temperature: 0, max_tokens: 256, top_p: 0.9 },
     allowed_params: ['temperature', 'max_tokens', 'top_p'],
   },
   {
     label: 'Claude Sonnet 4.6',
     initializer_key: 'anthropic',
     model_id: 'claude-sonnet-4-6',
-    default_params: {},
+    default_params: { temperature: 0.2, top_p: 0.95 },
     allowed_params: ['temperature', 'top_p'],
   },
 ];
@@ -64,9 +68,10 @@ describe('ModelEditModal', () => {
 
   it('renders help text under temperature/max_tokens/top_p', () => {
     renderModal();
+    // Temperature range is 0.0–1.0 (matches the server-side validator).
     expect(
       screen.getByTestId('rtw-model-modal-param-help-temperature').textContent,
-    ).toMatch(/0\.0[–-]2\.0/);
+    ).toMatch(/0\.0[–-]1\.0/);
     expect(
       screen.getByTestId('rtw-model-modal-param-help-max_tokens').textContent,
     ).toMatch(/positive integer/i);
@@ -127,7 +132,7 @@ describe('ModelEditModal', () => {
     const tempInput = screen
       .getByTestId('rtw-model-modal-param-temperature')
       .querySelector('input') as HTMLInputElement;
-    fireEvent.change(tempInput, { target: { value: '5' } }); // > 2 → out of range
+    fireEvent.change(tempInput, { target: { value: '5' } }); // > 1.0 → out of range
     const saveBtn = screen.getByTestId('rtw-modal-save') as HTMLButtonElement;
     expect(saveBtn.disabled).toBe(true);
     expect(

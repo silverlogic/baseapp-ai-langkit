@@ -238,6 +238,17 @@ class LLMRunnerTopologyLayout(TimeStampedModel):
         verbose_name_plural = "Topology layouts"
 
 
+def _default_available_llm_model_params() -> dict:
+    """Default value for `AvailableLLMModel.default_params` on new rows.
+
+    Acts as the source of truth for which params the admin modal lets users
+    tune — admins edit this catalog-row JSON to add/remove tunable params per
+    model. The keys present here drive the modal's rendered form fields; the
+    type of each value (number / bool / string) drives the input control type.
+    """
+    return {"temperature": 0, "max_tokens": 0}
+
+
 class AvailableLLMModel(TimeStampedModel):
     """Project-curated catalog of LLM models admins can pick from in the model edit modal.
 
@@ -257,11 +268,14 @@ class AvailableLLMModel(TimeStampedModel):
     )
     model_id = models.CharField(max_length=255)
     default_params = models.JSONField(
-        default=dict,
+        default=_default_available_llm_model_params,
         blank=True,
         help_text=(
             "Default params merged UNDER override params at runtime (override wins per key). "
-            "Subset of the matched initializer's allowed_params."
+            "The keys present here are also the only params the model edit modal will offer "
+            "to admins for tuning; remove a key to hide it, add one (with a sensible default) "
+            "to expose it. The value's type drives the modal's input control type "
+            "(number / boolean / text)."
         ),
     )
 
@@ -301,3 +315,33 @@ class LLMRunnerNodeModelOverride(TimeStampedModel):
     class Meta:
         verbose_name = "Model override"
         verbose_name_plural = "Model overrides"
+
+
+class LLMRunnerDefaultModelOverride(TimeStampedModel):
+    """Per-runner override of the default LLM used at runtime.
+
+    Sits one rung higher than `LLMRunnerNodeModelOverride`: when a node has no
+    per-node override row, the runtime falls through to this runner-level row
+    (and on to the code-declared `default_model_metadata` when this row is also
+    absent). OneToOne so at most one row per runner.
+
+    Flat, denormalized fields (no FK to `AvailableLLMModel`) — catalog deletes
+    do not cascade. Orphaned rows surface as `runner.default_model.override.in_catalog: false`
+    in the topology payload and the runtime falls back to the code default + logs a warning.
+    """
+
+    runner = models.OneToOneField(
+        LLMRunner,
+        on_delete=models.CASCADE,
+        related_name="default_model_override",
+    )
+    initializer_key = models.CharField(max_length=64)
+    model_id = models.CharField(max_length=255)
+    params = models.JSONField(default=dict, blank=True)
+
+    def __str__(self):
+        return f"{self.runner.name} - default - {self.initializer_key}:{self.model_id}"
+
+    class Meta:
+        verbose_name = "Runner default model override"
+        verbose_name_plural = "Runner default model overrides"

@@ -20,7 +20,7 @@
 {% block after_related_objects %}{% endblock %}
 
 {% block content %}
-<div id="runner-topology-root"></div>
+<div id="runner-topology-root" data-runner-name="{{ original.name }}"></div>
 <script src="{% static 'runner_topology_widget.js' %}?v={{ pkg_version }}"></script>
 <script>
   window.RunnerTopologyWidget.mount(

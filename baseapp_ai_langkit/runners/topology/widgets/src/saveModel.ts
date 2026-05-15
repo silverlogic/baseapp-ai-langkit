@@ -38,6 +38,18 @@ export function buildSaveModelUrl(topologyUrl: string, nodeKey: string): string 
   return `${prefix}/topology/nodes/${encodeURIComponent(nodeKey)}/model/`;
 }
 
+// Runner-level (F03-S01) sibling of `buildSaveModelUrl`. Targets the per-runner
+// save endpoint `<pk>/topology/default-model/` (no node_key).
+export function buildSaveRunnerDefaultModelUrl(topologyUrl: string): string {
+  const root = topologyUrl.endsWith('/')
+    ? topologyUrl.slice(0, -1)
+    : topologyUrl;
+  const prefix = root.endsWith('/topology')
+    ? root.slice(0, -'/topology'.length)
+    : root;
+  return `${prefix}/topology/default-model/`;
+}
+
 export interface ModelSavePayload {
   initializer_key: string;
   model_id: string;
@@ -93,6 +105,18 @@ export async function saveModelOverride(
   return { ok: false, status: response.status, error };
 }
 
+// Runner-level (F03-S01) sibling of `saveModelOverride`. Identical wire shape;
+// the only difference is the URL the caller resolves via
+// `buildSaveRunnerDefaultModelUrl`.
+export function saveRunnerDefaultModel(
+  saveUrl: string,
+  payload: ModelSavePayload,
+  fetchImpl: typeof fetch = window.fetch,
+  documentRef: Document = document,
+) {
+  return saveModelOverride(saveUrl, payload, fetchImpl, documentRef);
+}
+
 // Reset (delete) the per-node override — DELETE on the same URL. Returns 200
 // with `{override: null}` on success (idempotent if no override existed).
 export async function resetModelOverride(
@@ -136,4 +160,15 @@ export async function resetModelOverride(
       message: `Request failed with status ${response.status}.`,
     };
   return { ok: false, status: response.status, error };
+}
+
+// Runner-level (F03-S01) sibling of `resetModelOverride`. Identical wire shape;
+// the only difference is the URL the caller resolves via
+// `buildSaveRunnerDefaultModelUrl`.
+export function resetRunnerDefaultModel(
+  saveUrl: string,
+  fetchImpl: typeof fetch = window.fetch,
+  documentRef: Document = document,
+) {
+  return resetModelOverride(saveUrl, fetchImpl, documentRef);
 }

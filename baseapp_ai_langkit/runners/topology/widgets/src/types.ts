@@ -56,6 +56,16 @@ export interface TopologyModel {
   override: ModelOverride | null;
 }
 
+// Topology payload's root `runner` block (F03-S01). Carries the runner's
+// display identity (label + description) and the runner-level default-model
+// shape — same as `TopologyModel` but one rung above the per-node `model`.
+// `null` when the topology endpoint returned an error payload.
+export interface TopologyRunner {
+  label: string;
+  description: string | null;
+  default_model: TopologyModel;
+}
+
 // Catalog row, shipped at the topology payload root for the model edit modal.
 // `allowed_params` is derived server-side from the matching registered
 // initializer (empty array when the initializer is unregistered).
@@ -95,6 +105,10 @@ export interface TopologyResponse {
   // Optional in TS for fixture compatibility — runtime contract emits an array
   // (possibly empty) per the topology-extraction delta spec.
   available_models?: AvailableLLMModelRow[];
+  // F03-S01 root block — present on every successful extraction, `null` on
+  // error payloads. Optional in TS so older test fixtures (pre-F03) keep
+  // working; consumers tolerate `undefined` the same way they handle `null`.
+  runner?: TopologyRunner | null;
   error?: TopologyError | null;
 }
 

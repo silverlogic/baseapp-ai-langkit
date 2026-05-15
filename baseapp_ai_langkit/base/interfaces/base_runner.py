@@ -46,6 +46,15 @@ class BaseRunnerInterface(ABC):
     # system check warning (see `runners.checks`).
     default_model_metadata: ClassVar[Optional[LLMModelMetadata]] = None
 
+    # Optional human-readable identity for the admin list view and the React Flow
+    # banner. Both are display-only; the runtime path never reads them. When
+    # `label` is None the topology extractor (and the admin list column) fall
+    # back to `runner_class.__name__`. When `description` is None the banner
+    # omits the description line entirely. Plain text only — no markdown,
+    # no HTML interpretation, no length cap.
+    label: ClassVar[Optional[str]] = None
+    description: ClassVar[Optional[str]] = None
+
     def initialize_llm(self) -> BaseLanguageModel:
         """Build the runner's default LLM from `default_model_metadata`.
 
@@ -198,15 +207,20 @@ class BaseRunnerInterface(ABC):
         """Resolve per-node config — prompt schemas + override-built llm (if any).
 
         Returns prompts via the existing `get_dynamic_prompt_schemas` path; computes
-        `llm` from a `LLMRunnerNodeModelOverride` row crosschecked against the
-        catalog and the initializer registry. When the override exists but its
-        catalog row is missing or its initializer is unregistered, logs a warning
-        and returns `llm=None` (caller substitutes the runner's default `llm`).
+        `llm` from the override resolution chain:
+
+            per-node override (F02-S02) → runner-level override (F03-S01)
+                → None (caller substitutes the runner's code-declared default)
+
+        Each rung emits `logger.warning` and falls through when its catalog /
+        initializer references go orphan. The runner-level helper is memoized
+        per execution so multi-node runners without per-node overrides incur
+        rung-2's DB lookups + provider-SDK initialize() exactly once.
         """
         usage_prompt_schema, state_modifier_schema = self.get_dynamic_prompt_schemas(
             node_key, node_class
         )
-        override_llm = self._build_override_llm(node_key)
+        override_llm = self._build_override_llm(node_key) or self._build_runner_default_llm()
         return NodeConfig(
             llm=override_llm,
             usage_prompt_schema=usage_prompt_schema,
@@ -257,6 +271,82 @@ class BaseRunnerInterface(ABC):
                 "catalog entry %s:%s; falling back to runner default llm",
                 runner_record.name,
                 node_key,
+                override.initializer_key,
+                override.model_id,
+            )
+            return None
+
+        merged_params = {
+            **(catalog_row.default_params or {}),
+            **(override.params or {}),
+        }
+        return initializer.initialize(override.model_id, **merged_params)
+
+    # Sentinel distinguishing "cache not populated yet" from "computed and
+    # resolved to None" — `None` itself is a valid cached return value.
+    _RUNNER_DEFAULT_LLM_UNSET = object()
+
+    def _build_runner_default_llm(self) -> Optional[BaseLanguageModel]:
+        """Resolve the runner-level default-model override (F03-S01, rung 2).
+
+        Mirrors `_build_override_llm` one rung higher: loads the runner record,
+        looks up `LLMRunnerDefaultModelOverride`, crosschecks against the
+        catalog + initializer registry, and on the happy path returns
+        `initializer.initialize(model_id, **{**catalog_defaults, **override.params})`.
+        Orphan paths (no row / unregistered initializer / catalog miss) return
+        `None` so the caller falls through to the code-declared default.
+
+        Memoized for the lifetime of one runner instance — first call resolves
+        and stores; subsequent calls return the cached value without re-issuing
+        DB queries, registry lookups, or `initialize(...)` calls. The orphan
+        `logger.warning` therefore fires at most once per execution. Per-`self`,
+        never module-level.
+        """
+        cached = getattr(self, "_runner_default_llm_cache", self._RUNNER_DEFAULT_LLM_UNSET)
+        if cached is not self._RUNNER_DEFAULT_LLM_UNSET:
+            return cached
+
+        result = self._resolve_runner_default_llm()
+        self._runner_default_llm_cache = result
+        return result
+
+    def _resolve_runner_default_llm(self) -> Optional[BaseLanguageModel]:
+        from baseapp_ai_langkit.runners.model_initializers.registry import (
+            LLMModelInitializerRegistry,
+        )
+        from baseapp_ai_langkit.runners.models import (
+            AvailableLLMModel,
+            LLMRunner,
+            LLMRunnerDefaultModelOverride,
+        )
+
+        runner_record = LLMRunner.get_runner_instance_from_runner_class(self.__class__)
+        if runner_record is None:
+            return None
+        try:
+            override = runner_record.default_model_override
+        except LLMRunnerDefaultModelOverride.DoesNotExist:
+            return None
+
+        initializer = LLMModelInitializerRegistry.get(override.initializer_key)
+        if initializer is None:
+            logger.warning(
+                "runner-level default model override for runner=%s references "
+                "unregistered initializer_key=%r; falling back to code-declared default",
+                runner_record.name,
+                override.initializer_key,
+            )
+            return None
+
+        catalog_row = AvailableLLMModel.objects.filter(
+            initializer_key=override.initializer_key,
+            model_id=override.model_id,
+        ).first()
+        if catalog_row is None:
+            logger.warning(
+                "runner-level default model override for runner=%s references missing "
+                "catalog entry %s:%s; falling back to code-declared default",
+                runner_record.name,
                 override.initializer_key,
                 override.model_id,
             )
