@@ -13,6 +13,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
+import { Banner } from './Banner';
 import type { GraphEdge, GraphEdgeData, GraphNode, GraphNodeData } from './layout';
 import { layoutTopology } from './layout';
 import { Sidebar } from './Sidebar';
@@ -30,13 +31,22 @@ import {
   saveTopologyLayout,
   type PromptSaveTarget,
 } from './savePrompt';
-import { buildSaveModelUrl } from './saveModel';
+import { buildSaveModelUrl, buildSaveRunnerDefaultModelUrl } from './saveModel';
 
 export interface RootProps {
   topologyUrl: string;
   legacyAdminUrl: string;
   // Optional: injectable fetch for tests. Defaults to window.fetch.
   fetchImpl?: typeof fetch;
+  // The mount root element — read by `<Banner>` for the topology-error
+  // fallback `data-runner-name` attribute (populated by the change-view
+  // Django template). Threaded through by `mount.tsx`; tests may pass it
+  // directly.
+  mountElement?: HTMLElement | null;
+  // Concrete admin URL for the AvailableLLMModel admin page; surfaced in
+  // the banner's empty-catalog tooltip. Optional — banner falls back to
+  // a generic Django-admin pointer when omitted.
+  catalogAdminUrl?: string;
 }
 
 type LoadState =
@@ -49,7 +59,13 @@ const GENERIC_ERROR: TopologyError = {
   message: 'Failed to load the runner workflow.',
 };
 
-export function Root({ topologyUrl, legacyAdminUrl, fetchImpl }: RootProps) {
+export function Root({
+  topologyUrl,
+  legacyAdminUrl,
+  fetchImpl,
+  mountElement,
+  catalogAdminUrl,
+}: RootProps) {
   const [state, setState] = useState<LoadState>({ status: 'loading' });
   const [selected, setSelected] = useState<GraphNodeData | null>(null);
   const [editing, setEditing] = useState<{
@@ -61,6 +77,12 @@ export function Root({ topologyUrl, legacyAdminUrl, fetchImpl }: RootProps) {
     prompt: SidebarPrompt;
   } | null>(null);
   const [editingModel, setEditingModel] = useState<GraphNodeData | null>(null);
+  // F03-S01 — parallel to `editingModel` but for the runner-level rung.
+  // Truthy when the banner's "Edit default model" button is active and the
+  // modal is mounted in `target='runner'` mode. Mutually exclusive with the
+  // per-node modal in practice (different entry points; banner button is
+  // separate from sidebar Edit CTA).
+  const [editingRunnerDefault, setEditingRunnerDefault] = useState(false);
 
   const refresh = useCallback(async () => {
     setState({ status: 'loading' });
@@ -102,8 +124,20 @@ export function Root({ topologyUrl, legacyAdminUrl, fetchImpl }: RootProps) {
     [],
   );
 
+  const runnerBlock =
+    state.status === 'ready' ? state.payload.runner ?? null : null;
+  const availableModels =
+    state.status === 'ready' ? state.payload.available_models ?? [] : [];
+
   return (
     <div className="rtw-root" data-testid="rtw-root">
+      <Banner
+        runner={runnerBlock}
+        availableModels={availableModels}
+        onEditRunnerDefault={() => setEditingRunnerDefault(true)}
+        catalogAdminUrl={catalogAdminUrl}
+        mountElement={mountElement}
+      />
       {state.status === 'error' && (
         <ErrorBanner error={state.error} legacyAdminUrl={legacyAdminUrl} />
       )}
@@ -160,6 +194,7 @@ export function Root({ topologyUrl, legacyAdminUrl, fetchImpl }: RootProps) {
       )}
       {editingModel && state.status === 'ready' && (
         <ModelEditModal
+          target="node"
           nodeKey={editingModel.key}
           model={editingModel.model}
           availableModels={state.payload.available_models ?? []}
@@ -168,6 +203,20 @@ export function Root({ topologyUrl, legacyAdminUrl, fetchImpl }: RootProps) {
           onCancel={() => setEditingModel(null)}
           onSaved={async () => {
             setEditingModel(null);
+            await refresh();
+          }}
+        />
+      )}
+      {editingRunnerDefault && state.status === 'ready' && state.payload.runner && (
+        <ModelEditModal
+          target="runner"
+          model={state.payload.runner.default_model}
+          availableModels={state.payload.available_models ?? []}
+          saveUrl={buildSaveRunnerDefaultModelUrl(topologyUrl)}
+          fetchImpl={fetchImpl ?? window.fetch}
+          onCancel={() => setEditingRunnerDefault(false)}
+          onSaved={async () => {
+            setEditingRunnerDefault(false);
             await refresh();
           }}
         />

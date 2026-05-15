@@ -132,6 +132,15 @@ class BookMovieExpertChatRunner(BaseChatInterface):
     extraction can include the orchestrator/synthesizer in the rendered graph.
     """
 
+    label = "Book / Movie / Music expert chat"
+    description = (
+        "Demo orchestrated chat runner. An orchestrator inspects the user's question and "
+        "routes it to one of three specialist workers (book expert, movie expert, or music "
+        "expert); a synthesizer composes the final reply from the chosen worker's output. "
+        "Lives in testproject for development and smoke-testing; not shipped in production "
+        "baseapp-ai installations."
+    )
+
     edge_nodes = {
         "orchestration": OrchestratorWorker,
         "synthesis": SynthesizerWorker,

@@ -48,13 +48,18 @@ class TestAvailableLLMModel(TestCase):
         )
         self.assertEqual(str(row), "Claude Sonnet 4.6 (anthropic:claude-sonnet-4-6)")
 
-    def test_default_params_defaults_to_empty_dict(self):
+    def test_default_params_seeds_temperature_and_max_tokens(self):
+        """New `AvailableLLMModel` rows get a starting `default_params` of
+        `{"temperature": 0, "max_tokens": 0}` so admins land on a usable
+        template — they edit the values to sensible defaults for the model
+        before saving. This is also the contract that drives which params the
+        edit modal renders (one form field per key in `default_params`)."""
         row = AvailableLLMModel.objects.create(
             label="Test",
             initializer_key="generic",
             model_id="some/model",
         )
-        self.assertEqual(row.default_params, {})
+        self.assertEqual(row.default_params, {"temperature": 0, "max_tokens": 0})
 
 
 class TestLLMRunnerNodeModelOverride(TestCase):

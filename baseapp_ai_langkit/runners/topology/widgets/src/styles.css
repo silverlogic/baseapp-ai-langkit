@@ -165,7 +165,10 @@ html[data-theme="light"] .rtw-root,
   height: 100%;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--rtw-fg);
-  background: var(--rtw-bg);
+  /* No explicit background — the widget inherits the host page's chrome
+     (Django admin's dark/light theme) so the canvas area (React Flow's
+     own background) and the banner / sidebar surfaces all sit on the same
+     base color without a visible navy mismatch. */
 }
 
 .rtw-canvas {
@@ -739,6 +742,13 @@ html[data-theme="light"] .rtw-root,
   border: 1px solid var(--rtw-border-strong);
   background: var(--rtw-bg-elevated);
   color: var(--rtw-fg);
+  /* Vertical centering: without an explicit line-height + min-height, some
+     browsers (Chrome on Linux) crop the descenders of the dropdown's
+     selected-option text. `box-sizing: border-box` keeps the visible height
+     stable across browsers. */
+  line-height: 1.4;
+  min-height: 34px;
+  box-sizing: border-box;
 }
 .rtw-model-modal__params {
   display: flex;
@@ -781,4 +791,86 @@ html[data-theme="light"] .rtw-root,
   font-size: 11px;
   color: var(--rtw-fg-muted);
   margin-top: 2px;
+}
+
+/* -----------------------------------------------------------------------
+   F03-S01 runner banner (above the canvas)
+   --------------------------------------------------------------------- */
+
+.rtw-runner-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px 20px;
+  /* Transparent background — banner blends into the root's canvas color
+     instead of painting a distinct panel above the canvas. Only the
+     border-bottom separates the banner from the React Flow surface. */
+  background: transparent;
+  border-bottom: 1px solid var(--rtw-border);
+}
+.rtw-runner-banner__identity {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rtw-runner-banner__label {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--rtw-fg);
+}
+.rtw-runner-banner__description {
+  margin: 0;
+  font-size: 13px;
+  color: var(--rtw-fg-muted);
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+.rtw-runner-banner__summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.rtw-runner-banner__summary {
+  font-size: 13px;
+  color: var(--rtw-fg);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* Override-active highlight — mirrors `.rtw-prompt-pane--override` so the
+   runner-level override is visually identifiable at a glance. Indigo-tinted
+   in both themes (`--rtw-bg-pane-override`), bordered with the node-agent
+   accent color. */
+.rtw-runner-banner__summary--override {
+  background: var(--rtw-bg-pane-override);
+  border: 1px solid var(--rtw-node-agent-border);
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+.rtw-runner-banner__orphan-glyph {
+  color: var(--rtw-warning-fg, #b25800);
+  cursor: help;
+  font-size: 14px;
+}
+.rtw-runner-banner__edit-btn {
+  padding: 6px 12px;
+  font-size: 13px;
+  border: 1px solid var(--rtw-border);
+  border-radius: 4px;
+  background: var(--rtw-bg);
+  color: var(--rtw-fg);
+  cursor: pointer;
+}
+.rtw-runner-banner__edit-btn:hover:not(:disabled) {
+  background: var(--rtw-bg-hover);
+}
+.rtw-runner-banner__edit-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.rtw-runner-banner--error .rtw-runner-banner__label {
+  color: var(--rtw-fg-muted);
 }

@@ -21,12 +21,13 @@ from baseapp_ai_langkit.runners.models import (
     AvailableLLMModel,
     LLMRunner,
     LLMRunnerNode,
-    LLMRunnerNodeModelOverride,
     LLMRunnerNodeStateModifier,
     LLMRunnerNodeUsagePrompt,
 )
+from baseapp_ai_langkit.runners.topology.extractor import _resolve_runner_label
 from baseapp_ai_langkit.runners.topology.save_views import (
     save_model_override,
+    save_runner_default_model,
     save_state_modifier,
     save_topology_layout,
     save_usage_prompt,
@@ -150,11 +151,26 @@ class LLMRunnerNodeInline(AddAndDeleteBlockerMixin, nested_admin.NestedStackedIn
 
 @admin.register(LLMRunner)
 class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
-    list_display = ("name",)
+    list_display = ("runner_label", "name")
     search_fields = ("name",)
     ordering = ("name",)
     readonly_fields = ("name",)
     inlines = [LLMRunnerNodeInline]
+
+    @admin.display(description="Label", ordering=None)
+    def runner_label(self, obj: LLMRunner) -> str:
+        """Promote the declared `label` ClassVar to the primary column.
+
+        Falls back to `runner_class.__name__` (class name only, no module
+        prefix) when `label` is unset, and falls back to `obj.name` (the
+        dotted path) when the registry has no class for the row — so the
+        changelist never blank-renders for an orphan row.
+        """
+        try:
+            runner_class = obj.runner_class
+        except ValueError:
+            return obj.name
+        return _resolve_runner_label(runner_class)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -188,6 +204,11 @@ class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
                 "<int:pk>/topology/nodes/<str:node_key>/model/",
                 self.admin_site.admin_view(save_model_override),
                 name="baseapp_ai_langkit_runners_llmrunner_save_model_override",
+            ),
+            path(
+                "<int:pk>/topology/default-model/",
+                self.admin_site.admin_view(save_runner_default_model),
+                name="baseapp_ai_langkit_runners_llmrunner_save_runner_default_model",
             ),
         ]
         return custom_urls + urls
@@ -254,21 +275,22 @@ class _InitializerKeyChoiceForm(forms.ModelForm):
         current = self.instance.initializer_key if self.instance else None
         if current and current not in {key for key, _ in choices}:
             choices.append((current, f"{current} (not registered)"))
+        is_add_form = not (self.instance and self.instance.pk)
+        # "generic" is the safest default for a new catalog row: it accepts any
+        # `(model_id)` and delegates to LangChain's `init_chat_model`, so admins
+        # can land a working entry without first picking a provider-specific
+        # initializer.
+        default_initial = "generic" if is_add_form else None
         self.fields["initializer_key"] = forms.ChoiceField(
             choices=sorted(choices, key=lambda c: c[1]),
             help_text=self.fields["initializer_key"].help_text,
+            initial=default_initial,
         )
 
 
 class AvailableLLMModelForm(_InitializerKeyChoiceForm):
     class Meta:
         model = AvailableLLMModel
-        fields = "__all__"
-
-
-class LLMRunnerNodeModelOverrideForm(_InitializerKeyChoiceForm):
-    class Meta:
-        model = LLMRunnerNodeModelOverride
         fields = "__all__"
 
 
@@ -281,10 +303,8 @@ class AvailableLLMModelAdmin(admin.ModelAdmin):
     ordering = ("initializer_key", "model_id")
 
 
-@admin.register(LLMRunnerNodeModelOverride)
-class LLMRunnerNodeModelOverrideAdmin(admin.ModelAdmin):
-    form = LLMRunnerNodeModelOverrideForm
-    list_display = ("runner_node", "initializer_key", "model_id", "modified")
-    search_fields = ("runner_node__node", "runner_node__runner__name")
-    readonly_fields = ("runner_node",)
-    list_filter = ("initializer_key",)
+# Note: `LLMRunnerNodeModelOverride` and `LLMRunnerDefaultModelOverride` are
+# intentionally NOT registered as standalone admin classes. Override editing
+# is exclusive to the React Flow graph view's modal (per-node sidebar Edit
+# button + runner-level banner button). Surfacing them in /admin/ confuses
+# admins who'd otherwise try to edit overrides from two places.

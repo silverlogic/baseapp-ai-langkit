@@ -126,40 +126,44 @@ export function DefaultPromptViewModal({
       }
       footer={
         <>
-          <button
-            type="button"
-            className="rtw-modal__btn"
-            data-testid="rtw-default-modal-close"
-            onClick={onClose}
-            disabled={restoring}
-          >
-            Close
-          </button>
-          {canRestore && (
+          <div className="rtw-modal__footer-left">
+            {canRestore && (
+              <button
+                type="button"
+                className="rtw-modal__btn rtw-modal__btn--danger"
+                data-testid="rtw-default-modal-restore"
+                onClick={handleRestore}
+                disabled={restoring}
+                aria-label="Restore default prompt"
+              >
+                {restoring ? 'Restoring…' : 'Restore default'}
+              </button>
+            )}
+          </div>
+          <div className="rtw-modal__footer-right">
             <button
               type="button"
-              className="rtw-modal__btn rtw-modal__btn--danger"
-              data-testid="rtw-default-modal-restore"
-              onClick={handleRestore}
+              className="rtw-modal__btn"
+              data-testid="rtw-default-modal-close"
+              onClick={onClose}
               disabled={restoring}
-              aria-label="Restore default prompt"
             >
-              {restoring ? 'Restoring…' : 'Restore default'}
+              Close
             </button>
-          )}
-          <button
-            type="button"
-            className="rtw-modal__btn rtw-modal__btn--primary"
-            data-testid="rtw-default-modal-copy"
-            onClick={handleCopy}
-            disabled={restoring}
-          >
-            {copied === 'ok'
-              ? 'Copied!'
-              : copied === 'err'
-                ? 'Copy failed'
-                : 'Copy to clipboard'}
-          </button>
+            <button
+              type="button"
+              className="rtw-modal__btn rtw-modal__btn--primary"
+              data-testid="rtw-default-modal-copy"
+              onClick={handleCopy}
+              disabled={restoring}
+            >
+              {copied === 'ok'
+                ? 'Copied!'
+                : copied === 'err'
+                  ? 'Copy failed'
+                  : 'Copy to clipboard'}
+            </button>
+          </div>
         </>
       }
     />

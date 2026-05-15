@@ -4,6 +4,7 @@ from factory.django import DjangoModelFactory
 from baseapp_ai_langkit.runners.models import (
     AvailableLLMModel,
     LLMRunner,
+    LLMRunnerDefaultModelOverride,
     LLMRunnerNode,
     LLMRunnerNodeModelOverride,
     LLMRunnerNodeStateModifier,
@@ -59,6 +60,16 @@ class LLMRunnerNodeModelOverrideFactory(DjangoModelFactory):
         model = LLMRunnerNodeModelOverride
 
     runner_node = factory.SubFactory(LLMRunnerNodeFactory)
+    initializer_key = "openai"
+    model_id = "gpt-4o-mini"
+    params = factory.LazyFunction(dict)
+
+
+class LLMRunnerDefaultModelOverrideFactory(DjangoModelFactory):
+    class Meta:
+        model = LLMRunnerDefaultModelOverride
+
+    runner = factory.SubFactory(LLMRunnerFactory)
     initializer_key = "openai"
     model_id = "gpt-4o-mini"
     params = factory.LazyFunction(dict)

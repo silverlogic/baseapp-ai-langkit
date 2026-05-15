@@ -32,6 +32,7 @@ from baseapp_ai_langkit.runners.model_initializers.registry import (
 from baseapp_ai_langkit.runners.models import (
     AvailableLLMModel,
     LLMRunner,
+    LLMRunnerDefaultModelOverride,
     LLMRunnerNode,
     LLMRunnerNodeModelOverride,
     LLMRunnerNodeStateModifier,
@@ -40,7 +41,7 @@ from baseapp_ai_langkit.runners.models import (
 )
 
 # Param validation ranges (global for v1; per-provider quirks surface at runtime).
-_TEMPERATURE_RANGE = (0.0, 2.0)
+_TEMPERATURE_RANGE = (0.0, 1.0)
 _TOP_P_RANGE = (0.0, 1.0)
 
 
@@ -327,29 +328,33 @@ def save_model_override(request, pk: int, node_key: str):
             f"Initializer '{initializer_key}' is not registered.",
         )
 
-    catalog_exists = AvailableLLMModel.objects.filter(
+    catalog_row = AvailableLLMModel.objects.filter(
         initializer_key=initializer_key, model_id=model_id
-    ).exists()
-    if not catalog_exists:
+    ).first()
+    if catalog_row is None:
         return _json_error(
             400,
             "model_not_in_catalog",
             f"Model {initializer_key}:{model_id} is not in the AvailableLLMModel catalog.",
         )
 
-    disallowed = [k for k in params.keys() if k not in initializer.allowed_params]
+    # The catalog row's `default_params` keys define which params admins can
+    # tune for this model. Anything outside that set is rejected — keeps the
+    # modal's UI and the save endpoint coherent.
+    allowed_params = list((catalog_row.default_params or {}).keys())
+    disallowed = [k for k in params.keys() if k not in allowed_params]
     if disallowed:
         return _json_error(
             400,
             "param_not_allowed",
             (
-                f"Params {disallowed} are not allowed by initializer "
-                f"'{initializer_key}' (allowed: {list(initializer.allowed_params)})."
+                f"Params {disallowed} are not in the catalog row's default_params for "
+                f"{initializer_key}:{model_id} (allowed: {allowed_params})."
             ),
             details={"disallowed": disallowed},
         )
 
-    invalid = _validate_param_values(params, list(initializer.allowed_params))
+    invalid = _validate_param_values(params, allowed_params)
     if invalid:
         return _json_error(
             400,
@@ -395,4 +400,141 @@ def _reset_model_override(request, pk: int, node_key: str):
     LLMRunnerNodeModelOverride.objects.filter(
         runner_node__runner=runner, runner_node__node=node_key
     ).delete()
+    return JsonResponse({"override": None})
+
+
+# ---------------------------------------------------------------------------
+# Runner-level default model override (F03-S01)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_runner(pk: int) -> Tuple[Optional[LLMRunner], Optional[JsonResponse]]:
+    """Resolve the runner record for runner-level endpoints. Mirrors `_resolve_node_class`
+    but without the per-node resolution — runner-level rows are scoped to the runner only.
+    """
+    runner = get_object_or_404(LLMRunner, pk=pk)
+    try:
+        runner.get_nodes_dict()  # forces the class lookup; raises ValueError when orphan
+    except ValueError as exc:
+        return None, _json_error(404, "runner_unregistered", str(exc))
+    return runner, None
+
+
+def save_runner_default_model(request, pk: int):
+    """POST/DELETE handler for the runner-level default-model override.
+
+    POST   — upsert `LLMRunnerDefaultModelOverride` for the runner.
+    DELETE — drop the row idempotently (200 even when no row exists).
+
+    Mirrors `save_model_override` one rung higher: same staff gate (via
+    `admin_site.admin_view`), same CSRF, same structured error envelope, same
+    error codes (`validation_error`, `initializer_unknown`, `model_not_in_catalog`,
+    `param_not_allowed`, `param_invalid`, `runner_unregistered`). No `node_key`.
+    """
+    if request.method == "DELETE":
+        return _reset_runner_default_model(request, pk)
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST", "DELETE"])
+    try:
+        payload = json.loads(request.body or b"{}")
+    except json.JSONDecodeError:
+        return _json_error(400, "validation_error", "Request body must be valid JSON.")
+    if not isinstance(payload, dict):
+        return _json_error(400, "validation_error", "Request body must be a JSON object.")
+
+    initializer_key = payload.get("initializer_key")
+    model_id = payload.get("model_id")
+    params = payload.get("params", {})
+    if not isinstance(initializer_key, str) or not initializer_key:
+        return _json_error(
+            400,
+            "validation_error",
+            "Field 'initializer_key' is required and must be a non-empty string.",
+        )
+    if not isinstance(model_id, str) or not model_id:
+        return _json_error(
+            400,
+            "validation_error",
+            "Field 'model_id' is required and must be a non-empty string.",
+        )
+    if not isinstance(params, dict):
+        return _json_error(400, "validation_error", "Field 'params' must be a JSON object.")
+
+    runner, err = _resolve_runner(pk)
+    if err is not None:
+        return err
+
+    initializer = LLMModelInitializerRegistry.get(initializer_key)
+    if initializer is None:
+        return _json_error(
+            400,
+            "initializer_unknown",
+            f"Initializer '{initializer_key}' is not registered.",
+        )
+
+    catalog_row = AvailableLLMModel.objects.filter(
+        initializer_key=initializer_key, model_id=model_id
+    ).first()
+    if catalog_row is None:
+        return _json_error(
+            400,
+            "model_not_in_catalog",
+            f"Model {initializer_key}:{model_id} is not in the AvailableLLMModel catalog.",
+        )
+
+    allowed_params = list((catalog_row.default_params or {}).keys())
+    disallowed = [k for k in params.keys() if k not in allowed_params]
+    if disallowed:
+        return _json_error(
+            400,
+            "param_not_allowed",
+            (
+                f"Params {disallowed} are not in the catalog row's default_params for "
+                f"{initializer_key}:{model_id} (allowed: {allowed_params})."
+            ),
+            details={"disallowed": disallowed},
+        )
+
+    invalid = _validate_param_values(params, allowed_params)
+    if invalid:
+        return _json_error(
+            400,
+            "param_invalid",
+            f"Params {invalid} are out of range or wrong-typed.",
+            details={"invalid": invalid},
+        )
+
+    with transaction.atomic():
+        override, _ = LLMRunnerDefaultModelOverride.objects.update_or_create(
+            runner=runner,
+            defaults={
+                "initializer_key": initializer_key,
+                "model_id": model_id,
+                "params": params,
+            },
+        )
+        saved_at = override.modified
+
+    return JsonResponse(
+        {
+            "override": {
+                "initializer_key": initializer_key,
+                "model_id": model_id,
+                "params": params,
+                "saved_at": saved_at.isoformat() if saved_at else None,
+                "in_catalog": True,
+            }
+        }
+    )
+
+
+def _reset_runner_default_model(request, pk: int):
+    """DELETE handler for the runner-level override.
+
+    Idempotent — when no row exists, still returns 200 with `{override: null}`.
+    """
+    runner, err = _resolve_runner(pk)
+    if err is not None:
+        return err
+    LLMRunnerDefaultModelOverride.objects.filter(runner=runner).delete()
     return JsonResponse({"override": None})

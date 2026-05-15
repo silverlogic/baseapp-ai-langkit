@@ -27,7 +27,7 @@ export function mount(
     return undefined;
   }
   const reactRoot: ReactRoot = createRoot(targetEl);
-  reactRoot.render(<Root {...opts} />);
+  reactRoot.render(<Root {...opts} mountElement={targetEl} />);
   return {
     unmount() {
       reactRoot.unmount();

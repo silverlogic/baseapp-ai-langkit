@@ -103,11 +103,12 @@ class TestModelFieldOverride(TestCase):
 
 
 class TestAvailableModelsRoot(TestCase):
-    def test_root_includes_catalog_with_allowed_params_from_registry(self):
+    def test_root_includes_catalog_with_allowed_params_from_default_params(self):
         AvailableLLMModelFactory(
             label="Claude",
             initializer_key="anthropic",
             model_id="claude-sonnet-4-6",
+            default_params={"temperature": 0.2, "max_tokens": 1024},
         )
         record, _ = LLMRunnerFactory._meta.model.objects.get_or_create(
             name=f"{DefaultChatRunner.__module__}.{DefaultChatRunner.__name__}"
@@ -120,24 +121,101 @@ class TestAvailableModelsRoot(TestCase):
         self.assertIn(("openai", "gpt-4o-mini"), keys)  # seeded
         self.assertIn(("anthropic", "claude-sonnet-4-6"), keys)
 
-        # OpenAI initializer is registered → allowed_params populated.
-        openai_row = next(r for r in rows if r["initializer_key"] == "openai")
-        self.assertEqual(openai_row["allowed_params"], ["temperature", "max_tokens", "top_p"])
+        # `allowed_params` is now derived from the catalog row's `default_params`
+        # keys — admins curate which params are tunable per-row.
+        seeded = next(r for r in rows if r["initializer_key"] == "openai")
+        self.assertEqual(seeded["allowed_params"], list(seeded["default_params"].keys()))
+        anthropic_row = next(r for r in rows if r["initializer_key"] == "anthropic")
+        self.assertEqual(set(anthropic_row["allowed_params"]), {"temperature", "max_tokens"})
 
-    def test_unregistered_initializer_yields_empty_allowed_params(self):
-        AvailableLLMModelFactory(initializer_key="unregistered_test_key", model_id="some-model")
+    def test_empty_default_params_yields_empty_allowed_params(self):
+        """A catalog row with empty `default_params` exposes no tunable params —
+        the modal renders the picker but no controls below it."""
+        AvailableLLMModelFactory(initializer_key="openai", model_id="gpt-5-bare", default_params={})
         record, _ = LLMRunnerFactory._meta.model.objects.get_or_create(
             name=f"{DefaultChatRunner.__module__}.{DefaultChatRunner.__name__}"
         )
 
         payload = extract_topology(record)
 
-        row = next(
-            r
-            for r in payload["available_models"]
-            if r["initializer_key"] == "unregistered_test_key"
-        )
+        row = next(r for r in payload["available_models"] if r["model_id"] == "gpt-5-bare")
         self.assertEqual(row["allowed_params"], [])
+        self.assertEqual(row["default_params"], {})
+
+    def test_rows_ordered_by_label_asc(self):
+        """`available_models` SHALL be ordered by `label` ASC so the dropdown
+        is alphabetized by the human-readable label admins read. This
+        supersedes F02-S02's original `(initializer_key, model_id)` ordering."""
+        # Three rows whose label ASC order differs from the (initializer_key,
+        # model_id) ASC order: anthropic:* would come first by the old order,
+        # but "Zebra" / "Alpha" / "Middle" forces label-driven ordering.
+        AvailableLLMModelFactory(
+            label="Zebra model",
+            initializer_key="anthropic",
+            model_id="zebra-1",
+            default_params={"temperature": 0},
+        )
+        AvailableLLMModelFactory(
+            label="Alpha model",
+            initializer_key="openai",
+            model_id="alpha-1",
+            default_params={"temperature": 0},
+        )
+        AvailableLLMModelFactory(
+            label="Middle model",
+            initializer_key="gemini",
+            model_id="middle-1",
+            default_params={"temperature": 0},
+        )
+        record, _ = LLMRunnerFactory._meta.model.objects.get_or_create(
+            name=f"{DefaultChatRunner.__module__}.{DefaultChatRunner.__name__}"
+        )
+
+        payload = extract_topology(record)
+
+        # Filter out the migration-seeded "GPT-4o mini" row to keep the
+        # assertion focused on the rows this test seeds.
+        added_labels = [
+            r["label"]
+            for r in payload["available_models"]
+            if r["model_id"] in {"zebra-1", "alpha-1", "middle-1"}
+        ]
+        self.assertEqual(added_labels, ["Alpha model", "Middle model", "Zebra model"])
+
+    def test_param_key_order_uses_preferred_order_then_alphabetical(self):
+        """Each row's `default_params` (and the derived `allowed_params`) SHALL
+        be emitted in a stable preferred order: known param names first in
+        `temperature, top_p, max_tokens` order, then any other keys
+        alphabetically. Necessary because PostgreSQL JSONB does not preserve
+        dict insertion order — without this server-side reordering, the modal
+        would render controls in whatever order Postgres returned."""
+        # Stored deliberately in non-preferred order; the extractor must
+        # reorder. JSONB typically alphabetizes, so we simulate that storage
+        # order with explicit construction.
+        AvailableLLMModelFactory(
+            initializer_key="openai",
+            model_id="ordering-test",
+            default_params={
+                "zorp": "x",
+                "max_tokens": 256,
+                "alpha": 1,
+                "temperature": 0,
+                "top_p": 0.9,
+            },
+        )
+        record, _ = LLMRunnerFactory._meta.model.objects.get_or_create(
+            name=f"{DefaultChatRunner.__module__}.{DefaultChatRunner.__name__}"
+        )
+
+        payload = extract_topology(record)
+        row = next(r for r in payload["available_models"] if r["model_id"] == "ordering-test")
+
+        # Known params first (temperature, top_p, max_tokens in that order),
+        # then unknown keys alphabetically (alpha before zorp).
+        expected_order = ["temperature", "top_p", "max_tokens", "alpha", "zorp"]
+        self.assertEqual(list(row["default_params"].keys()), expected_order)
+        # `allowed_params` mirrors the same order.
+        self.assertEqual(row["allowed_params"], expected_order)
 
 
 class TestNoInitializerCalledDuringExtraction(TestCase):

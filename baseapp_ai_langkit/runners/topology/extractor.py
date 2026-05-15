@@ -4,12 +4,10 @@ from typing import Any, Dict, List, Optional, Type
 from baseapp_ai_langkit.base.agents.langgraph_agent import LangGraphAgent
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
-from baseapp_ai_langkit.runners.model_initializers.registry import (
-    LLMModelInitializerRegistry,
-)
 from baseapp_ai_langkit.runners.models import (
     AvailableLLMModel,
     LLMRunner,
+    LLMRunnerDefaultModelOverride,
     LLMRunnerNode,
     LLMRunnerNodeModelOverride,
     LLMRunnerNodeStateModifier,
@@ -55,6 +53,7 @@ def extract_topology(runner_record: LLMRunner) -> Dict[str, Any]:
             graph = workflow.workflow_chain.get_graph()
             nodes_payload, edges_payload = _walk_graph(graph, runner_class, runner_record)
             return {
+                "runner": _build_runner_block(runner_class, runner_record),
                 "nodes": nodes_payload,
                 "edges": edges_payload,
                 "available_models": _available_models_payload(),
@@ -67,10 +66,75 @@ def extract_topology(runner_record: LLMRunner) -> Dict[str, Any]:
 
 def _error_payload(code: str, message: str) -> Dict[str, Any]:
     return {
+        "runner": None,
         "nodes": [],
         "edges": [],
         "available_models": [],
         "error": {"code": code, "message": message},
+    }
+
+
+def _resolve_runner_label(runner_class: Type) -> str:
+    """Return the runner's display label.
+
+    Uses the runner's declared `label` ClassVar when set, falling back to
+    `runner_class.__name__` (class name only, NOT the dotted path stored in
+    `LLMRunner.name`). Single source of truth for both the topology payload
+    and the admin list view's primary-column accessor.
+    """
+    declared = getattr(runner_class, "label", None)
+    if declared:
+        return declared
+    return runner_class.__name__
+
+
+def _build_runner_block(runner_class: Type, runner_record: LLMRunner) -> Dict[str, Any]:
+    """Build the topology payload's root `runner` block.
+
+    Carries display identity (`label`, `description`) plus the runner-level
+    `default_model` object — same shape as the per-node `model` field, but
+    sourced from `LLMRunnerDefaultModelOverride` (one rung above the per-node
+    `LLMRunnerNodeModelOverride`). No LLM instantiation, no runner construction,
+    no provider SDK loaded.
+    """
+    default_metadata = getattr(runner_class, "default_model_metadata", None)
+    if default_metadata is not None:
+        default_initializer_key = default_metadata.initializer_key
+        default_model_id = default_metadata.model_id
+        default_params = dict(default_metadata.params)
+    else:
+        default_initializer_key = None
+        default_model_id = None
+        default_params = {}
+
+    return {
+        "label": _resolve_runner_label(runner_class),
+        "description": getattr(runner_class, "description", None),
+        "default_model": {
+            "initializer_key": default_initializer_key,
+            "model_id": default_model_id,
+            "params": default_params,
+            "override": _read_runner_default_override(runner_record),
+        },
+    }
+
+
+def _read_runner_default_override(runner_record: LLMRunner) -> Optional[Dict[str, Any]]:
+    try:
+        override = runner_record.default_model_override
+    except LLMRunnerDefaultModelOverride.DoesNotExist:
+        return None
+    in_catalog = AvailableLLMModel.objects.filter(
+        initializer_key=override.initializer_key,
+        model_id=override.model_id,
+    ).exists()
+    saved_at = getattr(override, "modified", None)
+    return {
+        "initializer_key": override.initializer_key,
+        "model_id": override.model_id,
+        "params": dict(override.params or {}),
+        "saved_at": saved_at.isoformat() if saved_at else None,
+        "in_catalog": in_catalog,
     }
 
 
@@ -273,21 +337,48 @@ def _read_model_override(key: str, runner_record: LLMRunner) -> Optional[Dict[st
     }
 
 
+# Preferred display order for the common param names — keeps the modal's
+# rendered controls in a stable, predictable order regardless of how the
+# catalog row's `default_params` was originally typed (PostgreSQL JSONB
+# does not preserve dict insertion order, so we can't rely on what the
+# admin wrote in the JSON textarea). Unlisted keys fall through to
+# alphabetical at the end.
+_PREFERRED_PARAM_ORDER = ("temperature", "top_p", "max_tokens")
+
+
+def _order_default_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Order `default_params` keys for stable modal rendering: common params
+    first (per `_PREFERRED_PARAM_ORDER`), then anything else alphabetically.
+    Returns a new dict; does not mutate the input."""
+    ordered: Dict[str, Any] = {}
+    for k in _PREFERRED_PARAM_ORDER:
+        if k in params:
+            ordered[k] = params[k]
+    for k in sorted(params.keys()):
+        if k not in ordered:
+            ordered[k] = params[k]
+    return ordered
+
+
 def _available_models_payload() -> List[Dict[str, Any]]:
     """List of catalog rows for the model edit modal. `allowed_params` is derived
-    from the matching registered initializer (or `[]` when unregistered) so the
-    widget can render param controls without a second round-trip."""
+    from the catalog row's `default_params.keys()` — admins curate which params
+    are tunable by editing the row's JSON. The widget iterates these keys to
+    render param controls and reads the value's type to pick the input control.
+
+    Rows are ordered by `label` ASC so the dropdown is alphabetized; param
+    keys within each row are ordered for stable display (`_order_default_params`).
+    """
     rows: List[Dict[str, Any]] = []
-    for row in AvailableLLMModel.objects.all().order_by("initializer_key", "model_id"):
-        initializer = LLMModelInitializerRegistry.get(row.initializer_key)
-        allowed_params = list(initializer.allowed_params) if initializer is not None else []
+    for row in AvailableLLMModel.objects.all().order_by("label"):
+        default_params = _order_default_params(dict(row.default_params or {}))
         rows.append(
             {
                 "label": row.label,
                 "initializer_key": row.initializer_key,
                 "model_id": row.model_id,
-                "default_params": dict(row.default_params or {}),
-                "allowed_params": allowed_params,
+                "default_params": default_params,
+                "allowed_params": list(default_params.keys()),
             }
         )
     return rows

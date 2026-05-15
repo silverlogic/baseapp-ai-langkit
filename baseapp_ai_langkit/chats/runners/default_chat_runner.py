@@ -13,6 +13,13 @@ from baseapp_ai_langkit.runners.registry import register_runner
 
 @register_runner
 class DefaultChatRunner(BaseChatInterface):
+    label = "Default chat"
+    description = (
+        "Single-node general-purpose chat runner. Routes the user's input through one "
+        "MessagesWorker backed by the runner's default LLM, with no orchestrator or "
+        "specialist workers. The drop-in starting point for new chat sessions in any "
+        "consumer project; replace or extend by registering a custom runner."
+    )
     nodes = {
         "general_llm": MessagesWorker,
     }

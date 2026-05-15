@@ -17,6 +17,13 @@ from baseapp_ai_langkit.slack.base.workers.default_slack_worker import (
 
 @register_runner
 class DefaultSlackChatRunner(BaseSlackChatInterface):
+    label = "Default Slack chat"
+    description = (
+        "Single-node chat runner wired to the Slack surface. Receives messages from the "
+        "Slack bolt handler, delegates to a DefaultSlackWorker backed by the runner's "
+        "default LLM, and replies in the originating thread. The drop-in starting point "
+        "for any Slack-facing chat experience in a consumer project."
+    )
     nodes = {
         "slack_worker": DefaultSlackWorker,
     }
