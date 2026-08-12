@@ -4,7 +4,7 @@ build-backend = 'setuptools.build_meta'
 
 [project]
 name = "baseapp_ai_langkit"
-version = "0.10.1"
+version = "0.11.0"
 description = "A Django app for LLM chat functionality with Langchain and Langgraph integration"
 readme = "README.md"
 license = { text = "BSD-3-Clause" }
@@ -61,6 +61,15 @@ langkit = [
     "slack-sdk>=3.39.0",
     "pydash>=8.0.6",
     "beautifulsoup4>=4.14.3",
+]
+deep-agents = [
+    # Pinned below 0.6: deepagents is pre-1.0 and its middleware/tool surface still moves
+    # between minors. Resolved against the `langkit` extra's langchain/langgraph pins.
+    "deepagents>=0.5.0,<0.6",
+    "langchain>=1.2.7,<2.0",
+    "langchain-core>=1.2.7",
+    "langgraph>=1.0.7",
+    "pyyaml>=6.0",
 ]
 mcp = [
     "mcp>=1.26.0",

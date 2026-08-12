@@ -6,6 +6,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.11.0] - 2026-08-12
+
+### Added
+
+- `baseapp_ai_langkit.deep_agents`: a product-agnostic runtime for autonomous agents built
+  on `deepagents`, behind a new `deep-agents` optional extra. Nothing in the rest of the
+  package imports it, so a project that does not install the extra is unaffected.
+  - `builder.build_deep_agent`: the single construction point. Structured output is
+    optional, for a surface whose result is written by its tools rather than returned as
+    one validated object.
+  - `node.LangGraphDeepAgent`: an `LLMNodeInterface` implementation, so a deep agent's
+    behavioural prompt is admin-editable through the runner tables like any other node.
+    It carries no tracing backend; run telemetry is handed to an `on_run_complete` hook.
+  - `limits`: soft and hard per-run caps on model calls, cumulative tokens and wall clock,
+    plus the structured-output and planning-loop governors. The soft tier accepts a
+    `finalize_tools` set so a tool-writing surface can still be forced to finish.
+  - `skills`: conditional composition of `SKILL.md` playbooks from components, behind a
+    `SkillSource` protocol. `FilesystemSkillSource` reads a directory on disk.
+  - `telemetry`: which skills a run loaded, and prompt-cache accounting.
+  - `testing.ScriptedChatModel`: replays a fixed script so a whole graph run is
+    deterministic in tests.
+
+
 ## [0.4.2] - 2025-08-14
 
 ### Added
