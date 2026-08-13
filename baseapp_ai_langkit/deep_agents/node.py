@@ -20,6 +20,7 @@ import time
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Type
 
 from langchain.agents.middleware.model_call_limit import ModelCallLimitExceededError
+from langchain.agents.middleware import AgentMiddleware
 from langchain_core.messages import AIMessage, AnyMessage
 from langchain_core.tools import BaseTool
 from langgraph.errors import GraphRecursionError
@@ -115,6 +116,17 @@ class LangGraphDeepAgent(LLMNodeInterface):
         """
         if not self._skill_files():
             return FILESYSTEM_BROWSING_TOOLS
+        return ()
+
+    def get_extra_middleware(self) -> Sequence[AgentMiddleware]:
+        """Surface-specific middleware, appended after the governors.
+
+        The governors (limits, tool scoping) are built by the builder and cannot be
+        removed, which is what makes them a safety rail. Anything a surface adds here
+        runs after them and therefore observes the fully assembled request. A surface
+        whose completion rules are its own (no ``response_format``) is the usual caller:
+        it is the only place a run can be inspected before it ends.
+        """
         return ()
 
     # --- What the surface does with the outcome ------------------------------------
@@ -241,6 +253,7 @@ class LangGraphDeepAgent(LLMNodeInterface):
                 limits=self.limits,
                 has_skills=bool(self._skill_files()),
                 excluded_tools=self.get_excluded_tools(),
+                extra_middleware=self.get_extra_middleware(),
             )
         return self._agent
 

@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
+from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.middleware.model_call_limit import ModelCallLimitExceededError
 from langchain_core.messages import AIMessage, HumanMessage
 from langchain_core.tools import tool
@@ -344,3 +345,19 @@ class BuildIntegrationTests(SimpleTestCase):
         self.assertEqual(call["limits"].max_model_calls, 3)
         self.assertFalse(call["has_skills"])
         self.assertIn("ls", call["excluded_tools"])
+        self.assertEqual(list(call["extra_middleware"]), [])
+
+    def test_a_surface_can_add_its_own_middleware(self):
+        """The hook a surface whose completion rules are its own needs: with no answer
+        schema, middleware is the only place a run can be inspected before it ends."""
+        extra = AgentMiddleware()
+
+        class _WithMiddleware(_Node):
+            def get_extra_middleware(self):
+                return [extra]
+
+        node = _WithMiddleware(llm=MagicMock(), config={})
+        with patch.object(node_module.builder, "build_deep_agent") as build:
+            node._get_agent()
+
+        self.assertEqual(list(build.call_args.kwargs["extra_middleware"]), [extra])
