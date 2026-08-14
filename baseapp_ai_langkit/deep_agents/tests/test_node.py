@@ -190,6 +190,39 @@ class TelemetryTests(SimpleTestCase):
         node.invoke([HumanMessage("go")])
         self.assertIs(node.last_result, result)
 
+    def test_cost_counts_what_the_subagents_spent(self):
+        """The whole reason cost comes off the budget: a subagent's messages never arrive."""
+        node = _node()
+        agent = MagicMock()
+        agent.invoke.side_effect = lambda *a, **k: (
+            node.run_budget.close_run(4, 5000) or self._result()
+        )
+        node._agent = agent
+        node.invoke([HumanMessage("go")])
+        self.assertEqual(node.last_metrics["model_calls"], 5)
+        self.assertEqual(node.last_metrics["total_tokens"], 6000)
+
+    def test_the_roots_own_share_is_still_reported(self):
+        node = _node()
+        agent = MagicMock()
+        agent.invoke.side_effect = lambda *a, **k: (
+            node.run_budget.close_run(4, 5000) or self._result()
+        )
+        node._agent = agent
+        node.invoke([HumanMessage("go")])
+        self.assertEqual(node.last_metrics["own_model_calls"], 1)
+        self.assertEqual(node.last_metrics["own_total_tokens"], 1000)
+
+    def test_a_second_run_on_one_node_starts_from_an_empty_budget(self):
+        """The agent is cached, so its governors outlive a run; the caps must not."""
+        node = _node()
+        agent = MagicMock()
+        agent.invoke.return_value = self._result()
+        node._agent = agent
+        node.run_budget.close_run(9, 9000)
+        node.invoke([HumanMessage("go")])
+        self.assertEqual(node.last_metrics["total_tokens"], 1000)
+
 
 class SkillWiringTests(SimpleTestCase):
     def test_without_skills_the_browsing_tools_are_withheld(self):
@@ -467,6 +500,21 @@ class BuildIntegrationTests(SimpleTestCase):
         self.assertFalse(call["has_skills"])
         self.assertIn("ls", call["excluded_tools"])
         self.assertEqual(list(call["extra_middleware"]), [])
+        self.assertEqual(list(call["subagents"]), [])
+        self.assertIs(call["budget"], node.run_budget)
+
+    def test_a_surface_can_declare_subagents(self):
+        spec = {"name": "surveyor", "description": "reads pages", "system_prompt": "go"}
+
+        class _WithSubagents(_Node):
+            def get_subagents(self):
+                return [spec]
+
+        node = _WithSubagents(llm=MagicMock(), config={})
+        with patch.object(node_module.builder, "build_deep_agent") as build:
+            node._get_agent()
+
+        self.assertEqual(list(build.call_args.kwargs["subagents"]), [spec])
 
     def test_a_surface_can_add_its_own_middleware(self):
         """The hook a surface whose completion rules are its own needs: with no answer

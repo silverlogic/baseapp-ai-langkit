@@ -18,6 +18,7 @@ from baseapp_ai_langkit.deep_agents.limits import (
     DeepAgentLimits,
     HardLimitsMiddleware,
     PlanningLoopMiddleware,
+    RunBudget,
 )
 from baseapp_ai_langkit.deep_agents.tool_scoping import ExcludedToolsMiddleware
 
@@ -96,6 +97,65 @@ class BuildDeepAgentTests(SimpleTestCase):
         ]
         self.assertIs(middleware[-1], extra)
         self.assertIsInstance(middleware[-2], ExcludedToolsMiddleware)
+
+    def test_the_budget_reaches_the_governors(self):
+        budget = RunBudget()
+        middleware = _build(budget=budget).call_args.kwargs["middleware"]
+        self.assertIs(middleware[1].budget, budget)
+
+
+class SubagentTests(SimpleTestCase):
+    """What happens to a declared subagent spec on its way to ``create_deep_agent``."""
+
+    def _spec(self, **extra) -> dict:
+        return {"name": "surveyor", "description": "reads pages", "system_prompt": "go", **extra}
+
+    def test_no_subagents_passes_none_rather_than_an_empty_list(self):
+        self.assertIsNone(_build().call_args.kwargs["subagents"])
+
+    def test_a_declared_spec_reaches_the_agent_with_its_own_fields_intact(self):
+        tool = MagicMock(name="read_document")
+        spec = self._spec(tools=[tool])
+        passed = _build(subagents=[spec]).call_args.kwargs["subagents"]
+        self.assertEqual(passed[0]["name"], "surveyor")
+        self.assertEqual(passed[0]["tools"], [tool])
+
+    def test_the_governors_are_injected_into_the_spec(self):
+        """A subagent without them is an ungoverned run: nothing counts its spend."""
+        middleware = _build(subagents=[self._spec()]).call_args.kwargs["subagents"][0]["middleware"]
+        self.assertIsInstance(middleware[0], ModelCallLimitMiddleware)
+        self.assertIsInstance(middleware[1], HardLimitsMiddleware)
+        self.assertIsInstance(middleware[2], PlanningLoopMiddleware)
+        self.assertFalse(middleware[1].is_root)
+
+    def test_the_subagent_governors_share_the_roots_budget(self):
+        budget = RunBudget()
+        call = _build(subagents=[self._spec()], budget=budget).call_args.kwargs
+        self.assertIs(call["middleware"][1].budget, budget)
+        self.assertIs(call["subagents"][0]["middleware"][1].budget, budget)
+
+    def test_the_specs_own_middleware_runs_after_the_governors(self):
+        own = AgentMiddleware()
+        middleware = _build(subagents=[self._spec(middleware=[own])]).call_args.kwargs["subagents"][
+            0
+        ]["middleware"]
+        self.assertIs(middleware[-1], own)
+
+    def test_the_caller_never_has_its_spec_mutated(self):
+        spec = self._spec()
+        _build(subagents=[spec])
+        self.assertNotIn("middleware", spec)
+
+    def test_a_compiled_subagent_is_passed_through_untouched(self):
+        """Its middleware was decided when it was compiled; there is nothing to add to."""
+        spec = {"name": "prebuilt", "description": "d", "runnable": MagicMock()}
+        passed = _build(subagents=[spec]).call_args.kwargs["subagents"][0]
+        self.assertNotIn("middleware", passed)
+
+    def test_a_remote_subagent_is_passed_through_untouched(self):
+        spec = {"name": "remote", "description": "d", "graph_id": "other-deployment"}
+        passed = _build(subagents=[spec]).call_args.kwargs["subagents"][0]
+        self.assertNotIn("middleware", passed)
 
 
 class ExtractAnswerTests(SimpleTestCase):

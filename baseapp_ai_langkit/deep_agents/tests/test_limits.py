@@ -23,11 +23,13 @@ from baseapp_ai_langkit.deep_agents.limits import (
     PLANNING_LOOP_NOTICE,
     PLANNING_TOOL_NAME,
     DeepAgentLimits,
+    DeepAgentModelCallError,
     DeepAgentStructuredOutputError,
     DeepAgentTimeoutError,
     DeepAgentTokenBudgetError,
     HardLimitsMiddleware,
     PlanningLoopMiddleware,
+    RunBudget,
     build_hard_limit_middleware,
     describe_last_model_turn,
     model_call_count,
@@ -162,7 +164,7 @@ class HardTierTests(SimpleTestCase):
 
 
 class SoftTierTests(SimpleTestCase):
-    """The three §4.2 shapes: an answer tool, finalize tools, and neither."""
+    """The three shapes a soft breach can take: an answer tool, finalize tools, neither."""
 
     def _forced(self, middleware: HardLimitsMiddleware, state: dict, **kwargs) -> ModelRequest:
         seen = {}
@@ -390,12 +392,193 @@ class PlanningLoopTests(SimpleTestCase):
         self.assertIn(PLANNING_TOOL_NAME, [tool.name for tool in request.tools])
 
 
+class RunBudgetTests(SimpleTestCase):
+    """The shared pool, on its own: the arithmetic the tree-wide caps rest on."""
+
+    def test_it_starts_empty(self):
+        budget = RunBudget()
+        self.assertEqual((budget.model_calls, budget.tokens), (0, 0))
+
+    def test_the_root_is_observed_rather_than_added(self):
+        """The root's run is still going, so its counts are a reading, not a contribution."""
+        budget = RunBudget()
+        budget.observe_root(2, 500)
+        budget.observe_root(3, 900)
+        self.assertEqual((budget.model_calls, budget.tokens), (3, 900))
+
+    def test_a_stale_root_reading_cannot_lower_the_total(self):
+        budget = RunBudget()
+        budget.observe_root(5, 1000)
+        budget.observe_root(1, 10)
+        self.assertEqual((budget.model_calls, budget.tokens), (5, 1000))
+
+    def test_finished_runs_accumulate(self):
+        """Thirteen survey windows are thirteen contributions, not one overwriting twelve."""
+        budget = RunBudget()
+        for _ in range(3):
+            budget.close_run(2, 100)
+        self.assertEqual((budget.model_calls, budget.tokens), (6, 300))
+
+    def test_the_root_and_the_subagents_share_one_total(self):
+        budget = RunBudget()
+        budget.close_run(4, 400)
+        budget.observe_root(2, 250)
+        self.assertEqual((budget.model_calls, budget.tokens), (6, 650))
+
+    def test_a_finished_runs_own_counts_replace_its_live_reading(self):
+        """The reading is taken before a call, so it is always a call short at the end."""
+        budget = RunBudget()
+        budget.close_run(4, 400)
+        budget.observe_root(2, 200)
+        self.assertEqual(budget.totals_including(3, 350), (7, 750))
+
+    def test_a_lower_reported_count_cannot_shrink_the_total(self):
+        budget = RunBudget()
+        budget.observe_root(5, 500)
+        self.assertEqual(budget.totals_including(1, 10), (5, 500))
+
+    def test_the_deadlines_are_fixed_on_the_first_call(self):
+        """Otherwise every delegation restarts the tree's clock."""
+        budget = RunBudget()
+        first = budget.deadlines(10, 20)
+        self.assertEqual(budget.deadlines(1000, 2000), first)
+
+    def test_reset_empties_the_pool_and_the_clock(self):
+        budget = RunBudget()
+        budget.close_run(4, 400)
+        budget.observe_root(2, 200)
+        deadlines = budget.deadlines(10, 20)
+        budget.reset()
+        self.assertEqual((budget.model_calls, budget.tokens), (0, 0))
+        self.assertNotEqual(budget.deadlines(10, 20), deadlines)
+
+
+class TreeWideLimitTests(SimpleTestCase):
+    """What the governors count once a budget is in play.
+
+    A subagent's messages never reach the root, so every assertion here is about a number
+    the root could not have seen in its own message list.
+    """
+
+    def _state(self, messages: Optional[List] = None) -> dict:
+        return {
+            "deep_agent_deadline": time.monotonic() + 60,
+            "deep_agent_soft_deadline": time.monotonic() + 60,
+            "messages": messages if messages is not None else [],
+        }
+
+    def test_a_subagents_spend_counts_against_the_roots_hard_budget(self):
+        budget = RunBudget()
+        budget.close_run(1, 900)
+        root = _middleware(hard_token_budget=1000, budget=budget)
+        with self.assertRaises(DeepAgentTokenBudgetError):
+            root.before_model(self._state([_spent(200)]), None)
+
+    def test_without_a_budget_the_same_run_is_within_its_budget(self):
+        """The control: local counting is what made the fan-out invisible."""
+        self.assertIsNone(
+            _middleware(hard_token_budget=1000).before_model(self._state([_spent(200)]), None)
+        )
+
+    def test_a_subagents_calls_count_against_the_tree_wide_call_cap(self):
+        budget = RunBudget()
+        for _ in range(6):
+            budget.close_run(2, 10)
+        root = _middleware(max_model_calls=12, budget=budget)
+        with self.assertRaises(DeepAgentModelCallError):
+            root.before_model(self._state(), None)
+
+    def test_without_a_budget_the_call_cap_counts_only_this_run(self):
+        """The control for the case above: twelve calls spent elsewhere are invisible."""
+        self.assertIsNone(
+            _middleware(max_model_calls=12).before_model(self._state([_spent(10)]), None)
+        )
+
+    def test_the_root_contributes_its_own_spend_to_the_pool(self):
+        budget = RunBudget()
+        _middleware(budget=budget).before_model(self._state([_spent(300), _spent(200)]), None)
+        self.assertEqual((budget.model_calls, budget.tokens), (2, 500))
+
+    def test_a_subagent_reads_the_pool_plus_its_own_unclosed_spend(self):
+        """Its own run has not ended, so nothing has contributed it yet."""
+        budget = RunBudget()
+        budget.observe_root(1, 700)
+        subagent = _middleware(hard_token_budget=1000, budget=budget, is_root=False)
+        with self.assertRaises(DeepAgentTokenBudgetError):
+            subagent.before_model(self._state([_spent(400)]), None)
+
+    def test_a_subagent_does_not_contribute_until_its_run_ends(self):
+        budget = RunBudget()
+        subagent = _middleware(budget=budget, is_root=False)
+        subagent.before_model(self._state([_spent(300)]), None)
+        self.assertEqual(budget.tokens, 0)
+        subagent.after_agent(self._state([_spent(300)]), None)
+        self.assertEqual((budget.model_calls, budget.tokens), (1, 300))
+
+    def test_the_root_does_not_contribute_on_after_agent(self):
+        """Its spend is already counted live; adding it again would double it."""
+        budget = RunBudget()
+        root = _middleware(budget=budget)
+        root.before_model(self._state([_spent(300)]), None)
+        root.after_agent(self._state([_spent(300)]), None)
+        self.assertEqual((budget.model_calls, budget.tokens), (1, 300))
+
+    def test_after_agent_is_a_no_op_without_a_budget(self):
+        self.assertIsNone(_middleware(is_root=False).after_agent(self._state([_spent(10)]), None))
+
+    def test_every_run_in_the_tree_shares_one_deadline(self):
+        budget = RunBudget()
+        root = _middleware(run_timeout_seconds=600, budget=budget).before_agent({}, None)
+        later = _middleware(run_timeout_seconds=600, budget=budget, is_root=False).before_agent(
+            {}, None
+        )
+        self.assertEqual(root, later)
+
+    def test_without_a_budget_each_run_starts_its_own_clock(self):
+        first = _middleware(run_timeout_seconds=600).before_agent({}, None)
+        second = _middleware(run_timeout_seconds=600).before_agent({}, None)
+        self.assertNotEqual(first["deep_agent_deadline"], second["deep_agent_deadline"])
+
+    def test_a_subagents_soft_breach_asks_it_to_finish_without_an_error(self):
+        """Nothing to force is the expected shape for a subagent, not a misconfiguration."""
+        state = {"deep_agent_soft_deadline": time.monotonic() - 1, "messages": []}
+        subagent = _middleware(structured_tool_name=None, is_root=False)
+        with self.assertLogs(limits.logger, level="INFO") as logged:
+            subagent.wrap_model_call(_request(state), lambda r: _tool_call_response())
+        self.assertFalse([line for line in logged.output if line.startswith("ERROR")])
+
+
 class BuildHardLimitMiddlewareTests(SimpleTestCase):
     def test_the_stack_is_always_three_governors(self):
         stack = build_hard_limit_middleware(STRUCTURED_TOOL)
         self.assertIsInstance(stack[0], ModelCallLimitMiddleware)
         self.assertIsInstance(stack[1], HardLimitsMiddleware)
         self.assertIsInstance(stack[2], PlanningLoopMiddleware)
+
+    def test_the_budget_reaches_the_governor(self):
+        budget = RunBudget()
+        _, hard, _ = build_hard_limit_middleware(None, budget=budget)
+        self.assertIs(hard.budget, budget)
+        self.assertTrue(hard.is_root)
+
+    def test_a_subagent_stack_governs_against_the_same_pool(self):
+        budget = RunBudget()
+        _, hard, _ = build_hard_limit_middleware(None, budget=budget, is_root=False)
+        self.assertIs(hard.budget, budget)
+        self.assertFalse(hard.is_root)
+
+    def test_a_subagent_stack_carries_no_finalize_tools(self):
+        """They name the tools that record the root's work, which a subagent does not hold."""
+        profile = DeepAgentLimits(finalize_tools=frozenset({"emit"}))
+        _, hard, _ = build_hard_limit_middleware(None, limits=profile, is_root=False)
+        self.assertEqual(hard.finalize_tools, frozenset())
+
+    def test_the_tree_wide_call_cap_is_only_set_with_a_budget(self):
+        profile = DeepAgentLimits(max_model_calls=9)
+        _, without, _ = build_hard_limit_middleware(None, limits=profile)
+        _, with_budget, _ = build_hard_limit_middleware(None, limits=profile, budget=RunBudget())
+        self.assertIsNone(without.max_model_calls)
+        self.assertEqual(with_budget.max_model_calls, 9)
 
     def test_the_profile_sizes_every_governor(self):
         profile = DeepAgentLimits(

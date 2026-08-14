@@ -13,7 +13,7 @@ them.
 """
 
 import logging
-from typing import Any, Dict, Iterable, List, Optional, Sequence, Type, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Type, Union
 
 from langchain.agents.middleware import AgentMiddleware
 from langchain.agents.structured_output import ToolStrategy
@@ -24,6 +24,7 @@ from pydantic import BaseModel, ValidationError
 from baseapp_ai_langkit.deep_agents.limits import (
     DEFAULT_LIMITS,
     DeepAgentLimits,
+    RunBudget,
     build_hard_limit_middleware,
 )
 from baseapp_ai_langkit.deep_agents.skills.files import SKILLS_ROOT
@@ -44,6 +45,8 @@ def build_deep_agent(
     excluded_tools: Iterable[str] = (),
     checkpointer: Any = None,
     extra_middleware: Sequence[AgentMiddleware] = (),
+    subagents: Sequence[Mapping[str, Any]] = (),
+    budget: Optional[RunBudget] = None,
 ):
     """Build a deepagents root agent.
 
@@ -68,6 +71,16 @@ def build_deep_agent(
 
     ``checkpointer`` is ``None`` when an outer workflow owns memory or the run is
     single-shot; pass a saver when the agent should persist its own thread.
+
+    ``subagents`` are deepagents ``SubAgent`` specs, reachable through the ``task`` tool. The
+    limit governors are injected into each one, sharing a :class:`RunBudget` with the root, so a
+    fan-out draws down the same pool instead of going uncounted.
+
+    A surface whose tools write anything should declare its own ``general-purpose`` spec.
+    ``create_deep_agent`` always installs one, and a subagent that declares no tools inherits
+    the parent's, so by default an isolated context can call whatever the root can. Naming a
+    spec ``general-purpose`` replaces deepagents' own. Not defaulted here, because which tools
+    are safe to delegate is the caller's decision.
     """
     # Lazy import so the module stays importable on a host without deepagents.
     from deepagents import create_deep_agent
@@ -86,6 +99,7 @@ def build_deep_agent(
     middleware: List[AgentMiddleware] = build_hard_limit_middleware(
         strategy.schema.__name__ if strategy is not None else None,
         limits=limits,
+        budget=budget,
     )
     if excluded := frozenset(excluded_tools):
         middleware.append(ExcludedToolsMiddleware(excluded))
@@ -102,7 +116,40 @@ def build_deep_agent(
         # retry streak. Without these the agent retries parse failures unboundedly under
         # langchain's compiled-in recursion_limit of 10_000.
         middleware=middleware,
+        # None rather than an empty list: passing the argument at all reads as "this surface
+        # delegates" when it does not.
+        subagents=governed_subagents(subagents, limits=limits, budget=budget) or None,
     )
+
+
+def governed_subagents(
+    subagents: Sequence[Mapping[str, Any]],
+    limits: DeepAgentLimits = DEFAULT_LIMITS,
+    budget: Optional[RunBudget] = None,
+) -> List[Dict[str, Any]]:
+    """Each declared subagent spec with the limit governors prepended to its middleware.
+
+    Prepended, so the governors see a request before any middleware the spec brought itself.
+
+    Only declarative specs are touched. A ``CompiledSubAgent`` was built with its middleware
+    already decided and an ``AsyncSubAgent`` runs elsewhere, so both pass through untouched and
+    spend outside the pool.
+    """
+    prepared: List[Dict[str, Any]] = []
+    for spec in subagents:
+        if "runnable" in spec or "graph_id" in spec:
+            prepared.append(dict(spec))
+            continue
+        prepared.append(
+            {
+                **spec,
+                "middleware": [
+                    *build_hard_limit_middleware(None, limits=limits, budget=budget, is_root=False),
+                    *spec.get("middleware", []),
+                ],
+            }
+        )
+    return prepared
 
 
 def stringify_content(content: Any) -> str:

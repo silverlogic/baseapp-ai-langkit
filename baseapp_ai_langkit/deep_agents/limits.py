@@ -23,13 +23,10 @@ number a tracing backend shows on the run). Every call re-reads the full context
 (mostly cache hits), so a healthy complex run accumulates ~0.5-2M and the runaway hit
 52M. Tune the budgets with that scale in mind, not per-call sizes.
 
-**The counters cover the whole subagent tree, not one message list.** A subagent is a
-separate graph run: its messages never enter the parent's list, and what comes back is a
-single ToolMessage holding its final text. Counting the local messages therefore misses
-every model call and every token a fan-out spends, which is not a slightly generous
-budget but a budget that reports success while measuring nothing. :class:`RunBudget` is
-the shared pool that fixes it, and :func:`build_hard_limit_middleware` is what hands the
-same pool to a root run and to each of its subagents.
+The counters can cover a whole subagent tree. A subagent is a separate graph run whose
+messages never enter the parent's list, so counting local messages alone misses everything a
+fan-out spends. :class:`RunBudget` is the shared pool, handed to a root run and to each of its
+subagents by :func:`build_hard_limit_middleware`.
 
 The values are deliberately module constants surfaced through a frozen
 :class:`DeepAgentLimits` profile, not admin config: they are safety rails against
@@ -191,25 +188,12 @@ DEFAULT_LIMITS = DeepAgentLimits()
 class RunBudget:
     """The resource pool one root run shares with every subagent it spawns.
 
-    Exists because the governors cannot count what they cannot see. Each middleware hook
-    receives the message list of *its own* graph run, and a subagent's messages never
-    reach the parent, so a fan-out that spends thirteen runs' worth of calls and tokens
-    is invisible to a parent counting its own messages. One of these, handed to the root
-    and to each subagent's governors, is what makes the caps mean "this job" rather than
-    "this message list".
+    Two slots rather than one total. The root's spend is live, so it is re-observed on every
+    hook and the highest reading wins. A subagent's is added once when its run ends, which needs
+    no per-invocation bookkeeping and cannot double count when one spec is invoked repeatedly.
 
-    Two slots rather than one running total, because the two kinds of contribution have
-    different shapes. The root's spend is *live*: its run is still going, its local count
-    only grows, so it is re-observed on every hook and the highest reading wins.  A
-    subagent's spend is *closed*: it is added once, when the subagent's run ends, which
-    needs no per-invocation bookkeeping and cannot double count however many times the
-    same subagent spec is invoked.
-
-    Concurrency: with deepagents' blocking ``task`` tool only one run is ever in flight,
-    so the totals are exact. Under ``AsyncSubAgentMiddleware`` two subagents in flight do
-    not see each other's unclosed spend, which under-counts until they finish. That is a
-    known and deliberate looseness: the alternative is a lock around a counter read on
-    every model call, to sharpen a rail whose job is to stop a runaway rather than to bill.
+    Exact while ``task`` blocks, which it does. Two subagents in flight would not see each
+    other's unclosed spend, which under-counts until they finish.
     """
 
     def __init__(self) -> None:
@@ -240,11 +224,23 @@ class RunBudget:
         self._closed_calls += calls
         self._closed_tokens += tokens
 
+    def totals_including(self, calls: int, tokens: int) -> Tuple[int, int]:
+        """The tree's totals, with a finished root's own counts in place of its reading.
+
+        For reporting, not for a threshold. The root is observed in ``before_model``, so the
+        reading is always one call short by the time the run ends, and the result messages are
+        the better number afterwards. The subagents' share still comes from the pool.
+        """
+        return (
+            self._closed_calls + max(self._root_calls, calls),
+            self._closed_tokens + max(self._root_tokens, tokens),
+        )
+
     def deadlines(self, soft_seconds: float, hard_seconds: float) -> Tuple[float, float]:
         """The tree's wall-clock deadlines, fixed on the first call.
 
-        Fixed once is the whole point: a subagent's ``before_agent`` fires with a fresh
-        clock, so a per-run deadline restarts the timeout every time the root delegates.
+        A subagent's ``before_agent`` fires with a fresh clock, so a per-run deadline would
+        restart the timeout on every delegation.
         """
         if self._deadline is None:
             now = time.monotonic()
@@ -255,9 +251,8 @@ class RunBudget:
     def reset(self) -> None:
         """Empty the pool for a fresh run, deadlines included.
 
-        A node caches its compiled agent, so a second ``invoke`` on the same node reuses
-        the same middleware and therefore the same budget. Without this the second run
-        would start already spent, which would turn "per run" into "per node".
+        A node caches its compiled agent, so a second ``invoke`` reuses the same middleware and
+        budget, and without this the caps would be per node instead of per run.
         """
         self._closed_calls = 0
         self._closed_tokens = 0
@@ -278,8 +273,7 @@ class DeepAgentTimeoutError(DeepAgentLimitError):
 class DeepAgentModelCallError(DeepAgentLimitError):
     """The tree exceeded its cumulative model-call budget.
 
-    Distinct from langchain's ``ModelCallLimitExceededError``, which counts one run: this
-    is the cap that a fan-out can breach without any single run reaching its own limit.
+    Distinct from langchain's ``ModelCallLimitExceededError``, which counts one run.
     """
 
 
@@ -412,6 +406,9 @@ class HardLimitsMiddleware(AgentMiddleware):
     The two ``after_model`` checks and the bundled-answer repair only apply to a
     surface with a structured answer, and are skipped when ``structured_tool_name`` is
     ``None``.
+
+    With a :class:`RunBudget` every threshold is measured against the whole tree instead of the
+    local message list, and ``is_root`` says which side this instance governs.
     """
 
     state_schema: Type[HardLimitsState] = HardLimitsState
@@ -425,9 +422,12 @@ class HardLimitsMiddleware(AgentMiddleware):
         soft_token_budget: int = SOFT_TOKEN_BUDGET,
         hard_token_budget: int = HARD_TOKEN_BUDGET,
         soft_model_calls: int = SOFT_MODEL_CALLS_PER_RUN,
+        max_model_calls: Optional[int] = None,
         max_consecutive_failures: int = MAX_CONSECUTIVE_STRUCTURED_OUTPUT_FAILURES,
         max_bundled_answer_retries: int = MAX_BUNDLED_ANSWER_RETRIES,
         finalize_tools: Iterable[str] = (),
+        budget: Optional[RunBudget] = None,
+        is_root: bool = True,
     ) -> None:
         super().__init__()
         self.structured_tool_name = structured_tool_name
@@ -436,16 +436,40 @@ class HardLimitsMiddleware(AgentMiddleware):
         self.soft_token_budget = soft_token_budget
         self.hard_token_budget = hard_token_budget
         self.soft_model_calls = soft_model_calls
+        #: The tree-wide hard call cap. ``None`` leaves the ceiling to langchain's per-run
+        #: ``ModelCallLimitMiddleware``.
+        self.max_model_calls = max_model_calls
         self.max_consecutive_failures = max_consecutive_failures
         self.max_bundled_answer_retries = max_bundled_answer_retries
         self.finalize_tools = frozenset(finalize_tools)
+        self.budget = budget
+        self.is_root = is_root
 
     def before_agent(self, state: HardLimitsState, runtime: Runtime) -> Dict[str, float]:
-        now = time.monotonic()
+        """Stamp this run's deadlines, from the tree's clock when there is a budget."""
+        if self.budget is not None:
+            soft_deadline, deadline = self.budget.deadlines(
+                self.soft_run_timeout_seconds, self.run_timeout_seconds
+            )
+        else:
+            now = time.monotonic()
+            soft_deadline = now + self.soft_run_timeout_seconds
+            deadline = now + self.run_timeout_seconds
         return {
-            "deep_agent_soft_deadline": now + self.soft_run_timeout_seconds,
-            "deep_agent_deadline": now + self.run_timeout_seconds,
+            "deep_agent_soft_deadline": soft_deadline,
+            "deep_agent_deadline": deadline,
         }
+
+    def after_agent(self, state: HardLimitsState, runtime: Runtime) -> None:
+        """Add a finished subagent run's spend to the shared pool.
+
+        The root is excluded, because its spend is already counted live and adding it again
+        would double it.
+        """
+        if self.budget is None or self.is_root:
+            return
+        messages = state.get("messages", []) or []
+        self.budget.close_run(model_call_count(messages), spent_tokens(messages))
 
     def before_model(self, state: HardLimitsState, runtime: Runtime) -> None:
         deadline = state.get("deep_agent_deadline")
@@ -454,12 +478,32 @@ class HardLimitsMiddleware(AgentMiddleware):
                 f"Deep-agent run exceeded its {self.run_timeout_seconds:.0f}s hard "
                 "wall-clock budget; aborting before the next model call."
             )
-        spent = spent_tokens(state.get("messages", []) or [])
+        calls, spent = self._counts(state.get("messages", []) or [])
         if spent >= self.hard_token_budget:
             raise DeepAgentTokenBudgetError(
                 f"Deep-agent run spent {spent} cumulative tokens, past the hard budget "
                 f"of {self.hard_token_budget}; aborting before the next model call."
             )
+        if self.max_model_calls is not None and calls >= self.max_model_calls:
+            raise DeepAgentModelCallError(
+                f"Deep-agent run made {calls} model calls across its subagents, past the "
+                f"hard budget of {self.max_model_calls}; aborting before the next one."
+            )
+
+    def _counts(self, messages: List[AnyMessage]) -> Tuple[int, int]:
+        """The (model calls, tokens) every threshold here is measured against.
+
+        Without a budget, this run's own messages. With one, the tree: the root contributes its
+        live counts and reads the pool back, and a subagent reads the pool plus its own spend,
+        which has not been contributed yet.
+        """
+        calls, tokens = model_call_count(messages), spent_tokens(messages)
+        if self.budget is None:
+            return calls, tokens
+        if self.is_root:
+            self.budget.observe_root(calls, tokens)
+            return self.budget.model_calls, self.budget.tokens
+        return self.budget.model_calls + calls, self.budget.tokens + tokens
 
     def wrap_model_call(
         self,
@@ -501,11 +545,19 @@ class HardLimitsMiddleware(AgentMiddleware):
             # langchain appends the answer tool outside `request.tools`, so emptying the
             # list strips the regular tools and leaves the model with only the answer.
             return FINALIZE_ANSWER_NOTICE.format(tool_name=self.structured_tool_name), []
-        logger.error(
-            "Deep-agent run passed a soft limit with neither a structured answer tool "
-            "nor finalize_tools declared; nothing can be forced, so the tools are left "
-            "in place and the notice is only a request."
-        )
+        if self.is_root:
+            logger.error(
+                "Deep-agent run passed a soft limit with neither a structured answer tool "
+                "nor finalize_tools declared; nothing can be forced, so the tools are left "
+                "in place and the notice is only a request."
+            )
+        else:
+            # Expected rather than degraded: a subagent's result is its final text, so there is
+            # no tool to force.
+            logger.info(
+                "A deep-agent subagent passed the tree's soft limit; asking it to finish "
+                "with what it has."
+            )
         return FINALIZE_BARE_NOTICE, list(request.tools)
 
     def _call_retrying_a_bundled_rejection(
@@ -548,11 +600,9 @@ class HardLimitsMiddleware(AgentMiddleware):
         soft_deadline = state.get("deep_agent_soft_deadline")
         if soft_deadline is not None and time.monotonic() > soft_deadline:
             return f"elapsed time > {self.soft_run_timeout_seconds:.0f}s"
-        messages = state.get("messages", []) or []
-        spent = spent_tokens(messages)
+        calls, spent = self._counts(state.get("messages", []) or [])
         if spent >= self.soft_token_budget:
             return f"{spent} tokens >= {self.soft_token_budget}"
-        calls = model_call_count(messages)
         if calls >= self.soft_model_calls:
             return f"{calls} model calls >= {self.soft_model_calls}"
         return None
@@ -712,14 +762,23 @@ class PlanningLoopMiddleware(AgentMiddleware):
 def build_hard_limit_middleware(
     structured_tool_name: Optional[str] = None,
     limits: DeepAgentLimits = DEFAULT_LIMITS,
+    budget: Optional[RunBudget] = None,
+    is_root: bool = True,
 ) -> List[AgentMiddleware]:
-    """The middleware stack enforcing the per-run soft and hard limits.
+    """The middleware stack enforcing the soft and hard limits.
 
     ``structured_tool_name`` is the response_format schema's tool name, used to
     recognize its parse-failure ToolMessages and to address it in the forced-
     finalization notice. ``None`` for a surface whose result is written by tools, which
     should declare ``limits.finalize_tools`` instead. ``limits`` sizes the boundaries;
     the stack itself is always present.
+
+    ``budget`` is the tree's shared pool. Pass the same object here and to every subagent's
+    stack, with ``is_root=False`` on the subagents, and the boundaries become per-job instead of
+    per-message-list. ``None`` counts the run's own messages.
+
+    A subagent's stack gets no ``finalize_tools``: those name the tools that record the root's
+    work, and a subagent holding none of them would only log that nothing matched.
     """
     return [
         ModelCallLimitMiddleware(run_limit=limits.max_model_calls, exit_behavior="error"),
@@ -730,8 +789,13 @@ def build_hard_limit_middleware(
             soft_token_budget=limits.soft_token_budget,
             hard_token_budget=limits.hard_token_budget,
             soft_model_calls=limits.soft_model_calls,
+            # Without a budget the ModelCallLimitMiddleware above is already this ceiling, and
+            # a second check on the same number would raise under two different names.
+            max_model_calls=limits.max_model_calls if budget is not None else None,
             max_consecutive_failures=limits.max_consecutive_structured_output_failures,
-            finalize_tools=limits.finalize_tools,
+            finalize_tools=limits.finalize_tools if is_root else (),
+            budget=budget,
+            is_root=is_root,
         ),
         PlanningLoopMiddleware(
             max_consecutive_planning_calls=limits.max_consecutive_planning_calls

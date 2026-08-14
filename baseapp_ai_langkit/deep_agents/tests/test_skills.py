@@ -11,11 +11,17 @@ from baseapp_ai_langkit.deep_agents.skills.engine import (
     parse_component,
     render_skill,
 )
-from baseapp_ai_langkit.deep_agents.skills.files import build_skill_files, skill_md_path
+from baseapp_ai_langkit.deep_agents.skills.files import (
+    build_skill_files,
+    skill_md_path,
+    skill_resource_path,
+)
+from baseapp_ai_langkit.deep_agents.skills import sources as sources_module
 from baseapp_ai_langkit.deep_agents.skills.sources import (
     EmptySkillSource,
     FilesystemSkillSource,
     SkillDocument,
+    load_resources,
 )
 
 
@@ -35,6 +41,12 @@ class _SkillTree:
         components = self.root / skill / "components"
         components.mkdir(parents=True, exist_ok=True)
         path = components / filename
+        path.write_text(body, encoding="utf-8")
+        return path
+
+    def resource(self, skill: str, relative: str, body: str) -> Path:
+        path = self.root / skill / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(body, encoding="utf-8")
         return path
 
@@ -155,6 +167,38 @@ class RenderSkillTests(SimpleTestCase):
         self.assertEqual(render_skill("plain", (), {}), "plain")
 
 
+class LoadResourcesTests(SimpleTestCase):
+    def test_a_skill_with_only_a_playbook_has_no_resources(self):
+        tree = _tree(self)
+        self.assertEqual(load_resources(tree.skill("s", "body")), {})
+
+    def test_supporting_files_are_keyed_by_their_relative_path(self):
+        tree = _tree(self)
+        directory = tree.skill("s", "body")
+        tree.resource("s", "rules/minors.md", "minor text")
+        tree.resource("s", "reference.md", "reference text")
+        self.assertEqual(
+            load_resources(directory),
+            {"reference.md": "reference text", "rules/minors.md": "minor text"},
+        )
+
+    def test_the_playbook_components_and_dotfiles_are_not_resources(self):
+        tree = _tree(self)
+        directory = tree.skill("s", "body")
+        tree.component("s", "c.md", COMPONENT)
+        tree.resource("s", ".hidden/notes.md", "hidden")
+        tree.resource("s", ".DS_Store", "junk")
+        self.assertEqual(load_resources(directory), {})
+
+    def test_an_undecodable_file_is_skipped_not_raised(self):
+        tree = _tree(self)
+        directory = tree.skill("s", "body")
+        (directory / "logo.png").write_bytes(b"\xff\xfe\x00binary")
+        tree.resource("s", "rules/good.md", "good")
+        with self.assertLogs(sources_module.logger, level="ERROR"):
+            self.assertEqual(load_resources(directory), {"rules/good.md": "good"})
+
+
 class FilesystemSkillSourceTests(SimpleTestCase):
     def test_a_missing_root_means_no_skills(self):
         source = FilesystemSkillSource(Path("/nonexistent/skills"))
@@ -164,14 +208,17 @@ class FilesystemSkillSourceTests(SimpleTestCase):
         tree = _tree(self)
         self.assertEqual(list(FilesystemSkillSource(tree.root).iter_skills()), [])
 
-    def test_reads_every_skill_with_its_components(self):
+    def test_reads_every_skill_with_its_components_and_resources(self):
         tree = _tree(self)
         tree.skill("case-header", "header {{component:document_type}}")
         tree.component("case-header", "document_type_petition.md", COMPONENT)
+        tree.resource("case-header", "rules/venue.md", "venue text")
         tree.skill("deals", "deals")
         skills = list(FilesystemSkillSource(tree.root).iter_skills())
         self.assertEqual([s.name for s in skills], ["case-header", "deals"])
         self.assertEqual(len(skills[0].components), 1)
+        self.assertEqual(skills[0].resources, {"rules/venue.md": "venue text"})
+        self.assertEqual(skills[1].resources, {})
 
     def test_a_later_edit_is_picked_up_without_a_restart(self):
         tree = _tree(self)
@@ -220,3 +267,29 @@ class BuildSkillFilesTests(SimpleTestCase):
     def test_a_fresh_payload_is_built_per_call(self):
         source = self._Source(SkillDocument("deals", "a"))
         self.assertIsNot(build_skill_files(source), build_skill_files(source))
+
+    def test_supporting_files_are_mounted_beside_the_playbook(self):
+        tree = _tree(self)
+        tree.skill("contacts", "body")
+        tree.resource("contacts", "rules/minors.md", "minor text")
+        files = build_skill_files(FilesystemSkillSource(tree.root))
+        path = skill_resource_path("contacts", "rules/minors.md")
+        self.assertEqual(sorted(files), sorted([skill_md_path("contacts"), path]))
+        self.assertEqual(files[path]["content"], "minor text")
+
+    def test_a_resource_is_written_verbatim_and_never_rendered(self):
+        source = self._Source(
+            SkillDocument("s", "body", resources={"rules/r.md": "{{component:kind}} kept"})
+        )
+        files = build_skill_files(source, context={"kind": "alpha"})
+        self.assertEqual(
+            files[skill_resource_path("s", "rules/r.md")]["content"], "{{component:kind}} kept"
+        )
+
+    def test_filtering_a_skill_out_drops_its_supporting_files_too(self):
+        tree = _tree(self)
+        tree.skill("contacts", "body")
+        tree.resource("contacts", "rules/minors.md", "minor text")
+        tree.skill("deals", "body")
+        files = build_skill_files(FilesystemSkillSource(tree.root), skill_names=["deals"])
+        self.assertEqual(list(files), [skill_md_path("deals")])

@@ -33,6 +33,7 @@ from baseapp_ai_langkit.deep_agents.limits import (
     DEFAULT_LIMITS,
     DeepAgentLimitError,
     DeepAgentLimits,
+    RunBudget,
     describe_last_model_turn,
     model_call_count,
     spent_tokens,
@@ -106,6 +107,10 @@ class LangGraphDeepAgent(LLMNodeInterface):
         self.last_result: Optional[Dict[str, Any]] = None
         #: The last run's telemetry, as handed to :meth:`on_run_complete`.
         self.last_metrics: Dict[str, Any] = {}
+        #: The run's resource pool, shared with the governors of every subagent it spawns.
+        #: Owned here so the cost can be read back afterwards, since the result messages hold
+        #: only the root's share of it. Reset per run.
+        self.run_budget = RunBudget()
         super().__init__(*args, **kwargs)
 
     # --- What the surface provides -------------------------------------------------
@@ -117,6 +122,16 @@ class LangGraphDeepAgent(LLMNodeInterface):
     def get_skill_source(self) -> SkillSource:
         """Where this run's skills come from. The default is a source with none."""
         return EmptySkillSource()
+
+    def get_subagents(self) -> Sequence[Mapping[str, Any]]:
+        """The deepagents ``SubAgent`` specs this run may delegate to, through ``task``.
+
+        The default is none, which leaves deepagents' own general-purpose subagent as the only
+        thing ``task`` can reach. A surface whose tools write anything should replace that by
+        declaring a spec named ``general-purpose``, because a subagent that declares no tools
+        inherits the parent's. Name each spec's tools explicitly for the same reason.
+        """
+        return ()
 
     def get_skill_context(self) -> Mapping[str, Any]:
         """Condition context used to specialize skill components for this run."""
@@ -205,6 +220,8 @@ class LangGraphDeepAgent(LLMNodeInterface):
 
     def _run(self, messages: List[AnyMessage]) -> AIMessage:
         started = time.monotonic()
+        # The compiled agent is cached, so its budget outlives one run.
+        self.run_budget.reset()
         try:
             result = self._get_agent().invoke(
                 {
@@ -257,13 +274,23 @@ class LangGraphDeepAgent(LLMNodeInterface):
         result_messages: List[AnyMessage],
         elapsed_seconds: float,
     ) -> Dict[str, Any]:
-        """The run's telemetry: what it cost and which skills it actually loaded."""
+        """The run's telemetry: what it cost and which skills it actually loaded.
+
+        Cost comes from the budget, not the result messages, because a subagent's messages never
+        reach the root. The two are equal for a run that spawned nothing. ``own_model_calls`` and
+        ``own_total_tokens`` are the root's share, so a fan-out's cost can be split.
+        """
         skills_used = skills_read(result_messages)
+        own_calls = model_call_count(result_messages)
+        own_tokens = spent_tokens(result_messages)
+        calls, tokens = self.run_budget.totals_including(own_calls, own_tokens)
         return {
             "skills_used": skills_used,
             "skills_used_count": len(skills_used),
-            "model_calls": model_call_count(result_messages),
-            "total_tokens": spent_tokens(result_messages),
+            "model_calls": calls,
+            "total_tokens": tokens,
+            "own_model_calls": own_calls,
+            "own_total_tokens": own_tokens,
             "elapsed_seconds": round(elapsed_seconds, 3),
             **cache_usage(result_messages),
             **self.extra_trace_metadata(result),
@@ -281,6 +308,8 @@ class LangGraphDeepAgent(LLMNodeInterface):
                 has_skills=bool(self._skill_files()),
                 excluded_tools=self.get_excluded_tools(),
                 extra_middleware=self.get_extra_middleware(),
+                subagents=self.get_subagents(),
+                budget=self.run_budget,
             )
         return self._agent
 
