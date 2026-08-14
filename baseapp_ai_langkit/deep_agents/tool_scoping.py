@@ -50,6 +50,17 @@ FILESYSTEM_BROWSING_TOOLS: FrozenSet[str] = frozenset(
     {"ls", "glob", "grep", "write_file", "edit_file", "execute"}
 )
 
+#: What a surface keeps when it wants the virtual filesystem as a scratchpad rather
+#: than as a place to read skills from. Writing notes across a long run is a real use
+#: for an otherwise-empty filesystem: a surface that gathers more than it can hold in
+#: one context can park findings in a file and read them back at the end.
+#:
+#: ``glob``, ``grep`` and ``execute`` stay withheld. The agent wrote these files, so it
+#: knows their paths, and ``ls`` plus ``read_file`` is the whole vocabulary needed to
+#: get them back. Each extra tool costs its schema in every request for a capability
+#: nothing has asked for yet.
+SCRATCHPAD_TOOLS: FrozenSet[str] = frozenset({"ls", "write_file", "edit_file"})
+
 
 def tool_name(tool: Union[BaseTool, Dict[str, Any]]) -> Optional[str]:
     """The name of a bound tool, whether it arrives as a BaseTool or a dict spec."""

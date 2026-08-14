@@ -21,7 +21,7 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Type
 
 from langchain.agents.middleware.model_call_limit import ModelCallLimitExceededError
 from langchain.agents.middleware import AgentMiddleware
-from langchain_core.messages import AIMessage, AnyMessage
+from langchain_core.messages import AIMessage, AnyMessage, SystemMessage
 from langchain_core.tools import BaseTool
 from langgraph.errors import GraphRecursionError
 from pydantic import BaseModel
@@ -41,7 +41,10 @@ from baseapp_ai_langkit.deep_agents.skills.files import build_skill_files
 from baseapp_ai_langkit.deep_agents.skills.sources import EmptySkillSource, SkillSource
 from baseapp_ai_langkit.deep_agents.telemetry.cache import cache_usage
 from baseapp_ai_langkit.deep_agents.telemetry.skills import skills_read
-from baseapp_ai_langkit.deep_agents.tool_scoping import FILESYSTEM_BROWSING_TOOLS
+from baseapp_ai_langkit.deep_agents.tool_scoping import (
+    FILESYSTEM_BROWSING_TOOLS,
+    SCRATCHPAD_TOOLS,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +79,24 @@ class LangGraphDeepAgent(LLMNodeInterface):
     skill_names: Optional[Iterable[str]] = ()
     #: Span name for the run, used when the runnable config does not name one.
     run_name: str = "deep_agent"
+    #: Which entry of ``state_modifier_schema`` is the run's opening **user** message
+    #: rather than part of the system prompt. ``None`` (the default) means every entry
+    #: is system prompt, which is how every existing surface behaves.
+    #:
+    #: The slot exists because a surface whose opening message is more than a sentence
+    #: wants that message admin-editable for the same reason its contract is, and the
+    #: system prompt is the wrong place for it: it is the prompt-cache prefix, and a
+    #: message carrying a document or a task payload would push a fresh prefix on every
+    #: run. Reusing the state-modifier list rather than adding a parallel prompt table
+    #: means the admin surface, the placeholder validation and the per-run deepcopy in
+    #: ``get_dynamic_prompt_schemas`` all apply unchanged; the only thing this node adds
+    #: is knowing which entry not to render as system prompt.
+    user_prompt_index: Optional[int] = None
+    #: Whether the run wants the virtual filesystem as a scratchpad. Off by default: an
+    #: empty filesystem plus browse tools is the loop ``tool_scoping`` exists to avoid.
+    #: A surface that gathers more than one context can hold sets this and keeps ``ls``,
+    #: ``write_file`` and ``edit_file`` even with no skills mounted.
+    wants_scratchpad: bool = False
 
     def __init__(self, *args, **kwargs):
         self._agent = None
@@ -113,10 +134,16 @@ class LangGraphDeepAgent(LLMNodeInterface):
         skills has an empty virtual filesystem and nothing for ``ls``/``glob``/``grep``
         to find. Offering them anyway invites a browse loop that costs a full context
         re-read per attempt. Override to keep them, or to drop more.
+
+        :attr:`wants_scratchpad` is the exception that does not need an override: a
+        surface writing its own notes has a non-empty filesystem the moment it writes
+        one, so the browse loop this guards against cannot happen.
         """
-        if not self._skill_files():
-            return FILESYSTEM_BROWSING_TOOLS
-        return ()
+        if self._skill_files():
+            return ()
+        if self.wants_scratchpad:
+            return FILESYSTEM_BROWSING_TOOLS - SCRATCHPAD_TOOLS
+        return FILESYSTEM_BROWSING_TOOLS
 
     def get_extra_middleware(self) -> Sequence[AgentMiddleware]:
         """Surface-specific middleware, appended after the governors.
@@ -279,8 +306,58 @@ class LangGraphDeepAgent(LLMNodeInterface):
         Mirrors how ``LangGraphAgent`` turns its state modifiers into system messages,
         but deepagents takes one ``system_prompt`` string, so the rendered messages are
         joined. Returns ``None`` when the subclass declares no schema.
+
+        The entry named by :attr:`user_prompt_index` is skipped: it is the opening user
+        message, and rendering it here would both duplicate it and move a per-run
+        payload into the cache prefix.
         """
-        system_messages = self.get_state_modifier_system_message()
-        if system_messages:
-            return "\n\n".join(message.content for message in system_messages)
+        schemas = self._system_prompt_schemas()
+        messages = [schema.get_langgraph_message(message_type=SystemMessage) for schema in schemas]
+        rendered = [message.content for message in messages if message is not None]
+        if rendered:
+            return "\n\n".join(rendered)
         return None
+
+    def build_user_prompt(self) -> str:
+        """The run's opening user message, from the schema at :attr:`user_prompt_index`.
+
+        Empty string when the surface declares no user-prompt slot, which leaves the
+        caller to build its own opening message as before.
+        """
+        schema = self.user_prompt_schema()
+        return schema.format() if schema is not None else ""
+
+    def user_prompt_schema(self) -> Optional[BasePromptSchema]:
+        """The (possibly admin-overridden) user-prompt schema, or ``None``.
+
+        Read from the same list the system prompt is read from, so an admin edit and a
+        placeholder substitution reach it by exactly the path they reach the contract by.
+        """
+        if self.user_prompt_index is None:
+            return None
+        schemas = self.get_state_modifier_list()
+        try:
+            return schemas[self.user_prompt_index]
+        except IndexError:
+            # A misdeclared index is a programming error, but raising here would fail the
+            # run at build time with a bare IndexError. Naming it and degrading to "no
+            # user prompt" leaves the caller's own opening message in charge.
+            logger.error(
+                "%s declares user_prompt_index=%s but has %s state modifiers.",
+                type(self).__name__,
+                self.user_prompt_index,
+                len(schemas),
+            )
+            return None
+
+    def _system_prompt_schemas(self) -> List[BasePromptSchema]:
+        """The state modifiers that are system prompt, in order.
+
+        The user-prompt entry is excluded by identity rather than by index, so a
+        negative index resolves the way indexing already resolved it.
+        """
+        schemas = list(self.get_state_modifier_list())
+        user_prompt = self.user_prompt_schema()
+        if user_prompt is None:
+            return schemas
+        return [schema for schema in schemas if schema is not user_prompt]

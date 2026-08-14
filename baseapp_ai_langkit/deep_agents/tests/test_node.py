@@ -17,6 +17,7 @@ from langchain_core.tools import tool
 from langgraph.errors import GraphRecursionError
 from pydantic import BaseModel
 
+from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
 from baseapp_ai_langkit.deep_agents import builder
 from baseapp_ai_langkit.deep_agents import node as node_module
 from baseapp_ai_langkit.deep_agents.limits import (
@@ -231,6 +232,126 @@ class _StaticSource:
 
     def iter_skills(self):
         return self.skills
+
+
+class ScratchpadScopingTests(SimpleTestCase):
+    """``wants_scratchpad`` keeps the write tools an empty filesystem would not justify."""
+
+    def test_a_scratchpad_surface_keeps_the_write_tools(self):
+        node = _node(wants_scratchpad=True)
+        excluded = set(node.get_excluded_tools())
+        self.assertNotIn("write_file", excluded)
+        self.assertNotIn("ls", excluded)
+        self.assertNotIn("edit_file", excluded)
+
+    def test_a_scratchpad_surface_still_drops_the_search_tools(self):
+        """The agent wrote the files, so it knows the paths; glob/grep buy nothing."""
+        excluded = set(_node(wants_scratchpad=True).get_excluded_tools())
+        self.assertEqual(excluded, {"glob", "grep", "execute"})
+
+    def test_without_the_opt_in_nothing_changes(self):
+        self.assertIn("write_file", set(_node().get_excluded_tools()))
+
+
+class _TwoSchemaNode(_Node):
+    """A surface whose second state modifier is its opening user message."""
+
+    state_modifier_schema = [
+        BasePromptSchema(description="contract", prompt="THE CONTRACT"),
+        BasePromptSchema(description="opening", prompt="READ {DOC}", required_placeholders=["DOC"]),
+    ]
+    user_prompt_index = 1
+
+    def get_custom_placeholders_data(self):
+        return {"DOC": "the document"}
+
+
+class UserPromptSlotTests(SimpleTestCase):
+    """The user-prompt slot: one state modifier that is not system prompt."""
+
+    def _two_schema_node(self, **attrs) -> _TwoSchemaNode:
+        node = _TwoSchemaNode(llm=MagicMock(), config={})
+        for name, value in attrs.items():
+            setattr(node, name, value)
+        return node
+
+    def test_the_user_prompt_entry_is_not_in_the_system_prompt(self):
+        node = self._two_schema_node()
+        self.assertEqual(node.build_system_prompt(), "THE CONTRACT")
+
+    def test_the_user_prompt_is_the_formatted_entry(self):
+        self.assertEqual(self._two_schema_node().build_user_prompt(), "READ the document")
+
+    def test_a_negative_index_resolves_the_way_indexing_does(self):
+        node = self._two_schema_node(user_prompt_index=-1)
+        self.assertEqual(node.build_user_prompt(), "READ the document")
+        self.assertEqual(node.build_system_prompt(), "THE CONTRACT")
+
+    def test_no_slot_means_every_entry_is_system_prompt(self):
+        node = self._two_schema_node(user_prompt_index=None)
+        self.assertEqual(node.build_system_prompt(), "THE CONTRACT\n\nREAD the document")
+        self.assertEqual(node.build_user_prompt(), "")
+
+    def test_an_out_of_range_index_degrades_instead_of_raising(self):
+        """A misdeclared index must not fail the run with a bare IndexError."""
+        node = self._two_schema_node(user_prompt_index=7)
+        with self.assertLogs(node_module.logger, level="ERROR"):
+            self.assertEqual(node.build_user_prompt(), "")
+        self.assertEqual(node.build_system_prompt(), "THE CONTRACT\n\nREAD the document")
+
+    def test_a_conditional_system_entry_is_still_skipped(self):
+        class _Conditional(_TwoSchemaNode):
+            state_modifier_schema = [
+                BasePromptSchema(
+                    description="off",
+                    prompt="NEVER",
+                    conditional_rule=lambda data: False,
+                ),
+                BasePromptSchema(description="opening", prompt="OPEN"),
+            ]
+
+        node = _Conditional(llm=MagicMock(), config={})
+        self.assertIsNone(node.build_system_prompt())
+        self.assertEqual(node.build_user_prompt(), "OPEN")
+
+
+class PromptSchemaIsolationTests(SimpleTestCase):
+    """Two schemas built with no placeholder data must not share one dict."""
+
+    def test_placeholders_data_is_not_shared_between_schemas(self):
+        first = BasePromptSchema(description="a", prompt="a")
+        second = BasePromptSchema(description="b", prompt="b")
+        first.placeholders_data["DOC"] = "leaked"
+        self.assertEqual(second.placeholders_data, {})
+
+    def test_required_placeholders_is_not_shared_between_schemas(self):
+        first = BasePromptSchema(description="a", prompt="a")
+        second = BasePromptSchema(description="b", prompt="b")
+        first.required_placeholders.append("DOC")
+        self.assertEqual(second.required_placeholders, [])
+
+    def test_two_nodes_do_not_share_their_class_level_schemas(self):
+        """A per-run payload in a prompt must not reach the next run's prompt."""
+
+        class _PerRun(_Node):
+            state_modifier_schema = [BasePromptSchema(description="d", prompt="{DOC}")]
+
+            def __init__(self, doc, **kwargs):
+                self.doc = doc
+                super().__init__(**kwargs)
+
+            def get_custom_placeholders_data(self):
+                return {"DOC": self.doc}
+
+        first = _PerRun("first document", llm=MagicMock(), config={})
+        second = _PerRun("second document", llm=MagicMock(), config={})
+        self.assertEqual(first.build_system_prompt(), "first document")
+        self.assertEqual(second.build_system_prompt(), "second document")
+        self.assertEqual(
+            _PerRun.state_modifier_schema[0].placeholders_data,
+            {},
+            "the class attribute was mutated by a run",
+        )
 
 
 class NoTracingBackendTests(SimpleTestCase):

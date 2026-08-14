@@ -23,6 +23,14 @@ number a tracing backend shows on the run). Every call re-reads the full context
 (mostly cache hits), so a healthy complex run accumulates ~0.5-2M and the runaway hit
 52M. Tune the budgets with that scale in mind, not per-call sizes.
 
+**The counters cover the whole subagent tree, not one message list.** A subagent is a
+separate graph run: its messages never enter the parent's list, and what comes back is a
+single ToolMessage holding its final text. Counting the local messages therefore misses
+every model call and every token a fan-out spends, which is not a slightly generous
+budget but a budget that reports success while measuring nothing. :class:`RunBudget` is
+the shared pool that fixes it, and :func:`build_hard_limit_middleware` is what hands the
+same pool to a root run and to each of its subagents.
+
 The values are deliberately module constants surfaced through a frozen
 :class:`DeepAgentLimits` profile, not admin config: they are safety rails against
 runaway spend, and a bad admin edit must not be able to remove them.
@@ -31,7 +39,17 @@ runaway spend, and a bad admin edit must not be able to remove them.
 import logging
 import time
 from dataclasses import dataclass, field
-from typing import Annotated, Callable, Dict, FrozenSet, Iterable, List, Optional, Type
+from typing import (
+    Annotated,
+    Callable,
+    Dict,
+    FrozenSet,
+    Iterable,
+    List,
+    Optional,
+    Tuple,
+    Type,
+)
 
 from langchain.agents.middleware import AgentMiddleware, ModelCallLimitMiddleware
 from langchain.agents.middleware.types import (
@@ -170,12 +188,99 @@ class DeepAgentLimits:
 DEFAULT_LIMITS = DeepAgentLimits()
 
 
+class RunBudget:
+    """The resource pool one root run shares with every subagent it spawns.
+
+    Exists because the governors cannot count what they cannot see. Each middleware hook
+    receives the message list of *its own* graph run, and a subagent's messages never
+    reach the parent, so a fan-out that spends thirteen runs' worth of calls and tokens
+    is invisible to a parent counting its own messages. One of these, handed to the root
+    and to each subagent's governors, is what makes the caps mean "this job" rather than
+    "this message list".
+
+    Two slots rather than one running total, because the two kinds of contribution have
+    different shapes. The root's spend is *live*: its run is still going, its local count
+    only grows, so it is re-observed on every hook and the highest reading wins.  A
+    subagent's spend is *closed*: it is added once, when the subagent's run ends, which
+    needs no per-invocation bookkeeping and cannot double count however many times the
+    same subagent spec is invoked.
+
+    Concurrency: with deepagents' blocking ``task`` tool only one run is ever in flight,
+    so the totals are exact. Under ``AsyncSubAgentMiddleware`` two subagents in flight do
+    not see each other's unclosed spend, which under-counts until they finish. That is a
+    known and deliberate looseness: the alternative is a lock around a counter read on
+    every model call, to sharpen a rail whose job is to stop a runaway rather than to bill.
+    """
+
+    def __init__(self) -> None:
+        self._closed_calls = 0
+        self._closed_tokens = 0
+        self._root_calls = 0
+        self._root_tokens = 0
+        self._soft_deadline: Optional[float] = None
+        self._deadline: Optional[float] = None
+
+    @property
+    def model_calls(self) -> int:
+        """Model calls across the tree: the root's live count plus every finished run's."""
+        return self._closed_calls + self._root_calls
+
+    @property
+    def tokens(self) -> int:
+        """Cumulative tokens across the tree, on the same basis as :attr:`model_calls`."""
+        return self._closed_tokens + self._root_tokens
+
+    def observe_root(self, calls: int, tokens: int) -> None:
+        """Record the root run's counts so far. Monotonic, so re-observing is harmless."""
+        self._root_calls = max(self._root_calls, calls)
+        self._root_tokens = max(self._root_tokens, tokens)
+
+    def close_run(self, calls: int, tokens: int) -> None:
+        """Add a finished subagent run's totals to the pool, once."""
+        self._closed_calls += calls
+        self._closed_tokens += tokens
+
+    def deadlines(self, soft_seconds: float, hard_seconds: float) -> Tuple[float, float]:
+        """The tree's wall-clock deadlines, fixed on the first call.
+
+        Fixed once is the whole point: a subagent's ``before_agent`` fires with a fresh
+        clock, so a per-run deadline restarts the timeout every time the root delegates.
+        """
+        if self._deadline is None:
+            now = time.monotonic()
+            self._soft_deadline = now + soft_seconds
+            self._deadline = now + hard_seconds
+        return self._soft_deadline, self._deadline
+
+    def reset(self) -> None:
+        """Empty the pool for a fresh run, deadlines included.
+
+        A node caches its compiled agent, so a second ``invoke`` on the same node reuses
+        the same middleware and therefore the same budget. Without this the second run
+        would start already spent, which would turn "per run" into "per node".
+        """
+        self._closed_calls = 0
+        self._closed_tokens = 0
+        self._root_calls = 0
+        self._root_tokens = 0
+        self._soft_deadline = None
+        self._deadline = None
+
+
 class DeepAgentLimitError(Exception):
     """A hard limit on the deep-agent run was exceeded."""
 
 
 class DeepAgentTimeoutError(DeepAgentLimitError):
     """The run exceeded its wall-clock budget."""
+
+
+class DeepAgentModelCallError(DeepAgentLimitError):
+    """The tree exceeded its cumulative model-call budget.
+
+    Distinct from langchain's ``ModelCallLimitExceededError``, which counts one run: this
+    is the cap that a fan-out can breach without any single run reaching its own limit.
+    """
 
 
 class DeepAgentTokenBudgetError(DeepAgentLimitError):

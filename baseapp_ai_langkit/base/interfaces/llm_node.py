@@ -44,6 +44,14 @@ class LLMNodeInterface(ABC):
             self.usage_prompt_schema = usage_prompt_schema
         if state_modifier_schema:
             self.state_modifier_schema = state_modifier_schema
+        elif self.state_modifier_schema:
+            # Deepcopied onto the instance, so filling placeholders below fills THIS run's
+            # copy. Without it a node built directly from its class attribute (which is what
+            # happens whenever `get_dynamic_prompt_schemas` finds no runner record) writes
+            # its runtime values into prompt objects every other instance in the process
+            # shares. Harmless while the placeholders were small context lists; not harmless
+            # once a surface interpolates per-run payloads into its prompts.
+            self.state_modifier_schema = copy.deepcopy(type(self).state_modifier_schema)
 
         if custom_placeholders_data := self.get_custom_placeholders_data():
             if self.usage_prompt_schema:
