@@ -42,6 +42,11 @@ class LLMNodeInterface(ABC):
 
         if usage_prompt_schema:
             self.usage_prompt_schema = usage_prompt_schema
+        elif self.usage_prompt_schema:
+            # Deepcopied for the same reason as the state modifier below: the placeholders
+            # filled further down would otherwise be written into the class attribute every
+            # instance in the process shares.
+            self.usage_prompt_schema = copy.deepcopy(type(self).usage_prompt_schema)
         if state_modifier_schema:
             self.state_modifier_schema = state_modifier_schema
         elif self.state_modifier_schema:

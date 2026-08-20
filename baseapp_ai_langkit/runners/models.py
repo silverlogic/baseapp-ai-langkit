@@ -156,7 +156,9 @@ class LLMRunnerNodeUsagePrompt(TimeStampedModel):
             usage_prompt_schema = node.get_static_usage_prompt()
             usage_prompt_schema.prompt = self.usage_prompt
             return usage_prompt_schema
-        return node.usage_prompt_schema
+        # A copy, not the class attribute: the node fills its placeholders at runtime, and
+        # doing that to the class attribute writes into every other node's prompt too.
+        return node.get_static_usage_prompt()
 
     class Meta:
         unique_together = ("runner_node", "usage_prompt")
