@@ -34,8 +34,19 @@ class TestBaseRunnerInterface(TestCase):
         nodes = runner.get_nodes(llm=LLMFactory(), config={})
 
         self.assertIsInstance(nodes["mock_node"], MockedNode)
-        self.assertEqual(nodes["mock_node"].state_modifier_schema, MockedNode.state_modifier_schema)
-        self.assertEqual(nodes["mock_node"].usage_prompt_schema, MockedNode.usage_prompt_schema)
+        # Same prompt, but the node's own copy of the schema: a node fills its placeholders
+        # at runtime, and doing that to the class attribute writes into every other node's
+        # prompt too.
+        self.assertEqual(
+            nodes["mock_node"].state_modifier_schema.prompt,
+            MockedNode.state_modifier_schema.prompt,
+        )
+        self.assertIsNot(nodes["mock_node"].state_modifier_schema, MockedNode.state_modifier_schema)
+        self.assertEqual(
+            nodes["mock_node"].usage_prompt_schema.prompt,
+            MockedNode.usage_prompt_schema.prompt,
+        )
+        self.assertIsNot(nodes["mock_node"].usage_prompt_schema, MockedNode.usage_prompt_schema)
 
     def test_base_runner_get_nodes_with_empty_db_records(self):
         MockedNode = self._get_mocked_node()
@@ -55,8 +66,19 @@ class TestBaseRunnerInterface(TestCase):
         nodes = runner.get_nodes(llm=LLMFactory(), config={})
 
         self.assertIsInstance(nodes["mock_node"], MockedNode)
-        self.assertEqual(nodes["mock_node"].state_modifier_schema, MockedNode.state_modifier_schema)
-        self.assertEqual(nodes["mock_node"].usage_prompt_schema, MockedNode.usage_prompt_schema)
+        # Same prompt, but the node's own copy of the schema: a node fills its placeholders
+        # at runtime, and doing that to the class attribute writes into every other node's
+        # prompt too.
+        self.assertEqual(
+            nodes["mock_node"].state_modifier_schema.prompt,
+            MockedNode.state_modifier_schema.prompt,
+        )
+        self.assertIsNot(nodes["mock_node"].state_modifier_schema, MockedNode.state_modifier_schema)
+        self.assertEqual(
+            nodes["mock_node"].usage_prompt_schema.prompt,
+            MockedNode.usage_prompt_schema.prompt,
+        )
+        self.assertIsNot(nodes["mock_node"].usage_prompt_schema, MockedNode.usage_prompt_schema)
 
     @patch("baseapp_ai_langkit.runners.models.LLMRunner.get_nodes_dict")
     def test_base_runner_get_nodes_with_filled_db_records(self, mock_get_nodes_dict):
@@ -164,7 +186,11 @@ class TestBaseRunnerInterface(TestCase):
         runner = MockedRunner()
         edge_node = runner.instantiate_edge_node("mock_node", llm=LLMFactory(), config={})
         self.assertIsInstance(edge_node, MockedNode)
-        self.assertEqual(edge_node.state_modifier_schema, default_state_modifier)
+        self.assertEqual(
+            [schema.prompt for schema in edge_node.state_modifier_schema],
+            [schema.prompt for schema in default_state_modifier],
+        )
+        self.assertIsNot(edge_node.state_modifier_schema[0], default_state_modifier[0])
 
     @patch("baseapp_ai_langkit.runners.models.LLMRunner.get_nodes_dict")
     def test_base_runner_instantiate_dynamic_edge_node(self, mock_get_nodes_dict):

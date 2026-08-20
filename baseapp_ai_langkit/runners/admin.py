@@ -6,7 +6,6 @@ from django.utils.safestring import mark_safe
 
 from baseapp_ai_langkit.base.interfaces.llm_node import LLMNodeInterface
 from baseapp_ai_langkit.base.prompt_schemas.base_prompt_schema import BasePromptSchema
-from baseapp_ai_langkit.base.utils.model_admin_helper import ModelAdmin
 from baseapp_ai_langkit.runners.models import (
     LLMRunner,
     LLMRunnerNode,
@@ -60,23 +59,40 @@ class LLMRunnerNodeUsagePromptInline(
     is_sortable = False
 
     def get_fields(self, request, obj=None):
-        fields = (
-            "description",
-            "usage_prompt",
-        )
-        try:
-            obj and obj.usage_prompt
-        except LLMRunnerNodeUsagePrompt.DoesNotExist:
-            fields = ("notice",)
-        return fields
+        if self._has_usage_prompt(obj):
+            return (
+                "description",
+                "usage_prompt",
+            )
+        return ("notice",)
 
     def get_readonly_fields(self, request, obj=None):
-        readonly_fields = ("description",)
-        try:
-            obj and obj.usage_prompt
-        except LLMRunnerNodeUsagePrompt.DoesNotExist:
-            readonly_fields = ("notice",)
-        return readonly_fields
+        if self._has_usage_prompt(obj):
+            return ("description",)
+        return ("notice",)
+
+    def _has_usage_prompt(self, obj) -> bool:
+        """Whether this inline has a usage prompt to edit.
+
+        ``obj`` is the object the change view is for, which for a nested inline is the root
+        :class:`LLMRunner` and not this inline's own parent: Django builds an inline's
+        fieldsets once per formset, not once per row. Reading ``obj.usage_prompt`` therefore
+        raised ``AttributeError`` on **every** runner change page, and the ``DoesNotExist``
+        this used to catch could never fire.
+
+        ``sync_runners`` creates a usage prompt row only for a node that declares a
+        ``usage_prompt_schema``, so the question is whether any row exists under the object
+        being edited. A runner whose nodes disagree gets the editable fields, and the nodes
+        without a row simply render no form; that is a cosmetic imprecision rather than the
+        crash it replaces.
+        """
+        if isinstance(obj, LLMRunner):
+            return LLMRunnerNodeUsagePrompt.objects.filter(runner_node__runner=obj).exists()
+        if isinstance(obj, LLMRunnerNode):
+            # Not what Django passes today, but it is what this code was written for, so a
+            # nested_admin that starts passing the immediate parent keeps working.
+            return LLMRunnerNodeUsagePrompt.objects.filter(runner_node=obj).exists()
+        return False
 
     def notice(self, obj: LLMRunnerNodeUsagePrompt):
         return mark_safe("<i>There is no usage prompt for this node.</i>")
@@ -130,7 +146,21 @@ class LLMRunnerNodeInline(AddAndDeleteBlockerMixin, nested_admin.NestedStackedIn
 
 
 @admin.register(LLMRunner)
-class LLMRunnerAdmin(nested_admin.NestedModelAdmin, ModelAdmin):
+class LLMRunnerAdmin(nested_admin.NestedModelAdmin):
+    """The prompt editor: a runner, its nodes, and each node's prompts, three levels deep.
+
+    Deliberately **not** mixed with unfold's ``ModelAdmin``, which is otherwise this project's
+    convention. The two do not compose: with unfold in the MRO, rendering any nested inline
+    raises ``AttributeError: 'InlineAdminFormSet' object has no attribute 'initial_forms'``
+    from ``django.contrib.admin.helpers``, because unfold hands the nested formset where
+    Django expects a plain one. Verified against unfold and django-nested-admin 4.1.6 on
+    Django 5.2 by removing unfold and nothing else: every runner change page went from 500 to
+    200. ``unfold.contrib.inlines`` does not help, being about nonrelated inlines.
+
+    The page therefore renders with the stock admin form widgets inside unfold's site chrome.
+    That is the trade: a prompt editor that works, styled less well.
+    """
+
     list_display = ("name",)
     search_fields = ("name",)
     ordering = ("name",)

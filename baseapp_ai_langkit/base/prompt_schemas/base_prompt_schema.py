@@ -33,14 +33,22 @@ class BasePromptSchema:
         self,
         description: str,
         prompt: str,
-        required_placeholders: list[str] = [],
-        placeholders_data: dict = {},
+        required_placeholders: Optional[list[str]] = None,
+        placeholders_data: Optional[dict] = None,
         conditional_rule: Optional[Callable[[dict], bool]] = None,
     ):
         self.description = description
         self.prompt = prompt
-        self.required_placeholders = required_placeholders
-        self.placeholders_data = placeholders_data
+        # Copied into fresh containers rather than defaulted to literals. These were
+        # mutable default arguments, so every schema constructed without explicit
+        # placeholders shared ONE dict for the lifetime of the process: a node that
+        # filled its placeholders at runtime filled them for every other schema too.
+        # It stayed invisible while runners were always instantiated through
+        # `get_dynamic_prompt_schemas`, which deepcopies the class-level list, and it
+        # became reachable wherever that lookup finds no runner record and the class
+        # attribute is used directly.
+        self.required_placeholders = list(required_placeholders or [])
+        self.placeholders_data = dict(placeholders_data or {})
         self.conditional_rule = conditional_rule
 
     def validate(self, custom_prompt: str = None) -> bool:
